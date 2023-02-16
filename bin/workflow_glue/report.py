@@ -19,14 +19,14 @@ def main(args):
     with open(args.metadata) as metadata:
         sample_details = [
             {
-                'sample': d['alias'],
+                'sample': d['sample_id'],
                 'type': d['type'],
                 'barcode': d['barcode']
             } for d in json.load(metadata)
         ]
 
-    if args.stats:
-        report.add_section(section=fastcat.full_report(args.stats))
+    report.add_section(
+        section=fastcat.full_report(args.summaries))
 
     section = report.add_section()
     section.markdown('## Samples')
@@ -46,7 +46,7 @@ def argparser():
     """Argument parser for entrypoint."""
     parser = wf_parser("report")
     parser.add_argument("report", help="Report output file")
-    parser.add_argument("--stats", nargs='*', help="Fastcat per-read stats file(s).")
+    parser.add_argument("summaries", nargs='+', help="Read summary file.")
     parser.add_argument(
         "--metadata", default='metadata.json',
         help="sample metadata")

@@ -1,137 +1,29 @@
 #!/usr/bin/env nextflow
-
-// Developer notes
-//
-// This template workflow provides a basic structure to copy in order
-// to create a new workflow. Current recommended pratices are:
-//     i) create a simple command-line interface.
-//    ii) include an abstract workflow scope named "pipeline" to be used
-//        in a module fashion
-//   iii) a second concreate, but anonymous, workflow scope to be used
-//        as an entry point when using this workflow in isolation.
-
 import groovy.json.JsonBuilder
 nextflow.enable.dsl = 2
 
-include { fastq_ingress } from './lib/fastqingress'
-
-OPTIONAL_FILE = file("$projectDir/data/OPTIONAL_FILE")
-
-process getVersions {
-    label "wftemplate"
-    cpus 1
-    output:
-        path "versions.txt"
-    script:
-    """
-    python -c "import pysam; print(f'pysam,{pysam.__version__}')" >> versions.txt
-    fastcat --version | sed 's/^/fastcat,/' >> versions.txt
-    """
-}
+// Load base modules
+include {bam_ingress as bam_ingress_control; bam_ingress as bam_ingress_cancer} from './lib/bamingress.nf'
+include {
+    index_ref_gzi;
+    index_ref_fai;
+    cram_cache;
+    decompress_ref;
+    } from './modules/local/common'
 
 
-process getParams {
-    label "wftemplate"
-    cpus 1
-    output:
-        path "params.json"
-    script:
-        String paramsJSON = new JsonBuilder(params).toPrettyString()
-    """
-    # Output nextflow params object to JSON
-    echo '$paramsJSON' > params.json
-    """
-}
-
-
-process makeReport {
-    label "wftemplate"
-    input:
-        val metadata
-        path per_read_stats
-        path "versions/*"
-        path "params.json"
-    output:
-        path "wf-template-*.html"
-    script:
-        String report_name = "wf-template-report.html"
-        String metadata = new JsonBuilder(metadata).toPrettyString()
-        String stats_args = \
-            (per_read_stats.name == OPTIONAL_FILE.name) ? "" : "--stats $per_read_stats"
-    """
-    echo '${metadata}' > metadata.json
-    workflow-glue report $report_name \
-        --versions versions \
-        $stats_args \
-        --params params.json \
-        --metadata metadata.json
-    """
-}
-
-
-// See https://github.com/nextflow-io/nextflow/issues/1636. This is the only way to
-// publish files from a workflow whilst decoupling the publish from the process steps.
-// The process takes a tuple containing the filename and the name of a sub-directory to
-// put the file into. If the latter is `null`, puts it into the top-level directory.
+// This is the only way to publish files from a workflow whilst
+// decoupling the publish from the process steps.
 process output {
     // publish inputs to output directory
-    label "wftemplate"
-    publishDir (
-        params.out_dir,
-        mode: "copy",
-        saveAs: { dirname ? "$dirname/$fname" : fname }
-    )
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*"
     input:
-        tuple path(fname), val(dirname)
+        path fname
     output:
         path fname
     """
+    echo "Writing output files."
     """
-}
-
-// Creates a new directory named after the sample alias and moves the fastcat results
-// into it.
-process collect_fastq_ingress_results_in_dir {
-    label "wftemplate"
-    input:
-        tuple val(meta), path(concat_seqs), path(fastcat_stats)
-    output:
-        path "*"
-    script:
-    String outdir = meta["alias"]
-    String fastcat_stats = \
-        (fastcat_stats.name == OPTIONAL_FILE.name) ? "" : fastcat_stats
-    """
-    mkdir $outdir
-    mv $concat_seqs $fastcat_stats $outdir
-    """
-}
-
-// workflow module
-workflow pipeline {
-    take:
-        reads
-    main:
-        per_read_stats = reads.map {
-            it[2] ? it[2].resolve('per-read-stats.tsv') : null
-        }
-        | collectFile ( keepHeader: true )
-        | ifEmpty ( OPTIONAL_FILE )
-        software_versions = getVersions()
-        workflow_params = getParams()
-        metadata = reads.map { it[0] }.toList()
-        report = makeReport(
-            metadata, per_read_stats, software_versions.collect(), workflow_params
-        )
-        reads
-        | map { [it[0], it[1], it[2] ?: OPTIONAL_FILE ] }
-        | collect_fastq_ingress_results_in_dir
-    emit:
-        fastq_ingress_results = collect_fastq_ingress_results_in_dir.out
-        report
-        workflow_params
-        // TODO: use something more useful as telemetry
-        telemetry = workflow_params
 }
 
 
@@ -139,27 +31,95 @@ workflow pipeline {
 WorkflowMain.initialise(workflow, params, log)
 workflow {
 
-    if (params.disable_ping == false) {
+    Map colors = NfcoreTemplate.logColours(params.monochrome_logs)
+
+    if (workflow.profile.contains("conda")) {
+        throw new Exception(colors.red + "Sorry, wf-human-variation is not compatible with --profile conda, please use --profile standard (Docker) or --profile singularity." + colors.reset)
+    }
+
+    can_start = true
+    if (!params.snp && !params.sv && !params.methyl) {
+        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snp, --sv, --methyl]" + colors.reset)
+        can_start = false
+    }
+    if (!params.bam_control || !params.bam_cancer) {
+        log.error (colors.red + "The workflow cannot run without passing both --bam_control and --bam_cancer" + colors.reset)
+        can_start = false
+    }
+    if (!file(params.bam_control).exists()) {
+        log.error (colors.red + "The workflow cannot run without passing a valid bam control file" + colors.reset)
+        can_start = false
+    }
+    if (!file(params.bam_cancer).exists()) {
+        log.error (colors.red + "The workflow cannot run without passing a valid bam cancer file" + colors.reset)
+        can_start = false
+    }
+
+    // Check ref and decompress if needed
+    ref = null
+    ref_index = null
+    if (params.ref.toLowerCase().endsWith("gz")) {
+        // gzipped ref not supported by some downstream tools (pyfaidx, cram_cache)
+        // easier to just decompress and pass it around rather than confusing the user
+        decompress_ref(file(params.ref))
+        ref = decompress_ref.out.decompressed_ref
+    }
+    else {
+        ref = Channel.fromPath(params.ref, checkIfExists: true)
+        ref_index = file(params.ref + ".fai").exists() ? Channel.of(file(params.ref + ".fai")) : index_ref_fai(ref).reference_index // Create fai index channel
+    }
+
+    // ************************************************************************
+    // Bail from the workflow for a reason we should have already specified
+    if (!can_start){
+        throw new Exception("The workflow could not be started.")
+    }
+    // ************************************************************************
+
+    // Dummy optional file
+    OPTIONAL = file("$projectDir/data/OPTIONAL_FILE")
+
+
+    if (!params.disable_ping) {
         Pinguscript.ping_post(workflow, "start", "none", params.out_dir, params)
     }
 
+    // Build ref cache for CRAM steps that do not take a reference
+    ref_cache = cram_cache(ref)
 
-    samples = fastq_ingress([
-        "input":params.fastq,
-        "sample":params.sample,
-        "sample_sheet":params.sample_sheet,
-        "analyse_unclassified":params.analyse_unclassified,
-        "fastcat_stats": true,
-        "fastcat_extra_args": ""])
+    // canonical ref and BAM channels to pass around to all processes
+    ref_channel = ref.concat(ref_index).concat(ref_cache).buffer(size: 3)
 
-    pipeline(samples)
-    pipeline.out.fastq_ingress_results
-    | map { [it, "fastq_ingress_results"] }
-    | concat (
-        pipeline.out.report.concat(pipeline.out.workflow_params)
-        | map { [it, null] }
-    )
-    | output
+    /*
+    * Start processing the bam files
+    * It accepts two bam files: 
+    * 1. Control bam
+    * 2. Cancer bam
+    */
+    bam_control = bam_ingress_control(
+            ref,
+            ref_index,
+            params.bam_control,
+        )
+    bam_cancer = bam_ingress_cancer(
+            ref,
+            ref_index,
+            params.bam_cancer,
+        )   
+    all_bams = bam_control
+                .map{ bam, bai, meta -> 
+                    meta.sample = params.sample_name
+                    meta.type = 'control'
+                    [bam, bai, meta]
+                }
+                .mix(bam_cancer.map{bam, bai, meta -> 
+                    meta.sample = params.sample_name
+                    meta.type = 'cancer'
+                    return [bam, bai, meta]
+                })
+    // Emit reference and its index
+    output(ref_channel)
+
 }
 
 if (params.disable_ping == false) {
