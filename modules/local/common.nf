@@ -68,3 +68,15 @@ process minimap2_ubam {
     """
 }
 
+// Module to convert fai index to bed
+process getAllChromosomesBed {
+    cpus 1
+    input:
+        tuple path(reference), path(ref_idx), path(ref_cache)
+    output:
+        path "allChromosomes.bed", emit: all_chromosomes_bed
+    """
+    awk '{OFS="\t"; print \$1, "0", \$2}' ${ref_idx} > allChromosomes.bed
+    # faidx --transform bed $reference > allChromosomes.bed
+    """
+}

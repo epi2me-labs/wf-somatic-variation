@@ -5,21 +5,17 @@ include:
 
 variables:
     # We'll use the single-file case for these runs
-    NF_WORKFLOW_OPTS: "--sv --sample_name test_sample --ubam_sort_threads 1 --ubam_map_threads 2 --ref http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/GRCh38_no_alt_chr17.fa --bam_control http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/HCC1395BL_normal_chr17_demo.bam --bam_cancer http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/HCC1395_tumor_chr17_demo.bam"
+    NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+    NF_PROCESS_FILES: "modules/local/wf-somatic-snp.nf"
+    NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+            --bam_control wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
+            --bam_cancer wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
+            --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
     CI_FLAVOUR: "new" # set to "classic" for old-style CI
-    NF_IGNORE_PROCESSES: "getParams,getVersions,makeReport,summariseReads"
-
-
-# Remove this block in downstream templates
-singularity-run:
-    tags: [] # no need for big ram
-# end
+    NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
 
 
 docker-run:
-
-    # Remove this directive in downstream templates
-    tags: [] # no need for big ram
 
     # Define a 1D job matrix to inject a variable named MATRIX_NAME into
     #   the CI environment, we can use the value of MATRIX_NAME to determine
@@ -28,10 +24,9 @@ docker-run:
     #   the variables, but it is broken when using long strings! See CW-756
     parallel:
         matrix:
-            # TODO: do we really need to run all from s3?
             - MATRIX_NAME: [
-                "base"
-                ]
+                "base", "wf-somatic-snp-r10", "wf-somatic-snp-r9"
+            ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
         #   we must redefine this CI_COMMIT_BRANCH rule to prevent docker-run
@@ -40,4 +35,29 @@ docker-run:
           when: never
         - if: $MATRIX_NAME == "base"
           variables:
-              NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 --bam_control http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/HCC1395BL_normal_chr17_demo.bam --bam_cancer http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/HCC1395_tumor_chr17_demo.bam --ref http://www.bio8.cs.hku.hk/clairs/quick_demo/ont/GRCh38_no_alt_chr17.fa"
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_PROCESS_FILES: ""
+              NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --bam_control wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
+                  --bam_cancer wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
+                  --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
+        - if: $MATRIX_NAME == "wf-somatic-snp-r9"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --bam_control wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
+                  --bam_cancer wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
+                  --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa \
+                  --basecaller_cfg dna_r9.4.1_e8_sup@v3.3"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,clairs_create_fullalignment_paired_tensors_indels,\
+                  clairs_create_paired_tensors_indels,clairs_merge_final_indels,clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,\
+                  clairs_predict_pileup_indel,lookup_clair3_model"
+        - if: $MATRIX_NAME == "wf-somatic-snp-r10"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --bam_control wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
+                  --bam_cancer wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
+                  --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+

@@ -9,7 +9,10 @@ include {
     index_ref_fai;
     cram_cache;
     decompress_ref;
+    getAllChromosomesBed
     } from './modules/local/common'
+include {lookup_clair3_model; output_snp} from './modules/local/wf-somatic-snp'
+include {snp} from './workflows/wf-somatic-snp'
 
 
 // This is the only way to publish files from a workflow whilst
@@ -117,6 +120,58 @@ workflow {
                     meta.type = 'cancer'
                     return [bam, bai, meta]
                 })
+
+
+    // wf-somatic-snp
+    // Check input region bed file.
+    // If it doesn't exists, then extract the regions from
+    // the reference faidx file.
+    bed = null
+    default_bed_set = false
+    if(params.bed){
+        bed = Channel.fromPath(params.bed, checkIfExists: true)
+    }
+    else {
+        default_bed_set = true
+        bed = getAllChromosomesBed(ref_channel).all_chromosomes_bed
+    }
+    // Run snp workflow if requested
+    if (params.snp) {
+        // TODO: consider implementing custom modules in future releases.
+        lookup_table = Channel
+                            .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
+                            .splitCsv(sep: '\t', header: true)
+                            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
+        clairs_model = Channel
+                            .value(params.basecaller_cfg)
+                            .cross(lookup_table) 
+                            .filter{ caller, info -> info[1] != '-' }
+                            .map{caller, info -> info[1] }
+        lookup_table = Channel
+                            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
+                            .splitCsv(sep: '\t', header: true)
+                            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
+        clair3_model = Channel
+                            .value(params.basecaller_cfg)
+                            .cross(lookup_table) 
+                            .filter{ caller, info -> info[1] != '-' }
+                            .map{caller, info -> info[1] }
+
+
+        clair_vcf = snp(
+            all_bams,
+            bed,
+            ref_channel,
+            // mosdepth_stats,
+            // bam_stats,
+            clairs_model,
+            clair3_model,
+        )
+        
+        // Publish outputs in the appropriate folder
+        clair_vcf | output_snp
+    }
+
     // Emit reference and its index
     output(ref_channel)
 

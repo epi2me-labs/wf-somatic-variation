@@ -7,3 +7,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Changed
 - Initialised wf-somatic-variation from wf-template
+- Implemented wf-somatic-snp module, that runs ClairS in a highly parallelised way.
+- Implemented some accessory modules to visualise the results from ClairS (mutation spectra, variant allele frequency).  

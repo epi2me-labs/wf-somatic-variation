@@ -3,11 +3,7 @@
 This repository contains a [nextflow](https://www.nextflow.io/) workflow
 to identify somatic variation in a paired control/cancer sample.
 This workflow is intended to perform:
-> Somatic structural variants calling (SV; in development).
-> Differentialy methylated regions (DMR; in development).
-> Somatic short variant calling (SNP; in development).
-> Short tandem repeat detection (STR; in development).
-
+ - Somatic short variant calling (SNP).
 
 
 
@@ -15,10 +11,7 @@ This workflow is intended to perform:
 ## Introduction
 
 This workflow enables analysis of somatic variation using the following tools:
-> [Nanomonsv](https://github.com/friend1ws/nanomonsv) for the somatic SV calling
-> [modbam2bed](https://github.com/epi2me-labs/modbam2bed) for the methylated regions calling, and [DSS](https://bioconductor.org/packages/release/bioc/html/DSS.html) for the differentially methylated regions detection
-> [ClairS](https://github.com/HKU-BAL/ClairS) to call somatic short variants  
-
+1. [ClairS](https://github.com/HKU-BAL/ClairS)
 
 
 
@@ -36,6 +29,7 @@ either Docker or Singularity is installed.
 It is not required to clone or download the git repository in order to run the workflow.
 For more information on running EPI2ME Labs workflows [visit our website](https://labs.epi2me.io/wfindex).
 
+
 **Workflow options**
 
 To obtain the workflow, having installed `nextflow`, users can run:
@@ -46,6 +40,67 @@ nextflow run epi2me-labs/wf-somatic-variation --help
 
 to see the options for the workflow.
 
+**Somatic short variant calling**
+
+The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/control sample.
+This workflow allows to take advantage of the parallel nature of Nextflow, providing the best performance in high-performance, distributed systems.
+
+Currently, ClairS supports the following basecalling models:
+ - dna_r10.4.1_e8.2_400bps_sup@v3.5.2
+ - dna_r9.4.1_e8_hac@v3.3
+ - dna_r9.4.1_e8_sup@v3.3
+ - dna_r9.4.1_450bps_hac_prom
+ - dna_r9.4.1_450bps_hac
+Any other model provided will prevent the workflow to start. 
+
+**Indel calling**
+
+Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specify an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
+
+**Output folder**
+The output directory has the following structure:
+```
+output/
+├── GRCh38_no_alt_chr17.fa
+├── GRCh38_no_alt_chr17.fa.fai
+├── ref_cache
+├── execution # Execution reports
+│   ├── report.html
+│   ├── timeline.html
+│   └── trace.txt
+└── snp # ClairS outputs
+    ├── SAMPLE  # ClairS outputs for SAMPLE
+    │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
+    │   │   └── SAMPLE_spectrum.csv
+    │   ├── varstats  # Bcftools stats output
+    │   │   └── SAMPLE.stats
+    │   └── vcf  # VCF outputs
+    │       ├── SAMPLE_somatic_mutype.vcf.gz
+    │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
+    │       ├── germline  # Germline calling for both cancer and control bams
+    │       │   ├── cancer
+    │       │   │   ├── SAMPLE_cancer_germline.vcf.gz
+    │       │   │   └── SAMPLE_cancer_germline.vcf.gz.tbi
+    │       │   └── control
+    │       │       ├── SAMPLE_control_germline.vcf.gz
+    │       │       └── SAMPLE_control_germline.vcf.gz.tbi
+    │       ├── indels  # VCF containing the indels from ClairS
+    │       │   ├── SAMPLE_somatic_indels.vcf.gz
+    │       │   └── SAMPLE_somatic_indels.vcf.gz.tbi
+    │       └── snv  # VCF containing the SNVs from ClairS
+    │           ├── SAMPLE_somatic_snv.vcf.gz
+    │           └── SAMPLE_somatic_snv.vcf.gz.tbi
+    ├── info  # Runtime info
+    │   ├── params.json
+    │   └── versions.txt
+    └── reports  # Output report for the workflow
+        └── SAMPLE.wf-somatic-snp-report.html
+```
+The primary outputs are:
+1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
+2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
+3. `output/snp/SAMPLE/vcf/germline/[cancer/control]`: the germline calls for both the tumor and normal bam files
+4. `output/snp/reports`: the report of the SNP pipeline
 
 
 
@@ -54,3 +109,4 @@ to see the options for the workflow.
 * [nextflow](https://www.nextflow.io/)
 * [docker](https://www.docker.com/products/docker-desktop)
 * [singularity](https://docs.sylabs.io/guides/latest/user-guide/)
+* [ClairS](https://github.com/HKU-BAL/ClairS)
