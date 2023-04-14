@@ -408,7 +408,7 @@ process clairs_predict_pileup {
             path(intervals),
             path(tensor)
     output:
-        tuple val(meta), path("vcf_output/p_${intervals.getName()}.vcf")
+        tuple val(meta), path("vcf_output/p_${intervals.getName()}.vcf"), optional: true
             
     script:
         def print_ref = params.print_ref_calls ? "--show_ref" : ""
@@ -529,7 +529,7 @@ process clairs_predict_full {
             path(tensor),
             val(model)
     output:
-        tuple val(meta), path("vcf_output/fa_${intervals.getName()}.vcf"), emit: full_vcfs
+        tuple val(meta), path("vcf_output/fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
             
     script:
         def print_ref = params.print_ref_calls ? "--show_ref" : ""
@@ -732,7 +732,7 @@ process clairs_predict_pileup_indel {
             path(intervals),
             path(tensor)
     output:
-        tuple val(meta), path("vcf_output/indel_p_${intervals.getName()}.vcf")
+        tuple val(meta), path("vcf_output/indel_p_${intervals.getName()}.vcf"), optional: true
             
     script:
         def print_ref = params.print_ref_calls ? "--show_ref" : ""
@@ -851,7 +851,7 @@ process clairs_predict_full_indels {
             path(tensor),
             val(model)
     output:
-        tuple val(meta), path("vcf_output/indels_fa_${intervals.getName()}.vcf"), emit: full_vcfs
+        tuple val(meta), path("vcf_output/indels_fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
             
     script:
         def print_ref = params.print_ref_calls ? "--show_ref" : ""
