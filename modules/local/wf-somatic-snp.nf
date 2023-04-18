@@ -954,7 +954,7 @@ process clairs_merge_snv_and_indels {
             
     shell:
         '''
-        bcftools concat !{snvs_vcf} !{indels_vcf} | \\
+        bcftools concat -a !{snvs_vcf} !{indels_vcf} | \\
             bcftools sort -m 2G -T ./ -O z > !{meta.sample}_somatic.vcf.gz && \\
             tabix -p vcf !{meta.sample}_somatic.vcf.gz
         '''
@@ -963,7 +963,6 @@ process clairs_merge_snv_and_indels {
 // Annotate the mutational spectrum
 process annotate_spectra {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
     cpus 1
     input:
         tuple val(meta),
