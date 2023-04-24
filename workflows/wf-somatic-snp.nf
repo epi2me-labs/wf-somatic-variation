@@ -52,20 +52,20 @@ workflow snp {
         clairs_model
         clair3_model
     main:
-        // Branch cancer and control for downstream works
+        // Branch tumor and normal for downstream works
         bam_channel.branch{
-            cancer: it[2].type == 'cancer'
-            control: it[2].type == 'control'
+            tumor: it[2].type == 'tumor'
+            normal: it[2].type == 'normal'
         }.set{forked_channel}        
 
         // Initialize contigs and intervals for each pair of tumor/normal bam files
-        forked_channel.control
+        forked_channel.normal
             .map{ bam, bai, meta -> [ meta.sample, bam, bai, meta ] } 
             .cross(
-                forked_channel.cancer.map{ bam, bai, meta -> [ meta.sample, bam, bai, meta ] }
+                forked_channel.tumor.map{ bam, bai, meta -> [ meta.sample, bam, bai, meta ] }
             )
-            .map { control, cancer ->
-                    [control[1], control[2], cancer[1], cancer[2], cancer[3]]
+            .map { normal, tumor ->
+                    [normal[1], normal[2], tumor[1], tumor[2], tumor[3]]
                 } 
             .map{ it -> it.flatten() }
             .set{paired_samples}
@@ -225,18 +225,18 @@ workflow snp {
         // First, we branch based on whether they are tumor or normal:
         aggregate_all_variants.out.final_vcf
             .branch{
-                cancer: it[0].type == 'cancer'
-                control: it[0].type == 'control'
+                tumor: it[0].type == 'tumor'
+                normal: it[0].type == 'normal'
             }.set{forked_vcfs}
 
-        // Then we can combine cancer and control for the same sample.
-        forked_vcfs.control
+        // Then we can combine tumor and normal for the same sample.
+        forked_vcfs.normal
             .map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] } 
             .cross(
-                forked_vcfs.cancer.map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] }
+                forked_vcfs.tumor.map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] }
             )
-            .map { control, cancer ->
-                    [cancer[3], cancer[1], cancer[2], control[3], control[1], control[2], ]
+            .map { normal, tumor ->
+                    [tumor[3], tumor[1], tumor[2], normal[3], normal[1], normal[2], ]
                 } 
             .map{ it -> it.flatten() }
             .set{paired_vcfs}
@@ -292,48 +292,48 @@ workflow snp {
         /*
         /  Processing the full alignments
         */
-        // Extract the germline heterozygote sites using both normal and cancer
+        // Extract the germline heterozygote sites using both normal and tumor
         // VCF files
         clairs_select_het_snps(paired_vcfs.combine(clairs_contigs, by: 0))
 
-        // Prepare the input channel for the phasing (cancer or cancer+normal if requested).
+        // Prepare the input channel for the phasing (tumor or tumor+normal if requested).
         if (params.phase_normal){
-            clairs_select_het_snps.out.control_hets
-                .combine(forked_channel.control
+            clairs_select_het_snps.out.normal_hets
+                .combine(forked_channel.normal
                             .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
                             )
                 .combine(ref)
                 .mix(
-                    clairs_select_het_snps.out.cancer_hets
-                        .combine(forked_channel.cancer
+                    clairs_select_het_snps.out.tumor_hets
+                        .combine(forked_channel.tumor
                                     .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
                                     )
                         .combine(ref)
                 )
                 .set { het_to_phase }
         } else {
-            clairs_select_het_snps.out.cancer_hets
-                .combine(forked_channel.cancer
+            clairs_select_het_snps.out.tumor_hets
+                .combine(forked_channel.tumor
                             .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
                             )
                 .combine(ref)
                 .set { het_to_phase }
         }
 
-        // Phase and haplotag the selected vcf and bams (cancer-only or both).
+        // Phase and haplotag the selected vcf and bams (tumor-only or both).
         het_to_phase | clairs_phase | clairs_haplotag
 
         // Prepare the channel for the tensor generation.
         // If phase normal is specified, then combine the phased VCF files 
-        // for both the cancer and the normal haplotagged samples...
+        // for both the tumor and the normal haplotagged samples...
         if (params.phase_normal){
             clairs_haplotag.out.phased_data
                 .branch{
-                    cancer: it[4].type == 'cancer'
-                    control: it[4].type == 'control'
+                    tumor: it[4].type == 'tumor'
+                    normal: it[4].type == 'normal'
                 }.set{f_phased_channel}
-            f_phased_channel.cancer
-                .combine(f_phased_channel.control, by: [0,1])
+            f_phased_channel.tumor
+                .combine(f_phased_channel.normal, by: [0,1])
                 .map{sample, contig, tbam, tbai, tmeta, nbam, nbai, nmeta -> 
                         [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                 }
@@ -342,10 +342,10 @@ workflow snp {
                 .combine(ref)
                 .combine(clairs_model)
                 .set{ paired_phased_channel }
-        // ...otherwise keep only the cancer haplotagged bam files.
+        // ...otherwise keep only the tumor haplotagged bam files.
         } else {
             clairs_haplotag.out.phased_data
-                .combine(forked_channel.control.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
+                .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                 .combine(
                     clairs_extract_candidates.out.candidates_snvs.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                 .combine(ref)
@@ -385,7 +385,7 @@ workflow snp {
                 .set{ clair_all_variants }
             clair_all_variants | clairs_merge_final
         } else {
-            // Create channel with the cancer bam, all the VCFs
+            // Create channel with the tumor bam, all the VCFs
             // (germline, pileup and full-alignment) and the 
             // reference genome.
             clairs_haplotag.out.phased_data
@@ -425,11 +425,11 @@ workflow snp {
             if (params.phase_normal){
                 clairs_haplotag.out.phased_data
                     .branch{
-                        cancer: it[4].type == 'cancer'
-                        control: it[4].type == 'control'
+                        tumor: it[4].type == 'tumor'
+                        normal: it[4].type == 'normal'
                     }.set{f_phased_channel}
-                f_phased_channel.cancer
-                    .combine(f_phased_channel.control, by: [0,1])
+                f_phased_channel.tumor
+                    .combine(f_phased_channel.normal, by: [0,1])
                     .map{sample, contig, tbam, tbai, tmeta, nbam, nbai, nmeta -> 
                             [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                     }
@@ -438,10 +438,10 @@ workflow snp {
                     .combine(ref)
                     .combine(clairs_model)
                     .set{ paired_phased_indels_channel }
-            // ...otherwise keep only the cancer haplotagged bam files.
+            // ...otherwise keep only the tumor haplotagged bam files.
             } else {
                 clairs_haplotag.out.phased_data
-                    .combine(forked_channel.control.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
+                    .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                     .combine(
                         clairs_extract_candidates.out.candidates_indels.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                     .combine(ref)
@@ -518,20 +518,20 @@ workflow snp {
                     meta, txt -> [txt, "snp/${meta.sample}/vcf"]
                     })
             .concat(
-                forked_vcfs.cancer.map{
-                    meta, vcf, tbi -> [vcf, "snp/${meta.sample}/vcf/germline/cancer"]
+                forked_vcfs.tumor.map{
+                    meta, vcf, tbi -> [vcf, "snp/${meta.sample}/vcf/germline/tumor"]
                     })
             .concat(
-                forked_vcfs.cancer.map{
-                    meta, vcf, tbi -> [tbi, "snp/${meta.sample}/vcf/germline/cancer"]
+                forked_vcfs.tumor.map{
+                    meta, vcf, tbi -> [tbi, "snp/${meta.sample}/vcf/germline/tumor"]
                     })
             .concat(
-                forked_vcfs.control.map{
-                    meta, vcf, tbi -> [vcf, "snp/${meta.sample}/vcf/germline/control"]
+                forked_vcfs.normal.map{
+                    meta, vcf, tbi -> [vcf, "snp/${meta.sample}/vcf/germline/normal"]
                     })
             .concat(
-                forked_vcfs.control.map{
-                    meta, vcf, tbi -> [tbi, "snp/${meta.sample}/vcf/germline/control"]
+                forked_vcfs.normal.map{
+                    meta, vcf, tbi -> [tbi, "snp/${meta.sample}/vcf/germline/normal"]
                     })
             .concat(
                 vcfStats.out.map{

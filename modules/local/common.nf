@@ -1,3 +1,5 @@
+import groovy.json.JsonBuilder
+
 process cram_cache {
     input:
         path reference
@@ -78,5 +80,36 @@ process getAllChromosomesBed {
     """
     awk '{OFS="\t"; print \$1, "0", \$2}' ${ref_idx} > allChromosomes.bed
     # faidx --transform bed $reference > allChromosomes.bed
+    """
+}
+
+process getVersions {
+    cpus 1
+    output:
+        path "versions.txt"
+    script:
+    """
+    python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions.txt
+    minimap2 --version | sed 's/^/minimap2,/' >> versions.txt
+    samtools --version | (head -n 1 && exit 0) | sed 's/ /,/' >> versions.txt
+    fastcat --version | sed 's/^/fastcat,/' >> versions.txt
+    mosdepth --version | sed 's/ /,/' >> versions.txt
+    ezcharts --version | sed 's/ /,/' >> versions.txt
+    python -c "import pysam; print(pysam.__version__)" | sed 's/^/pysam,/'  >> versions.txt
+    bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions
+    tabix --version | awk 'NR==1 {print \$1","\$3}' >> versions
+    """
+}
+
+
+process getParams {
+    cpus 1
+    output:
+        path "params.json"
+    script:
+        def paramsJSON = new JsonBuilder(params).toPrettyString()
+    """
+    # Output nextflow params object to JSON
+    echo '$paramsJSON' > params.json
     """
 }

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented wf-somatic-snp module, that runs ClairS in a highly parallelised way.
 - Implemented some accessory modules to visualise the results from ClairS (mutation spectra, variant allele frequency).  
 - Updated to Oxford Nanopore Technologies PLC. Public License
+- Implemented report of alignment statistics 
 
 ### Fixed
 - Workflow crashing when predicting in regions without variants

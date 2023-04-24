@@ -37,7 +37,7 @@
                 "str": {
                     "type": "boolean",
                     "description": "Enable identification of differential short tandem repeat",
-                    "help_text": "This analysis identifies short tandem repeat (STR) elements in both cancer and control sample. It then compares the two to identify the somatic changes.",
+                    "help_text": "This analysis identifies short tandem repeat (STR) elements in both tumor and normal sample. It then compares the two to identify the somatic changes.",
                     "hidden": true,
                     "default": false
                 }
@@ -49,16 +49,16 @@
             "fa_icon": "fas fa-arrow-right",
             "description": "Parameters for finding and handling input data for analysis.",
             "properties": {
-                "bam_control": {
+                "bam_normal": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the control sample.",
+                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample.",
                     "help_text": "You may choose to provide a BAM/CRAM, but not both."
                 },
-                "bam_cancer": {
+                "bam_tumor": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the cancer sample.",
+                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample.",
                     "help_text": "You may choose to provide a BAM/CRAM, but not both."
                 },
                 "ref": {
@@ -190,7 +190,7 @@
                     "type": "boolean",
                     "default": false,
                     "hidden": true,
-                    "description": "Phase and tag the control, in addition to the cancer dataset."
+                    "description": "Phase and tag the normal, in addition to the tumor dataset."
                 },
                 "clair3_phase_vcf": {
                     "type": "boolean",
@@ -237,21 +237,23 @@
                 }
             }
         },
-        "samples": {
-            "title": "Sample Options",
+        "qc_options": {
+            "title": "Quality Control Options",
             "type": "object",
             "fa_icon": "fas fa-vials",
-            "description": "Parameters that relate to samples such as sample sheets and sample names.",
+            "description": "Parameters that relate to the quality control of the reads.",
             "properties": {
-                "sample_sheet": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a directory containing sub-directories with FASTQ files.",
-                    "help_text": "The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`."
+                "tumor_min_coverage": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Minimum read coverage for the tumor sample required to run analysis.",
+                    "hidden": false
                 },
-                "sample_name": {
-                    "type": "string",
-                    "description": "A single sample name for non-multiplexed data. Permissible if passing a single .fastq(.gz) file or directory of .fastq(.gz) files."
+                "normal_min_coverage": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Minimum read coverage for the normal sample required to run analysis.",
+                    "hidden": false
                 }
             }
         },
@@ -266,6 +268,12 @@
                     "default": "output",
                     "format": "directory-path",
                     "description": "Directory for output of all workflow results."
+                },
+                "sample_name": {
+                    "type": "string",
+                    "default": "SAMPLE",
+                    "description": "Sample name to be displayed in workflow outputs.",
+                    "help_text": ""
                 }
             }
         },
@@ -340,9 +348,6 @@
             "$ref": "#/definitions/input"
         },
         {
-            "$ref": "#/definitions/samples"
-        },
-        {
             "$ref": "#/definitions/output"
         },
         {
@@ -353,6 +358,9 @@
         },
         {
             "$ref": "#/definitions/multiprocessing_options"
+        },
+        {
+            "$ref": "#/definitions/qc_options"
         },
         {
             "$ref": "#/definitions/misc"
