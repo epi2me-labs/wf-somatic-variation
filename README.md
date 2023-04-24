@@ -1,7 +1,7 @@
 # Somatic variation workflow
 **NOTE: this workflow is currently under active development and still doesn't call somatic variation**
 This repository contains a [nextflow](https://www.nextflow.io/) workflow
-to identify somatic variation in a paired control/cancer sample.
+to identify somatic variation in a paired normal/tumor sample.
 This workflow is intended to perform:
  - Somatic short variant calling (SNP).
 
@@ -42,7 +42,7 @@ to see the options for the workflow.
 
 **Somatic short variant calling**
 
-The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/control sample.
+The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/normal sample.
 This workflow allows to take advantage of the parallel nature of Nextflow, providing the best performance in high-performance, distributed systems.
 
 Currently, ClairS supports the following basecalling models:
@@ -77,13 +77,13 @@ output/
     │   └── vcf  # VCF outputs
     │       ├── SAMPLE_somatic_mutype.vcf.gz
     │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
-    │       ├── germline  # Germline calling for both cancer and control bams
-    │       │   ├── cancer
-    │       │   │   ├── SAMPLE_cancer_germline.vcf.gz
-    │       │   │   └── SAMPLE_cancer_germline.vcf.gz.tbi
-    │       │   └── control
-    │       │       ├── SAMPLE_control_germline.vcf.gz
-    │       │       └── SAMPLE_control_germline.vcf.gz.tbi
+    │       ├── germline  # Germline calling for both tumor and normal bams
+    │       │   ├── tumor
+    │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
+    │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
+    │       │   └── normal
+    │       │       ├── SAMPLE_normal_germline.vcf.gz
+    │       │       └── SAMPLE_normal_germline.vcf.gz.tbi
     │       ├── indels  # VCF containing the indels from ClairS
     │       │   ├── SAMPLE_somatic_indels.vcf.gz
     │       │   └── SAMPLE_somatic_indels.vcf.gz.tbi
@@ -99,7 +99,7 @@ output/
 The primary outputs are:
 1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
-3. `output/snp/SAMPLE/vcf/germline/[cancer/control]`: the germline calls for both the tumor and normal bam files
+3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
 4. `output/snp/reports`: the report of the SNP pipeline
 
 

@@ -108,10 +108,10 @@ process wf_build_regions {
     label "wf_somatic_snp"
     cpus 1
     input:
-        tuple path(control_bam, stageAs: "control/*"), 
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"), 
-            path(cancer_bai, stageAs: "cancer/*"), 
+        tuple path(normal_bam, stageAs: "normal/*"), 
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"), 
+            path(tumor_bai, stageAs: "tumor/*"), 
             val(meta) 
         tuple path(ref), path(fai), path(ref_cache)
         val model
@@ -128,8 +128,8 @@ process wf_build_regions {
         def indels_call = params.basecaller_cfg.startsWith('dna_r10') ? "--enable_indel_calling" : ""
         """
         \$CLAIRS_PATH/run_clairs ${target_ctg} ${include_ctgs} \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
-            --normal_bam_fn ${control_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
             --ref_fn ${ref} \\
             --platform ${model} \\
             --output_dir ./${meta.sample} \\
@@ -152,23 +152,23 @@ process clairs_select_het_snps {
     label "wf_somatic_snp"
     cpus 2
     input:
-        tuple val(meta_cancer), 
-            path(cancer_vcf, stageAs: "cancer.vcf.gz"), 
-            path(cancer_tbi, stageAs: "cancer.vcf.gz.tbi"),
-            val(meta_control),
-            path(control_vcf, stageAs: "control.vcf.gz"),
-            path(control_tbi, stageAs: "control.vcf.gz.tbi"),
+        tuple val(meta_tumor), 
+            path(tumor_vcf, stageAs: "tumor.vcf.gz"), 
+            path(tumor_tbi, stageAs: "tumor.vcf.gz.tbi"),
+            val(meta_normal),
+            path(normal_vcf, stageAs: "normal.vcf.gz"),
+            path(normal_tbi, stageAs: "normal.vcf.gz.tbi"),
             
             val(contig)
             
     output:
-        tuple val(meta_control), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: control_hets
-        tuple val(meta_cancer), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: cancer_hets
+        tuple val(meta_normal), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: normal_hets
+        tuple val(meta_tumor), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: tumor_hets
     shell:
         '''
         pypy3 $CLAIRS_PATH/clairs.py select_hetero_snp_for_phasing \\
-            --tumor_vcf_fn cancer.vcf.gz \\
-            --normal_vcf_fn control.vcf.gz \\
+            --tumor_vcf_fn tumor.vcf.gz \\
+            --normal_vcf_fn normal.vcf.gz \\
             --output_folder split_folder/ \\
             --ctg_name !{contig}
 
@@ -278,10 +278,10 @@ process clairs_extract_candidates {
     input:
         tuple val(meta),
             val(region),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -308,8 +308,8 @@ process clairs_extract_candidates {
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir candidates; mkdir indels
         pypy3 \$CLAIRS_PATH/clairs.py extract_pair_candidates \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
-            --normal_bam_fn ${control_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
             --ref_fn ${ref} \\
             --samtools samtools \\
             --snv_min_af ${params.snv_min_af} \\
@@ -342,10 +342,10 @@ process clairs_create_paired_tensors {
     input:
         tuple val(meta),
             val(region),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -356,10 +356,10 @@ process clairs_create_paired_tensors {
     output:
         tuple val(meta),
             val(region),
-            path(control_bam),
-            path(control_bai),
-            path(cancer_bam),
-            path(cancer_bai),
+            path(normal_bam),
+            path(normal_bai),
+            path(tumor_bam),
+            path(tumor_bai),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -374,8 +374,8 @@ process clairs_create_paired_tensors {
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir -p tmp/pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
-            --normal_bam_fn ${control_bam.getName()} \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
             --ref_fn ${ref} \\
             --samtools samtools \\
             --ctg_name ${region.contig} \\
@@ -395,10 +395,10 @@ process clairs_predict_pileup {
     input:
         tuple val(meta),
             val(region),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -466,11 +466,11 @@ process clairs_create_fullalignment_paired_tensors {
     input:
         tuple val(sample), 
             val(contig), 
-            path(cancer_bam, stageAs: "cancer/*"), 
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(tumor_bam, stageAs: "tumor/*"), 
+            path(tumor_bai, stageAs: "tumor/*"),
             val(meta), 
-            path(control_bam, stageAs: "control/*"), 
-            path(control_bai, stageAs: "control/*"), 
+            path(normal_bam, stageAs: "normal/*"), 
+            path(normal_bai, stageAs: "normal/*"), 
             path(intervals),
             path(ref), 
             path(fai), 
@@ -479,10 +479,10 @@ process clairs_create_fullalignment_paired_tensors {
     output:
         tuple val(meta),
             val(contig),
-            path(control_bam),
-            path(control_bai),
-            path(cancer_bam),
-            path(cancer_bai),
+            path(normal_bam),
+            path(normal_bai),
+            path(tumor_bam),
+            path(tumor_bai),
             path(ref), 
             path(fai), 
             path(ref_cache),
@@ -497,8 +497,8 @@ process clairs_create_fullalignment_paired_tensors {
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
             --samtools samtools \\
-            --normal_bam_fn ${control_bam.getName()} \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
             --ref_fn ${ref} \\
             --ctg_name ${contig} \\
             --candidates_bed_regions ${intervals} \\
@@ -518,10 +518,10 @@ process clairs_predict_full {
     input:
         tuple val(meta),
             val(contig),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(ref), 
             path(fai), 
             path(ref_cache),
@@ -585,8 +585,8 @@ process clairs_full_hap_filter {
     cpus 2
     input:
         tuple val(meta),
-            path(cancer_bams, stageAs: "bams/*"),
-            path(cancer_bai, stageAs: "bams/*"),
+            path(tumor_bams, stageAs: "bams/*"),
+            path(tumor_bai, stageAs: "bams/*"),
             path(germline_vcf),
             path(germline_tbi),
             path(pileup_vcf),
@@ -667,10 +667,10 @@ process clairs_create_paired_tensors_indels {
     input:
         tuple val(meta),
             val(region),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -681,10 +681,10 @@ process clairs_create_paired_tensors_indels {
     output:
         tuple val(meta),
             val(region),
-            path(control_bam),
-            path(control_bai),
-            path(cancer_bam),
-            path(cancer_bai),
+            path(normal_bam),
+            path(normal_bai),
+            path(tumor_bam),
+            path(tumor_bai),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -699,8 +699,8 @@ process clairs_create_paired_tensors_indels {
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir -p tmp/indel_pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
-            --normal_bam_fn ${control_bam.getName()} \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
             --ref_fn ${ref} \\
             --samtools samtools \\
             --ctg_name ${region.contig} \\
@@ -719,10 +719,10 @@ process clairs_predict_pileup_indel {
     input:
         tuple val(meta),
             val(region),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(split_beds),
             path(ref), 
             path(fai), 
@@ -790,11 +790,11 @@ process clairs_create_fullalignment_paired_tensors_indels {
     input:
         tuple val(sample), 
             val(contig), 
-            path(cancer_bam, stageAs: "cancer/*"), 
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(tumor_bam, stageAs: "tumor/*"), 
+            path(tumor_bai, stageAs: "tumor/*"),
             val(meta), 
-            path(control_bam, stageAs: "control/*"), 
-            path(control_bai, stageAs: "control/*"), 
+            path(normal_bam, stageAs: "normal/*"), 
+            path(normal_bai, stageAs: "normal/*"), 
             path(intervals),
             path(ref), 
             path(fai), 
@@ -803,10 +803,10 @@ process clairs_create_fullalignment_paired_tensors_indels {
     output:
         tuple val(meta),
             val(contig),
-            path(control_bam),
-            path(control_bai),
-            path(cancer_bam),
-            path(cancer_bai),
+            path(normal_bam),
+            path(normal_bai),
+            path(tumor_bam),
+            path(tumor_bai),
             path(ref), 
             path(fai), 
             path(ref_cache),
@@ -821,8 +821,8 @@ process clairs_create_fullalignment_paired_tensors_indels {
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
             --samtools samtools \\
-            --normal_bam_fn ${control_bam.getName()} \\
-            --tumor_bam_fn ${cancer_bam.getName()} \\
+            --normal_bam_fn ${normal_bam.getName()} \\
+            --tumor_bam_fn ${tumor_bam.getName()} \\
             --ref_fn ${ref} \\
             --ctg_name ${contig} \\
             --candidates_bed_regions ${intervals} \\
@@ -840,10 +840,10 @@ process clairs_predict_full_indels {
     input:
         tuple val(meta),
             val(contig),
-            path(control_bam, stageAs: "control/*"),
-            path(control_bai, stageAs: "control/*"),
-            path(cancer_bam, stageAs: "cancer/*"),
-            path(cancer_bai, stageAs: "cancer/*"),
+            path(normal_bam, stageAs: "normal/*"),
+            path(normal_bai, stageAs: "normal/*"),
+            path(tumor_bam, stageAs: "tumor/*"),
+            path(tumor_bai, stageAs: "tumor/*"),
             path(ref), 
             path(fai), 
             path(ref_cache),

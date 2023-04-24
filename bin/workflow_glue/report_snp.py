@@ -34,7 +34,7 @@ def vcf_parse(args):
 
 
 def vaf_plot(vaf, naf, section):
-    """Plot the allele frequencies for cancer sample."""
+    """Plot the allele frequencies for tumor sample."""
     # Plot the histogram of the allele frequencies in the tumor and normal
     plot_af = hist.histogram(
         [vaf],
@@ -76,7 +76,7 @@ def filt_stats(filters, vaf, naf, af_filters, section):
         'PASS': [df.query('Filter == "PASS"').shape[0]],
         'not PASS': [df.query('Filter != "PASS"').shape[0]]
         }
-    # Add filtered variant counts for the cancer
+    # Add filtered variant counts for the tumor
     for c_name in ('Tumor_AF', 'Normal_AF'):
         for filt in af_filters:
             colname = "{} >= {}".format(c_name.replace('_', ' '), filt)
