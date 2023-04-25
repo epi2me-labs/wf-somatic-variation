@@ -6,8 +6,8 @@ include:
 variables:
     # We'll use the single-file case for these runs
     NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-    NF_PROCESS_FILES: "modules/local/wf-somatic-snp.nf"
-    NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+    NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
+    NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
             --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
             --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
             --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
@@ -25,7 +25,7 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "base", "wf-somatic-snp-r10", "wf-somatic-snp-r9", "wf-somatic-snp-r10-fail"
+                "base", "wf-somatic-snv-r10", "wf-somatic-snv-r9", "wf-somatic-snv-r10-fail"
             ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
@@ -42,10 +42,10 @@ docker-run:
                   --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
                   --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
                   --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
-        - if: $MATRIX_NAME == "wf-somatic-snp-r9"
+        - if: $MATRIX_NAME == "wf-somatic-snv-r9"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-              NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
                   --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
                   --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
@@ -54,19 +54,19 @@ docker-run:
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,clairs_create_fullalignment_paired_tensors_indels,\
                   clairs_create_paired_tensors_indels,clairs_merge_final_indels,clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,\
                   clairs_predict_pileup_indel,lookup_clair3_model"
-        - if: $MATRIX_NAME == "wf-somatic-snp-r10"
+        - if: $MATRIX_NAME == "wf-somatic-snv-r10"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-              NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
                   --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
                   --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
                   --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
-        - if: $MATRIX_NAME == "wf-somatic-snp-r10-fail"
+        - if: $MATRIX_NAME == "wf-somatic-snv-r10-fail"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-              NF_WORKFLOW_OPTS: "--snp --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
                   --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
                   --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
