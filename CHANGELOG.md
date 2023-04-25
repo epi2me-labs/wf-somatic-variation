@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented some accessory modules to visualise the results from ClairS (mutation spectra, variant allele frequency).  
 - Updated to Oxford Nanopore Technologies PLC. Public License
 - Implemented report of alignment statistics 
+- Update reporting script to use ezcharts
 
 ### Fixed
 - Workflow crashing when predicting in regions without variants

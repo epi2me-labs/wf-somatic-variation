@@ -503,7 +503,7 @@ workflow snv {
             .combine(ch_tbi, by: 0)
             .combine(vcfStats.out[0], by: 0)
             .combine(annotate_spectra.out.spectrum, by: 0)
-            .combine(software_versions.collect())
+            .combine(software_versions)
             .combine(workflow_params)
             .set{ reporting }
         makeReport(reporting)

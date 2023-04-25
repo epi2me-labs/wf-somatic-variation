@@ -63,7 +63,7 @@ process vcfStats {
 
 process makeReport {
     input:
-        tuple val(meta), path(vcf), path(tbi), path(vcfstats), path(mutspectra), path(versions), path("params.json")
+        tuple val(meta), path(vcf), path(tbi), path("vcfstats.txt"), path("spectra.csv"), path("version.txt"), path("params.json")
     output:
         path "*report.html", emit: html
     script:
@@ -73,15 +73,13 @@ process makeReport {
             wfversion = workflow.commitId
         }
         """
-        workflow-glue report_snp \\
+        workflow-glue report_snv \\
             $report_name \\
-            --versions $versions \\
+            --versions version.txt \\
             --params params.json \\
-            --vcf_stats $vcfstats \\
+            --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
-            --mut_spectra $mutspectra \\
-            --revision $wfversion \\
-            --commit $workflow.commitId
+            --mut_spectra spectra.csv 
         """
 }
 
