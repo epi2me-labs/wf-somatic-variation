@@ -16,3 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Workflow crashing when predicting in regions without variants
 - Workflow crashing when concatenating SNP and Indel VCF files
+- Workflow interrupting when an empty Indel VCF file is generated

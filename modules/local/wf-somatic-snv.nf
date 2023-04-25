@@ -941,18 +941,14 @@ process clairs_merge_snv_and_indels {
     label "wf_somatic_snv"
     cpus 1
     input:
-        tuple val(meta), 
-            path(snvs_vcf, stageAs: 'snv.vcf.gz'), 
-            path(snvs_tbi, stageAs: 'snv.vcf.gz.tbi'), 
-            path(indels_vcf, stageAs: 'indels.vcf.gz'), 
-            path(indels_tbi, stageAs: 'indels.vcf.gz.tbi')
+        tuple val(meta), path(vcfs, stageAs: 'VCFs/*'), path(tbis, stageAs: 'VCFs/*')
     output:
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: pileup_vcf
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: pileup_tbi
             
     shell:
         '''
-        bcftools concat -a !{snvs_vcf} !{indels_vcf} | \\
+        bcftools concat -a VCFs/*.vcf.gz | \\
             bcftools sort -m 2G -T ./ -O z > !{meta.sample}_somatic.vcf.gz && \\
             tabix -p vcf !{meta.sample}_somatic.vcf.gz
         '''
