@@ -3,7 +3,7 @@ process make_chunks {
     // Do some preliminaries. Ordinarily this would setup a working directory
     // that all other commands would make use off, but all we need here are the
     // list of contigs and chunks.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), path(bed)
@@ -40,7 +40,7 @@ process make_chunks {
 
 process pileup_variants {
     // Calls variants per region ("chunk") using pileup network.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     errorStrategy 'retry'
     input:
@@ -98,7 +98,7 @@ process aggregate_pileup_variants {
     // Aggregates and sorts all variants (across all chunks of all contigs)
     // from pileup network. Determines quality filter for selecting variants
     // to use for phasing.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), 
@@ -137,7 +137,7 @@ process aggregate_pileup_variants {
 
 process select_het_snps {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), path(pileup_vcf), path(pileup_tbi), path(split, stageAs: "phase_qual"), val(contig)
@@ -167,7 +167,7 @@ process phase_contig {
     //   the original BAM and BAI as phased_bam for compatability,
     //   but adds the VCF as it is now tagged with phasing information
     //   used later in the full-alignment model
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus { params.use_longphase_intermediate ? 4 : 1 }
     input:
         tuple val(meta), 
@@ -213,7 +213,7 @@ process phase_contig {
 process get_qual_filter {
     // Determines quality filter for selecting candidate variants for second
     // stage "full alignment" calling.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), path("pileup.vcf.gz"), path("pileup.vcf.gz.tbi")
@@ -238,7 +238,7 @@ process create_candidates {
     // from the previous full "pileup" variants across all chunks of all chroms
     //
     // Performed per chromosome; output a list of bed files one for each chunk.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), 
@@ -280,7 +280,7 @@ process create_candidates {
 process evaluate_candidates {
     // Run "full alignment" network for variants in a candidate bed file.
     // phased_bam just references the input BAM as it no longer contains phase information.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     errorStrategy 'retry'
     input:
@@ -322,7 +322,7 @@ process evaluate_candidates {
 
 process aggregate_full_align_variants {
     // Sort and merge all "full alignment" variants
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), 
@@ -364,7 +364,7 @@ process aggregate_full_align_variants {
 
 process merge_pileup_and_full_vars{
     // Merge VCFs
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta), 
@@ -406,7 +406,7 @@ process merge_pileup_and_full_vars{
 
 
 process aggregate_all_variants{
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 4
     input:
         tuple val(meta), 

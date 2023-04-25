@@ -13,9 +13,9 @@ include {
     getVersions;
     getParams
     } from './modules/local/common'
-include {lookup_clair3_model; output_snp} from './modules/local/wf-somatic-snp'
+include {lookup_clair3_model; output_snv} from './modules/local/wf-somatic-snv'
 include {alignment_stats; get_coverage; output_qc; discarded_sample} from './workflows/bamstats.nf'
-include {snp} from './workflows/wf-somatic-snp'
+include {snv} from './workflows/wf-somatic-snv'
 
 
 // This is the only way to publish files from a workflow whilst
@@ -44,8 +44,8 @@ workflow {
     }
 
     can_start = true
-    if (!params.snp && !params.sv && !params.methyl) {
-        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snp, --sv, --methyl]" + colors.reset)
+    if (!params.snv && !params.sv && !params.methyl) {
+        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --methyl]" + colors.reset)
         can_start = false
     }
     if (!params.bam_normal || !params.bam_tumor) {
@@ -182,7 +182,7 @@ workflow {
         all_bams.set{ pass_bam_channel }
     }
 
-    // wf-somatic-snp
+    // wf-somatic-snv
     // Check input region bed file.
     // If it doesn't exists, then extract the regions from
     // the reference faidx file.
@@ -195,8 +195,8 @@ workflow {
         default_bed_set = true
         bed = getAllChromosomesBed(ref_channel).all_chromosomes_bed
     }
-    // Run snp workflow if requested
-    if (params.snp) {
+    // Run snv workflow if requested
+    if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
         lookup_table = Channel
                             .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
@@ -218,7 +218,7 @@ workflow {
                             .map{caller, info -> info[1] }
 
 
-        clair_vcf = snp(
+        clair_vcf = snv(
             pass_bam_channel,
             bed,
             ref_channel,
@@ -229,7 +229,7 @@ workflow {
         )
         
         // Publish outputs in the appropriate folder
-        clair_vcf | output_snp
+        clair_vcf | output_snv
     }
 
     // Emit reference and its index

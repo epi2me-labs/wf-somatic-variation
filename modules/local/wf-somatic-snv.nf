@@ -3,9 +3,9 @@ import groovy.json.JsonBuilder
 // See https://github.com/nextflow-io/nextflow/issues/1636
 // This is the only way to publish files from a workflow whilst
 // decoupling the publish from the process steps.
-process output_snp {
+process output_snv {
     // publish inputs to output directory
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     publishDir (
         params.out_dir,
         mode: "copy",
@@ -21,7 +21,7 @@ process output_snp {
 
 
 process getVersions {
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     output:
         path "versions.txt"
@@ -34,7 +34,7 @@ process getVersions {
 
 
 process getParams {
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     output:
         path "params.json"
@@ -48,7 +48,7 @@ process getParams {
 
 
 process vcfStats {
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), path(vcf)
@@ -67,7 +67,7 @@ process makeReport {
     output:
         path "*report.html", emit: html
     script:
-        def report_name = "${params.sample_name}.wf-somatic-snp-report.html"
+        def report_name = "${params.sample_name}.wf-somatic-snv-report.html"
         wfversion = workflow.manifest.version
         if( workflow.commitId ){
             wfversion = workflow.commitId
@@ -87,7 +87,7 @@ process makeReport {
 
 
 process lookup_clair3_model {
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     input:
         path("lookup_table")
         val basecall_model
@@ -105,7 +105,7 @@ process lookup_clair3_model {
 // 
 process wf_build_regions {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple path(normal_bam, stageAs: "normal/*"), 
@@ -149,7 +149,7 @@ process wf_build_regions {
 
 process clairs_select_het_snps {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta_tumor), 
@@ -180,7 +180,7 @@ process clairs_select_het_snps {
 // Run haplotag on the bam files
 process clairs_phase {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus { params.use_longphase_intermediate ? 4 : 1 }
     input:
         tuple val(meta), 
@@ -235,7 +235,7 @@ process clairs_phase {
 // Run haplotag on the bam files
 process clairs_haplotag {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
@@ -273,7 +273,7 @@ process clairs_haplotag {
 // Extract candidate regions
 process clairs_extract_candidates {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta),
@@ -337,7 +337,7 @@ process clairs_extract_candidates {
 // Create pileup Paired Tensors 
 process clairs_create_paired_tensors {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta),
@@ -389,7 +389,7 @@ process clairs_create_paired_tensors {
 // Predict pileup variants 
 process clairs_predict_pileup {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     label "avx2"
     cpus 1
     input:
@@ -433,7 +433,7 @@ process clairs_predict_pileup {
 // Merge predicted pileup variants 
 process clairs_merge_pileup {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
@@ -461,7 +461,7 @@ process clairs_merge_pileup {
 // Create full-alignment Paired Tensors 
 process clairs_create_fullalignment_paired_tensors {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(sample), 
@@ -512,7 +512,7 @@ process clairs_create_fullalignment_paired_tensors {
 // Predict full-alignment variants 
 process clairs_predict_full {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     label "avx2"
     cpus 1
     input:
@@ -553,7 +553,7 @@ process clairs_predict_full {
 // Merge full-alignment variants 
 process clairs_merge_full {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
@@ -580,7 +580,7 @@ process clairs_merge_full {
 // Filter variants
 process clairs_full_hap_filter {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     label "avx2"
     cpus 2
     input:
@@ -624,7 +624,7 @@ process clairs_full_hap_filter {
 // Final merging of the sites
 process clairs_merge_final {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta),
@@ -662,7 +662,7 @@ process clairs_merge_final {
 // Create indels pileup Paired Tensors 
 process clairs_create_paired_tensors_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(meta),
@@ -713,7 +713,7 @@ process clairs_create_paired_tensors_indels {
 // Predict indels pileup 
 process clairs_predict_pileup_indel {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     label "avx2"
     cpus 1
     input:
@@ -758,7 +758,7 @@ process clairs_predict_pileup_indel {
 // Merge predicted indels pileup
 process clairs_merge_pileup_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
@@ -785,7 +785,7 @@ process clairs_merge_pileup_indels {
 // Create full-alignment indels Paired Tensors 
 process clairs_create_fullalignment_paired_tensors_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 2
     input:
         tuple val(sample), 
@@ -834,7 +834,7 @@ process clairs_create_fullalignment_paired_tensors_indels {
 // Predict full-alignment indels
 process clairs_predict_full_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     label "avx2"
     cpus 1
     input:
@@ -875,7 +875,7 @@ process clairs_predict_full_indels {
 // Merge full-alignment variants 
 process clairs_merge_full_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
@@ -902,7 +902,7 @@ process clairs_merge_full_indels {
 // Final merging of the sites
 process clairs_merge_final_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta),
@@ -940,7 +940,7 @@ process clairs_merge_final_indels {
 // Merge full-alignment variants 
 process clairs_merge_snv_and_indels {
     // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snp"
+    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), 
