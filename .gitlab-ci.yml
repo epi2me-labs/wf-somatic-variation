@@ -62,7 +62,7 @@ docker-run:
                   --bam_normal wf-somatic-variation-demo/HCC1395BL_normal_chr17_demo.bam \
                   --bam_tumor wf-somatic-variation-demo/HCC1395_tumor_chr17_demo.bam \
                   --ref wf-somatic-variation-demo/GRCh38_no_alt_chr17.fa"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels"
         - if: $MATRIX_NAME == "wf-somatic-snv-r10-fail"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"

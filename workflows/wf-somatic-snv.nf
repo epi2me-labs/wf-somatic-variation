@@ -406,6 +406,9 @@ workflow snv {
             clair_all_variants | clairs_full_hap_filter | clairs_merge_final
         }
 
+        // Create channels for downstream analyses
+        pileup_vcf = clairs_merge_final.out.pileup_vcf
+        pileup_tbi = clairs_merge_final.out.pileup_tbi
         // Perform indel calling if the model is appropriate
         if (params.basecaller_cfg.startsWith('dna_r10')){
             // Create paired tensors for the indels candidates
@@ -468,18 +471,30 @@ workflow snv {
                 .set { merged_indels_vcf }
             clairs_merge_final_indels(merged_indels_vcf)
 
-            // Create final two VCFs
+            // Create the final VCF channel
+            // First create a tuple of snv+indels VCFs, group them by metadata,
+            // remove all null values, and set them as VCF file
             clairs_merge_final.out.pileup_vcf
-                .combine(clairs_merge_final.out.pileup_tbi, by: 0 )
-                .combine(clairs_merge_final_indels.out.indel_vcf, by: 0 )
-                .combine(clairs_merge_final_indels.out.indel_tbi, by: 0 )
-                .set { snv_and_indels }
+                .join(clairs_merge_final_indels.out.indel_vcf, by: 0, remainder: true )
+                .map { it - null }
+                .map { [it[0], it[1..-1]] }
+                .set{ all_vcfs }
+            // Repeat with the TBIs
+            clairs_merge_final.out.pileup_tbi
+                .join(clairs_merge_final_indels.out.indel_tbi, by: 0, remainder: true )
+                .map { it - null }
+                .map { [it[0], it[1..-1]] }
+                .set{ all_tbis }
+
+            // Create a combined channel of VCFs and TBIs.
+            // If only one VCF is passed, then the concatenated vcf will match
+            // the SNV VCF.
+            all_vcfs.combine(all_tbis, by: 0).set{snv_and_indels}
+
+            // Add check for empty snv and indels channel.
             clairs_merge_snv_and_indels( snv_and_indels )
             pileup_vcf = clairs_merge_snv_and_indels.out.pileup_vcf
             pileup_tbi = clairs_merge_snv_and_indels.out.pileup_tbi
-        } else {
-            pileup_vcf = clairs_merge_final.out.pileup_vcf
-            pileup_tbi = clairs_merge_final.out.pileup_tbi
         }
 
         // Annotate the mutation type in the format XX[N>N]XX
