@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated to Oxford Nanopore Technologies PLC. Public License
 - Implemented report of alignment statistics 
 - Update reporting script to use ezcharts
+- Customizable thread count for haplotype filtering stage
 
 ### Fixed
 - Workflow crashing when predicting in regions without variants

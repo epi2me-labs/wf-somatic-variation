@@ -284,11 +284,6 @@
             "description": "Options for configuring the common processes across the different subworkflows.",
             "help_text": "These options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
             "properties": {
-                "threads": {
-                    "type": "integer",
-                    "default": 4,
-                    "description": "Set max number of threads to use for more intense processes (limited by config executor cpus)"
-                },
                 "ubam_map_threads": {
                     "type": "integer",
                     "default": 12,
@@ -303,6 +298,11 @@
                     "type": "integer",
                     "default": 4,
                     "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)"
+                },
+                "haplotype_filter_threads": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus)"
                 }
             }
         },
