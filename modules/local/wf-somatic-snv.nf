@@ -580,7 +580,7 @@ process clairs_full_hap_filter {
     // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
-    cpus 2
+    cpus params.haplotype_filter_threads
     input:
         tuple val(meta),
             path(tumor_bams, stageAs: "bams/*"),
