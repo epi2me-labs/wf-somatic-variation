@@ -233,7 +233,7 @@ workflow {
     }
 
     // Emit reference and its index
-    output(ref_channel)
+    output(ref_channel.concat(versions).concat(parameters))
 
 }
 

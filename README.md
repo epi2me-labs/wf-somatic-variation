@@ -68,39 +68,60 @@ output/
 │   ├── report.html
 │   ├── timeline.html
 │   └── trace.txt
-└── snp # ClairS outputs
-    ├── SAMPLE  # ClairS outputs for SAMPLE
-    │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
-    │   │   └── SAMPLE_spectrum.csv
-    │   ├── varstats  # Bcftools stats output
-    │   │   └── SAMPLE.stats
-    │   └── vcf  # VCF outputs
-    │       ├── SAMPLE_somatic_mutype.vcf.gz
-    │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
-    │       ├── germline  # Germline calling for both tumor and normal bams
-    │       │   ├── tumor
-    │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
-    │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
-    │       │   └── normal
-    │       │       ├── SAMPLE_normal_germline.vcf.gz
-    │       │       └── SAMPLE_normal_germline.vcf.gz.tbi
-    │       ├── indels  # VCF containing the indels from ClairS
-    │       │   ├── SAMPLE_somatic_indels.vcf.gz
-    │       │   └── SAMPLE_somatic_indels.vcf.gz.tbi
-    │       └── snv  # VCF containing the SNVs from ClairS
-    │           ├── SAMPLE_somatic_snv.vcf.gz
-    │           └── SAMPLE_somatic_snv.vcf.gz.tbi
-    ├── info  # Runtime info
-    │   ├── params.json
-    │   └── versions.txt
-    └── reports  # Output report for the workflow
-        └── SAMPLE.wf-somatic-snp-report.html
+├── qc
+│   └── SAMPLE
+│       ├── coverage
+│       │   ├── SAMPLE_normal.mosdepth.global.dist.txt
+│       │   ├── SAMPLE_normal.mosdepth.summary.txt
+│       │   ├── SAMPLE_normal.per-base.bed.gz
+│       │   ├── SAMPLE_normal.regions.bed.gz
+│       │   ├── SAMPLE_normal.thresholds.bed.gz
+│       │   ├── SAMPLE_tumor.mosdepth.global.dist.txt
+│       │   ├── SAMPLE_tumor.mosdepth.summary.txt
+│       │   ├── SAMPLE_tumor.per-base.bed.gz
+│       │   ├── SAMPLE_tumor.regions.bed.gz
+│       │   └── SAMPLE_tumor.thresholds.bed.gz
+│       └── readstats
+│           ├── SAMPLE_normal.flagstat.tsv
+│           ├── SAMPLE_normal.readstats.tsv.gz
+│           ├── SAMPLE_tumor.flagstat.tsv
+│           └── SAMPLE_tumor.readstats.tsv.gz
+├── snp # ClairS outputs
+│   ├── SAMPLE  # ClairS outputs for SAMPLE
+│   │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
+│   │   │   └── SAMPLE_spectrum.csv
+│   │   ├── varstats  # Bcftools stats output
+│   │   │   └── SAMPLE.stats
+│   │   └── vcf  # VCF outputs
+│   │       ├── SAMPLE_somatic_mutype.vcf.gz
+│   │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
+│   │       ├── germline  # Germline calling for both tumor and normal bams
+│   │       │   ├── tumor
+│   │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
+│   │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
+│   │       │   └── normal
+│   │       │       ├── SAMPLE_normal_germline.vcf.gz
+│   │       │       └── SAMPLE_normal_germline.vcf.gz.tbi
+│   │       ├── indels  # VCF containing the indels from ClairS
+│   │       │   ├── SAMPLE_somatic_indels.vcf.gz
+│   │       │   └── SAMPLE_somatic_indels.vcf.gz.tbi
+│   │       └── snv  # VCF containing the SNVs from ClairS
+│   │           ├── SAMPLE_somatic_snv.vcf.gz
+│   │           └── SAMPLE_somatic_snv.vcf.gz.tbi
+│   ├── info  # Runtime info
+│   │   ├── params.json
+│   │   └── versions.txt
+│   └── reports  # Output report for the workflow
+├── SAMPLE.wf-somatic-snp-report.html
+├── SAMPLE.wf-somatic-variation-readQC-report.html
+├── params.json
+└── versions.txt
 ```
 The primary outputs are:
 1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
 3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
-4. `output/snp/reports`: the report of the SNP pipeline
+4. `output/*.html`: the reports of the SNP pipeline
 
 
 

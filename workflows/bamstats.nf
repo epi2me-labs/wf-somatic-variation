@@ -178,15 +178,17 @@ workflow alignment_stats {
         makeQCreport(paired_samples, versions, parameters, params.tumor_min_coverage, params.normal_min_coverage)
 
         // Prepare output channel
-        makeQCreport.out.map{it -> [it[1], "qc/report/${it[0].sample}"]}
-            .concat(stats.flagstat.map{it->[it[1], "qc/readstats/${it[0].sample}"]})
-            .concat(stats.read_stats.map{it->[it[1], "qc/readstats/${it[0].sample}"]})
-            .concat(depths.summary.map{it->[it[1], "qc/coverage/${it[0].sample}"]})
+        // Send the output to the specified sub-directory of params.out_dir.
+        // If null is passed, send it to out_dir/ directly.
+        makeQCreport.out.map{it -> [it[1], null]}
+            .concat(stats.flagstat.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+            .concat(stats.read_stats.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+            .concat(depths.summary.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
             .concat(depths.mosdepth_tuple
                         .map {it -> [it[0], it[1..-1]] }
                         .transpose()
-                        .map{it -> [it[1], "qc/coverage/${it[0].sample}"]})
-            .concat(depths.perbase.map{it->[it[1], "qc/coverage/${it[0].sample}"]})
+                        .map{it -> [it[1], "qc/${it[0].sample}/coverage"]})
+            .concat(depths.perbase.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
             .set{outputs}
 
         emit:

@@ -31,7 +31,6 @@
                     "type": "boolean",
                     "description": "Call for somatic small variants",
                     "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
-                    "hidden": true,
                     "default": false
                 },
                 "str": {

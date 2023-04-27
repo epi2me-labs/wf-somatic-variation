@@ -523,7 +523,9 @@ workflow snv {
             .set{ reporting }
         makeReport(reporting)
 
-        // Create a single channel with all the outputs and the respective path
+        // Create a single channel with all the outputs
+        // Send the output to the specified sub-directory of params.out_dir.
+        // If null is passed, send it to out_dir/ directly.
         ch_vcf
             .map{ 
                 meta, vcf -> [ vcf, "snv/${meta.sample}/vcf" ]
@@ -566,7 +568,7 @@ workflow snv {
                     })
             .concat(
                 makeReport.out.html.map{
-                    it -> [it, "snv/reports/"]
+                    it -> [it, null]
                 })
             .concat(
                 clairs_merge_final.out.pileup_vcf.map{meta, vcf -> [vcf, "snv/${meta.sample}/vcf/snv"]}
