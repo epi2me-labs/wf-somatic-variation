@@ -29,8 +29,10 @@ process mosdepth {
             path("${xam_meta.sample}_${xam_meta.type}.mosdepth.global.dist.txt"),
             path("${xam_meta.sample}_${xam_meta.type}.thresholds.bed.gz"), emit: mosdepth_tuple
         tuple val(xam_meta), path("${xam_meta.sample}_${xam_meta.type}.mosdepth.summary.txt"), emit: summary
-        tuple val(xam_meta), path("${xam_meta.sample}_${xam_meta.type}.per-base.bed.gz"), emit: perbase, optional: true
+        tuple val(xam_meta), path(out_perbase), emit: perbase, optional: true
     script:
+        def perbase_args = params.depth_intervals ? "" : "--no-per-base"
+        def out_perbase = params.depth_intervals ? "${xam_meta.sample}_${xam_meta.type}.per-base.bed.gz" : "$projectDir/data/OPTIONAL_FILE"
         """
         export REF_PATH=${ref}
         export MOSDEPTH_PRECISION=3
@@ -38,6 +40,7 @@ process mosdepth {
         -x \
         -t $task.cpus \
         -b ${target_bed} \
+        ${perbase_args} \
         --thresholds 1,10,20,30 \
         ${xam_meta.sample}_${xam_meta.type} \
         $xam
@@ -82,11 +85,9 @@ process makeQCreport {
         tuple val(meta), 
             path("readstats_normal.tsv.gz"),
             path("flagstat_normal.tsv"),
-            path("depths_normal.bed.gz"),
             path("summary_depth_normal.tsv"),
             path("readstats_tumor.tsv.gz"),
             path("flagstat_tumor.tsv"),
-            path("depths_tumor.bed.gz"),
             path("summary_depth_tumor.tsv")
         path versions
         path params
@@ -105,14 +106,12 @@ process makeQCreport {
             --name ${meta.sample}.wf-somatic-variation-readQC \\
             --read_stats_normal readstats_normal.tsv.gz \\
             --read_stats_tumor readstats_tumor.tsv.gz \\
-            --depth_tumor depths_tumor.bed.gz \\
-            --depth_normal depths_normal.bed.gz \\
             --flagstat_tumor flagstat_tumor.tsv \\
             --flagstat_normal flagstat_normal.tsv \\
             --mosdepth_summary_tumor summary_depth_tumor.tsv \\
             --mosdepth_summary_normal summary_depth_normal.tsv \\
             --versions versions.txt \\
-            --params params.json 
+            --params params.json
         """
 }
 
@@ -154,7 +153,6 @@ workflow alignment_stats {
         // 4. Depth summary
         stats.read_stats.map{it->[it[0], it[1]]}
             .combine(stats.flagstat.map{it->[it[0], it[1]]}, by:0)
-            .combine(depths.perbase.map{it->[it[0], it[1]]}, by:0)
             .combine(depths.summary.map{it->[it[0], it[1]]}, by:0)
             .set{ for_report }
 
@@ -180,16 +178,28 @@ workflow alignment_stats {
         // Prepare output channel
         // Send the output to the specified sub-directory of params.out_dir.
         // If null is passed, send it to out_dir/ directly.
-        makeQCreport.out.map{it -> [it[1], null]}
-            .concat(stats.flagstat.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
-            .concat(stats.read_stats.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
-            .concat(depths.summary.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
-            .concat(depths.mosdepth_tuple
-                        .map {it -> [it[0], it[1..-1]] }
-                        .transpose()
-                        .map{it -> [it[1], "qc/${it[0].sample}/coverage"]})
-            .concat(depths.perbase.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
-            .set{outputs}
+        if (params.depth_intervals){
+            makeQCreport.out.map{it -> [it[1], null]}
+                .concat(stats.flagstat.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+                .concat(stats.read_stats.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+                .concat(depths.summary.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
+                .concat(depths.mosdepth_tuple
+                            .map {it -> [it[0], it[1..-1]] }
+                            .transpose()
+                            .map{it -> [it[1], "qc/${it[0].sample}/coverage"]})
+                .concat(depths.perbase.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
+                .set{outputs}
+        } else {
+            makeQCreport.out.map{it -> [it[1], null]}
+                .concat(stats.flagstat.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+                .concat(stats.read_stats.map{it->[it[1], "qc/${it[0].sample}/readstats"]})
+                .concat(depths.summary.map{it->[it[1], "qc/${it[0].sample}/coverage"]})
+                .concat(depths.mosdepth_tuple
+                            .map {it -> [it[0], it[1..-1]] }
+                            .transpose()
+                            .map{it -> [it[1], "qc/${it[0].sample}/coverage"]})
+                .set{outputs}
+        }
 
         emit:
             outputs = outputs

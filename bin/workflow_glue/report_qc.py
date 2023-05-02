@@ -2,7 +2,6 @@
 """Plot QC metrics."""
 
 from dominate.tags import p
-from ezcharts import lineplot
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
@@ -11,52 +10,86 @@ from ezcharts.plots import util
 from ezcharts.plots.distribution import histplot
 import numpy as np
 import pandas as pd
+from pandas.api import types as pd_types
 from seaborn._statistics import Histogram
 
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 
 # Global variables
 Colors = util.Colors
+CATEGORICAL = pd_types.CategoricalDtype(ordered=True)
 
 
 # File loaders
 def process_fastcat(fastcat_file):
     """Load fastcat results into dataframe."""
+    relevant_stats_cols_dtypes = {
+        "name": str,
+        "sample_name": CATEGORICAL,
+        "ref": CATEGORICAL,
+        "coverage": float,
+        "ref_coverage": float,
+        "read_length": int,
+        "mean_quality": float,
+        "acc": float,
+    }
     try:
         d = pd.read_csv(
-            fastcat_file, sep="\t", header=0)
+            fastcat_file,
+            sep="\t",
+            header=0,
+            usecols=relevant_stats_cols_dtypes,
+            dtype=relevant_stats_cols_dtypes
+            )
     except pd.errors.EmptyDataError:
-        d = pd.DataFrame()
-    return d
-
-
-def load_mosdepth(mosdepth_file):
-    """Load mosdepth results into dataframe."""
-    try:
-        d = pd.read_csv(
-            mosdepth_file, sep="\t", header=None,
-            names=['chrom', 'start', 'stop', 'depth'])
-    except pd.errors.EmptyDataError:
-        d = pd.DataFrame()
+        d = pd.DataFrame(columns=relevant_stats_cols_dtypes)
     return d
 
 
 def load_mosdepth_summary(summary_file):
     """Load mosdepth results into dataframe."""
+    """Load and process flagstat."""
+    relevant_stats_cols_dtypes = {
+        "chrom": CATEGORICAL,
+        "length": int,
+        "bases": int,
+        "mean": float,
+        "min": int,
+        "max": int
+    }
     try:
-        df = pd.read_csv(summary_file, sep="\t")
+        df = pd.read_csv(
+            summary_file,
+            sep="\t",
+            usecols=relevant_stats_cols_dtypes,
+            dtype=relevant_stats_cols_dtypes
+            )
         df_tot = df[~df['chrom'].str.contains("_region")]
         df_reg = df[df['chrom'].str.contains("_region")]
     except pd.errors.EmptyDataError:
-        df_tot = pd.DataFrame()
-        df_reg = pd.DataFrame()
+        df_tot = pd.DataFrame(columns=relevant_stats_cols_dtypes)
+        df_reg = pd.DataFrame(columns=relevant_stats_cols_dtypes)
     return df_tot, df_reg
 
 
 def load_flagstat(flagstat_file):
     """Load and process flagstat."""
+    relevant_stats_cols_dtypes = {
+        "ref": CATEGORICAL,
+        "sample_name": CATEGORICAL,
+        "total": int,
+        "primary": int,
+        "secondary": int,
+        "supplementary": int,
+        "unmapped": int,
+        "qcfail": int,
+        "duplicate": int,
+    }
     try:
-        df = pd.read_csv(flagstat_file, sep="\t")
+        df = pd.read_csv(
+            flagstat_file, sep="\t",
+            usecols=relevant_stats_cols_dtypes,
+            dtype=relevant_stats_cols_dtypes)
         conditions = [(df['ref'] == '*'), (df['ref'] != '*')]
         choices = ['Unmapped', 'Mapped']
         df['Status'] = np.select(conditions, choices, default='Unmapped')
@@ -86,25 +119,14 @@ def process_chr_sizes(fai):
     return sizes
 
 
-def tot_mean_pos(df):
-    """Compute mean position compared to length of the chrom."""
-    ref_lengths = df.groupby("chrom", observed=True)["stop"].last()
-    total_ref_starts = ref_lengths.cumsum().shift(1, fill_value=0)
-    df["total_mean_pos"] = df.groupby(
-        "chrom", observed=True, group_keys=False
-    )["mean_pos"].apply(lambda s: s + total_ref_starts[s.name])
-    return df
-
-
 def compute_n50(lengths):
     """Compute read N50."""
     # Sort the read lengths
     sorted_l = np.sort(lengths)[::-1]
-    # Define the vector of sizes
-    sumlen = np.zeros(sorted_l.size, dtype=int)
-    for i in range(sorted_l.size):
-        sumlen[i] = sorted_l[i:].sum()
-    n50 = sorted_l[sumlen > (np.sum(lengths) / 2)].min()
+    # Generate cumsum
+    cumsum = np.cumsum(sorted_l)
+    # Get lowest cumulative value >= (total_length/2)
+    n50 = sorted_l[cumsum >= cumsum[-1]/2][0]
     return n50
 
 
@@ -129,44 +151,36 @@ def compare_max_axes(df1, df2, col, ptype='val', binwidth=None):
         v1max = hist_max(df1[col].dropna(), binwidth=binwidth)
         v2max = hist_max(df2[col].dropna(), binwidth=binwidth)
     else:
-        v1max = max(df1[col].dropna())
-        v2max = max(df2[col].dropna())
+        v1max = df1[col].max()
+        v2max = df2[col].max()
     return np.ceil(max(v1max, v2max) * 1.1)
 
 
-# Plotting funcs
-def line_plot(
-        df, x, y, hue, title,
-        xaxis='', yaxis='', max_y=None):
-    """Make a histogram of given parameter."""
-    plt = lineplot(
-        data=df,
-        x=x,
-        y=y,
-        hue=hue
-    )
-    # Change title
-    plt.title = {"text": title}
-    # Change axes names
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    plt.yAxis.nameGap = 0
-    # Remove markers
-    for s in plt.series:
-        s.showSymbol = False
-    return plt
+def add_cumulative(df):
+    """Compute cumulative length."""
+    ref_lengths = df.groupby("chrom", observed=True)["stop"].last()
+    total_ref_starts = ref_lengths.cumsum().shift(1, fill_value=0)
+    df["total_mean_pos"] = df.groupby(
+        "chrom", observed=True, group_keys=False
+    )["mean_pos"].apply(lambda s: s + total_ref_starts[s.name])
+    return df
 
 
 def hist_plot(
-        df, col, title, xaxis='', yaxis='', rounding=0,
+        df, col, title, xaxis='', yaxis='', rounding=None,
         n50=None, color=None, binwidth=100,
         max_y=None, max_x=None):
     """Make a histogram of given parameter."""
     histogram_data = df[col].values
 
     plt = histplot(data=histogram_data, binwidth=binwidth, color=color)
-    meanv = np.mean(histogram_data).round(rounding)
-    medianv = np.median(histogram_data).round(rounding)
+    if isinstance(rounding, int):
+        meanv = df[col].mean().round(rounding)
+        medianv = df[col].median().round(rounding)
+    else:
+        meanv = df[col].mean()
+        medianv = df[col].median()
+
     if n50 is None:
         plt.title = dict(
             text=title,
@@ -239,29 +253,30 @@ def populate_report(report, args, **kwargs):
     flags_df_n = kwargs['flags_df_n']
     depth_su_t = kwargs['depth_su_t']
     depth_su_n = kwargs['depth_su_n']
-    depth_df_t = kwargs['depth_df_t']
-    depth_df_n = kwargs['depth_df_n']
+    logger = kwargs['logger']
 
     # Average total coverage
+    logger.info('Compute average cvg...')
     t_cov = depth_su_t.loc[depth_su_t['chrom'] == 'total', 'mean'].values[0]
     n_cov = depth_su_n.loc[depth_su_n['chrom'] == 'total', 'mean'].values[0]
 
     # Define collected pandas coverage dataframe
-    header_cols = pd.DataFrame(
-        {'Sample': [args.sample_id, args.sample_id], 'Type': ['Tumor', 'Normal']}
-        )
-    depth_su_t['threshold'] = 'PASS' if t_cov > args.tumor_cov_threshold else 'FAIL'
-    depth_su_n['threshold'] = 'PASS' if n_cov > args.normal_cov_threshold else 'FAIL'
-    cov_summary = pd.concat(
-        [depth_su_t.loc[depth_su_t['chrom'] == 'total'],
-         depth_su_n.loc[depth_su_t['chrom'] == 'total']]).reset_index()
-    cov_summary = pd.concat([header_cols, cov_summary], axis=1).drop(columns=['index'])
+    logger.info('Collect cvg dataframes...')
+    t_pass = 'PASS' if t_cov > args.tumor_cov_threshold else 'FAIL'
+    n_pass = 'PASS' if n_cov > args.normal_cov_threshold else 'FAIL'
 
     # Compute N50s for later use
+    logger.info('Compute N50...')
     t_n50 = compute_n50(stats_df_t['read_length'].values)
     n_n50 = compute_n50(stats_df_n['read_length'].values)
 
+    # Save coverages
+    t_cov = depth_su_t.loc[depth_su_t['chrom'] == 'total', 'mean'].values[0]
+    n_cov = depth_su_n.loc[depth_su_n['chrom'] == 'total', 'mean'].values[0]
+
     # Start structuring the report
+    logger.info('Start reporting.')
+    logger.info('Saving summary section...')
     with report.add_section('At a glance', 'Description'):
         p(
             """
@@ -275,9 +290,7 @@ def populate_report(report, args, **kwargs):
             )
         # Create tabs for each sample
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(args.sample_id, active):
-            active = False
+        with tabs.add_tab(args.sample_id):
             Stats(
                 columns=2,
                 items=[
@@ -290,15 +303,16 @@ def populate_report(report, args, **kwargs):
                         f'{"{:,}".format(n_n50)} bp',
                         'Normal Read N50'),
                     (
-                        f"{depth_su_t['mean'].min()}-{depth_su_t['mean'].max()}x",
-                        'Tumor chromosomal coverage range'),
+                        f"{t_cov}x",
+                        'Tumor mean coverage'),
                     (
-                        f"{depth_su_n['mean'].min()}-{depth_su_n['mean'].max()}x",
-                        'Normal chromosomal coverage range')
+                        f"{n_cov}x",
+                        'Normal mean coverage')
                 ])
 
     # Add coverage thresholds passing/failing
-    with report.add_section('Coverage threshold', 'Filter'):
+    logger.info('Saving filtering section...')
+    with report.add_section('Base statistics', 'Stats'):
         p(
             f"""
             The aligned bam files have been tested for coverage thresholds of
@@ -306,10 +320,6 @@ def populate_report(report, args, **kwargs):
             for the normal sequences.
             """
             )
-        DataTable.from_pandas(cov_summary, use_index=False)
-
-    # Add quick stats
-    with report.add_section('Base statistics', 'Stats'):
         # Create tabs for each sample
         df = pd.DataFrame({
             'Sample': [args.sample_id, args.sample_id],
@@ -319,16 +329,17 @@ def populate_report(report, args, **kwargs):
                                    int(stats_df_n['read_length'].median())],
             'Read N50': [t_n50, n_n50],
             'Min chrom. coverage': [depth_su_t['mean'].min(), depth_su_n['mean'].min()],
+            'Mean chrom. coverage': [t_cov, n_cov],
             'Max chrom. coverage': [depth_su_t['mean'].max(), depth_su_n['mean'].max()],
+            'Pass threshold': [t_pass, n_pass],
         })
         DataTable.from_pandas(df, use_index=False)
 
     # Add comparison of read lengths
+    logger.info('Saving read distribution...')
     with report.add_section('Read length distribution', 'Read Length'):
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(args.sample_id, active):
-            active = False
+        with tabs.add_tab(args.sample_id):
             with Grid():
                 max_y = compare_max_axes(
                     stats_df_t, stats_df_n, 'read_length',
@@ -340,16 +351,16 @@ def populate_report(report, args, **kwargs):
                 for (df, n50, header, color) in inputs:
                     plt = hist_plot(
                         df, 'read_length', header, xaxis='Read length', color=color,
-                        yaxis='Number of reads', n50=n50, binwidth=1000, max_y=max_y)
+                        yaxis='Number of reads', n50=n50, binwidth=1000, max_y=max_y,
+                        rounding=0)
                     EZChart(plt, 'epi2melabs')
             p("""Red: read N50; Yellow: mean length; Purple: median length.""")
 
     # Add comparison of read quality
+    logger.info('Saving mean read quality...')
     with report.add_section('Mean read quality', 'Read Quality'):
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(args.sample_id, active):
-            active = False
+        with tabs.add_tab(args.sample_id):
             with Grid():
                 max_y = compare_max_axes(
                     stats_df_t, stats_df_n, 'mean_quality',
@@ -361,19 +372,19 @@ def populate_report(report, args, **kwargs):
                 for (df, header, color) in inputs:
                     plt = hist_plot(
                         df, 'mean_quality', header, xaxis='Mean read quality',
-                        color=color, yaxis='Number of reads', binwidth=0.5, max_y=max_y)
+                        color=color, yaxis='Number of reads', binwidth=0.5, max_y=max_y,
+                        rounding=1)
                     EZChart(plt, 'epi2melabs')
             p("""Yellow: mean length; Purple: median length.""")
 
     # Create the alignment stats
+    logger.info('Saving alignment statistics...')
     with report.add_section('Alignment statistics', 'Alignments'):
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(args.sample_id, active):
-            active = False
+        with tabs.add_tab(args.sample_id):
             flags_df_t.insert(0, 'Type', 'Tumor')
             flags_df_n.insert(0, 'Type', 'Normal')
-            data_table = pd.concat((flags_df_t, flags_df_n))
+            data_table = pd.concat((flags_df_t, flags_df_n)).drop(columns=['unmapped'])
             DataTable.from_pandas(data_table, use_index=False)
 
             # Add accuracy plot
@@ -393,46 +404,11 @@ def populate_report(report, args, **kwargs):
                     EZChart(plt, 'epi2melabs')
             p("""Yellow: mean length; Purple: median length.""")
 
-    # Add comparison of depth of sequencing
-    with report.add_section('Coverage', 'Coverage'):
-        # Predispose to tabs
-        tabs = Tabs()
-        active = True
-
-        # prepare data for depth vs coordinate plot
-        df_depth_vs_coords_t = tot_mean_pos(
-            depth_df_t.eval("mean_pos = (start + stop) / 2")
-            .eval("step = stop - start")
-            .reset_index()
-        )
-        df_depth_vs_coords_n = tot_mean_pos(
-            depth_df_n.eval("mean_pos = (start + stop) / 2")
-            .eval("step = stop - start")
-            .reset_index()
-        )
-        with tabs.add_tab(args.sample_id, active):
-            # depth vs genomic coordinate plot on the left and cumulative depth
-            # plot on the right
-            with Grid():
-                max_y = compare_max_axes(
-                    df_depth_vs_coords_t, df_depth_vs_coords_n, 'depth',
-                    ptype='val')
-                inputs = (
-                    (df_depth_vs_coords_t, "Tumor coverage along reference"),
-                    (df_depth_vs_coords_t, "Normal coverage along reference")
-                )
-                for (df, header) in inputs:
-                    plt = line_plot(
-                        df, 'mean_pos', 'depth', 'chrom', header,
-                        xaxis='Position along reference', yaxis='Sequencing depth',
-                        max_y=max_y)
-                    EZChart(plt, 'epi2melabs')
-
 
 # Finally, main
 def main(args):
     """Run entry point."""
-    logger = get_named_logger("report_qc_dev")
+    logger = get_named_logger("report_qc")
 
     # Instantiate the report.
     report = LabsReport(
@@ -440,18 +416,33 @@ def main(args):
         args.params, args.versions,
         head_resources=[*LAB_head_resources])
 
+    # Load data separately for debugging
+    logger.info(f'Loading {args.read_stats_tumor}')
+    stats_df_t = process_fastcat(args.read_stats_tumor)
+    logger.info(f'Loading {args.read_stats_normal}')
+    stats_df_n = process_fastcat(args.read_stats_normal)
+
+    logger.info(f'Loading {args.flagstat_tumor}')
+    flags_df_t = load_flagstat(args.flagstat_tumor)
+    logger.info(f'Loading {args.flagstat_normal}')
+    flags_df_n = load_flagstat(args.flagstat_normal)
+
+    logger.info(f'Loading {args.mosdepth_summary_tumor}')
+    depth_su_t = load_mosdepth_summary(args.mosdepth_summary_tumor)
+    logger.info(f'Loading {args.mosdepth_summary_normal}')
+    depth_su_n = load_mosdepth_summary(args.mosdepth_summary_normal)
+
     # Populate report
     populate_report(
         report=report,
         args=args,
-        stats_df_t=process_fastcat(args.read_stats_tumor),
-        stats_df_n=process_fastcat(args.read_stats_normal),
-        flags_df_t=load_flagstat(args.flagstat_tumor),
-        flags_df_n=load_flagstat(args.flagstat_normal),
-        depth_su_t=load_mosdepth_summary(args.mosdepth_summary_tumor)[0],
-        depth_su_n=load_mosdepth_summary(args.mosdepth_summary_normal)[0],
-        depth_df_t=load_mosdepth(args.depth_tumor),
-        depth_df_n=load_mosdepth(args.depth_normal))
+        stats_df_t=stats_df_t,
+        stats_df_n=stats_df_n,
+        flags_df_t=flags_df_t,
+        flags_df_n=flags_df_n,
+        depth_su_t=depth_su_t[0],
+        depth_su_n=depth_su_n[0],
+        logger=logger)
 
     # Save report
     report_fname = f"{args.name}-report.html"
@@ -487,16 +478,6 @@ def argparser():
         help="`bamstats` flagstats for the normal sample",
     )
     parser.add_argument(
-        "--depth_tumor",
-        required=False,
-        help="`mosdepth` depth files for the tumor sample",
-    )
-    parser.add_argument(
-        "--depth_normal",
-        required=False,
-        help="`mosdepth` depth files for the normal sample",
-    )
-    parser.add_argument(
         "--mosdepth_summary_tumor",
         required=False,
         help="`mosdepth` summary for the tumor sample",
@@ -526,17 +507,5 @@ def argparser():
     parser.add_argument(
         "--versions",
         help="CSV file with software versions",
-    )
-    parser.add_argument(
-        # TODO: implement
-        "--revision",
-        default="unknown",
-        help="git branch/tag of the executed workflow",
-    )
-    parser.add_argument(
-        # TODO: implement
-        "--commit",
-        default="unknown",
-        help="git commit of the executed workflow",
     )
     return parser
