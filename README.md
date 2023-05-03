@@ -1,9 +1,9 @@
 # Somatic variation workflow
-**NOTE: this workflow is currently under active development and still doesn't call somatic variation**
 This repository contains a [nextflow](https://www.nextflow.io/) workflow
 to identify somatic variation in a paired normal/tumor sample.
-This workflow is intended to perform:
- - Somatic short variant calling (SNP).
+This workflow currently perform:
+ - Alignment QC and statistics.
+ - Somatic short variant calling (SNV and Indels).
 
 
 
@@ -95,7 +95,7 @@ output/
 │   │   └── vcf  # VCF outputs
 │   │       ├── SAMPLE_somatic_mutype.vcf.gz
 │   │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
-│   │       ├── germline  # Germline calling for both tumor and normal bams
+│   │       ├── germline  # Clair3 Germline calling for both tumor and normal bams
 │   │       │   ├── tumor
 │   │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
 │   │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
@@ -121,7 +121,7 @@ The primary outputs are:
 1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
 3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
-4. `output/*.html`: the reports of the SNP pipeline
+4. `output/*.html`: the reports of the SNV pipeline
 
 
 
@@ -131,3 +131,11 @@ The primary outputs are:
 * [docker](https://www.docker.com/products/docker-desktop)
 * [singularity](https://docs.sylabs.io/guides/latest/user-guide/)
 * [ClairS](https://github.com/HKU-BAL/ClairS)
+* [Clair3](https://github.com/HKU-BAL/Clair3)
+* [mosdepth](https://github.com/brentp/mosdepth)
+* [fastcat](https://github.com/epi2me-labs/fastcat)
+* [minimap2](https://github.com/lh3/minimap2)
+* [samtools](https://github.com/samtools/samtools)
+* [bcftools](https://samtools.github.io/bcftools/bcftools.html)
+* [pysam](https://github.com/pysam-developers/pysam)
+* [tabix](https://github.com/samtools/htslib)
