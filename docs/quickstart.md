@@ -78,7 +78,7 @@ output/
 │   │   └── vcf  # VCF outputs
 │   │       ├── SAMPLE_somatic_mutype.vcf.gz
 │   │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
-│   │       ├── germline  # Germline calling for both tumor and normal bams
+│   │       ├── germline  # Clair3 Germline calling for both tumor and normal bams
 │   │       │   ├── tumor
 │   │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
 │   │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
@@ -104,4 +104,4 @@ The primary outputs are:
 1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
 3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
-4. `output/*.html`: the reports of the SNP pipeline
+4. `output/*.html`: the reports of the SNV pipeline

@@ -394,6 +394,6 @@
     },
     "docs": {
         "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)",
-        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)"
+        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)"
     }
 }
