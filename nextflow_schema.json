@@ -3,7 +3,7 @@
     "$id": "https://raw.githubusercontent.com/epi2me-labs/wf-somatic-variation/master/nextflow_schema.json",
     "title": "epi2me-labs/wf-somatic-variation",
     "description": "Nextflow workflow to identify somatic variation.",
-    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz",
+    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation-demo/wf-somatic-variation-demo.tar.gz",
     "url": "https://github.com/epi2me-labs/wf-somatic-variation",
     "type": "object",
     "definitions": {
@@ -112,6 +112,13 @@
                     "description": "Skip haplotype filtering of variants.",
                     "help_text": "Setting this will skip haplotype filtering of variants."
                 },
+                "fast_mode": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Fast germline variants calling in Clair3 (does not emit germline calls).",
+                    "hidden": true,
+                    "help_text": "Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs."
+                },
                 "snv_min_af": {
                     "type": "number",
                     "default": 0.05,
@@ -149,28 +156,10 @@
                     "description": "Enable to output a gVCF file in addition to the VCF outputs (experimental).",
                     "help_text": "By default the the workflow outputs a VCF file containing only records where a variant has been detected. Enabling this option will output additionally a gVCF with records spanning all reference positions regardless of whether a variant was detected in the sample."
                 },
-                "clair3_min_coverage": {
-                    "type": "number",
-                    "default": 8.0,
-                    "description": "Minimum coverage required to call germline variants (twice min_cov).",
-                    "hidden": true
-                },
                 "clair3_min_mq": {
                     "type": "number",
                     "default": 5.0,
                     "description": "Minimum map quality to call germline variants.",
-                    "hidden": true
-                },
-                "clair3_indel_min_af": {
-                    "type": "number",
-                    "default": 0.2,
-                    "description": "Minimum germline indel allelic frequency.",
-                    "hidden": true
-                },
-                "clair3_snp_min_af": {
-                    "type": "number",
-                    "default": 0.15,
-                    "description": "Minimum germline SNP allelic frequency.",
                     "hidden": true
                 },
                 "clair3_ref_pct_full": {
