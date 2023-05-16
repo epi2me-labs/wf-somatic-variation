@@ -1,4 +1,5 @@
 
+
 process make_chunks {
     // Do some preliminaries. Ordinarily this would setup a working directory
     // that all other commands would make use off, but all we need here are the
@@ -7,6 +8,7 @@ process make_chunks {
     cpus 1
     input:
         tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), path(bed)
+        val clair3_mode
     output:
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/CONTIGS"), emit: contigs_file
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/CHUNK_LIST"), emit: chunks_file
@@ -14,6 +16,9 @@ process make_chunks {
     script:
         def bedargs = params.bed ? "--bed_fn ${bed}" : ""
         def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
+        // Define calling parameters to reflect ClairS behaviour
+        // Default is Clair3 fast mode
+        // If enabled germline calling, then use slower, but accurate options
         """
         mkdir -p clair_output
         CTG_LIST=\$( tr '\\n' ',' < ${contigs} )
@@ -31,8 +36,8 @@ process make_chunks {
             --sampleName ${meta.sample} \\
             --var_pct_full ${params.clair3_var_pct_full} \\
             --ref_pct_full ${params.clair3_ref_pct_full} \\
-            --snp_min_af ${params.clair3_snp_min_af} \\
-            --indel_min_af ${params.clair3_indel_min_af} \\
+            --snp_min_af ${clair3_mode.min_snps_af} \\
+            --indel_min_af ${clair3_mode.min_indels_af} \\
             --min_contig_size ${params.min_contig_size} 
         """
 }
@@ -53,6 +58,7 @@ process pileup_variants {
             path(bed),
             val(region),
             val(model)
+        val clair3_mode
     output:
         // TODO: make this explicit, why is pileup VCF optional?
         tuple val(meta), 
@@ -64,33 +70,32 @@ process pileup_variants {
         // note: the VCF output here is required to use the contig
         //       name since that's parsed in the SortVcf step
         // note: snp_min_af and indel_min_af have an impact on performance
-        // TODO Fix REF_PATH
-        '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
-        python $(which clair3.py) CallVariantsFromCffi \\
-            --chkpnt_fn ${CLAIR_MODELS_PATH}/clair3_models/!{model}/pileup \\
-            --bam_fn !{bam} \\
-            --call_fn pileup_!{meta.sample}_!{meta.type}_!{region.contig}_!{region.chunk_id}.vcf \\
-            --ref_fn !{ref} \\
-            --ctgName !{region.contig} \\
-            --chunk_id !{region.chunk_id} \\
-            --chunk_num !{region.total_chunks} \\
+        """
+        export REF_PATH=${ref_cache}/%2s/%2s/%s
+        python \$(which clair3.py) CallVariantsFromCffi \\
+            --chkpnt_fn \${CLAIR_MODELS_PATH}/clair3_models/${model}/pileup \\
+            --bam_fn ${bam} \\
+            --call_fn pileup_${meta.sample}_${meta.type}_${region.contig}_${region.chunk_id}.vcf \\
+            --ref_fn ${ref} \\
+            --ctgName ${region.contig} \\
+            --chunk_id ${region.chunk_id} \\
+            --chunk_num ${region.total_chunks} \\
             --platform ont \\
             --fast_mode False \\
-            --snp_min_af !{params.clair3_snp_min_af} \\
-            --indel_min_af !{params.clair3_indel_min_af} \\
-            --minMQ !{params.clair3_min_mq} \\
-            --minCoverage !{params.clair3_min_coverage} \\
+            --snp_min_af ${clair3_mode.min_snps_af} \\
+            --indel_min_af ${clair3_mode.min_indels_af} \\
+            --minMQ ${params.clair3_min_mq} \\
+            --minCoverage ${clair3_mode.min_cvg} \\
             --call_snp_only False \\
-            --sampleName !{meta.sample} \\
-            --vcf_fn !{params.vcf_fn} \\
+            --sampleName ${meta.sample} \\
+            --vcf_fn ${params.vcf_fn} \\
             --enable_long_indel False \\
             --bed_fn \\
             --samtools samtools \\
-            --gvcf !{params.GVCF} \\
+            --gvcf ${params.GVCF} \\
             --temp_file_dir gvcf_tmp_path \\
             --pileup 
-        ''' 
+        """
 }
 
 
@@ -288,11 +293,13 @@ process evaluate_candidates {
         tuple val(meta_2), val(contig_2), path(candidate_bed)
         tuple path(ref), path(fai), path(ref_cache)
         val model
+        val clair3_mode
     output:
         tuple val(meta), path("output_${meta.sample}_${meta.type}/full_alignment_*.vcf"), emit: full_alignment, optional: true
     script:
         filename = candidate_bed.name
         def ref_path = "${ref_cache}/%2s/%2s/%s:" + System.getenv("REF_PATH")
+        // Define calling parameters to reflect ClairS behaviour
         """
         export REF_PATH=${ref_path}
         mkdir output_${meta.sample}_${meta.type}
@@ -307,7 +314,7 @@ process evaluate_candidates {
             --ctgName ${contig} \
             --add_indel_length \
             --minMQ ${params.clair3_min_mq} \
-            --minCoverage ${params.clair3_min_coverage} \
+            --minCoverage ${clair3_mode.min_cvg} \
             --platform ont \
             --use_gpu False \
             --samtools samtools \

@@ -52,6 +52,14 @@ workflow snv {
         clairs_model
         clair3_model
     main:
+        // Define the presets for fast/normal mode once 
+        def clair3_mode = [:]
+        if (params.fast_mode){
+            clair3_mode = [min_snps_af:"0.15", min_indels_af: "0.2", min_cvg: "8"]
+        } else {
+            clair3_mode = [min_snps_af:"0.08", min_indels_af: "0.15", min_cvg: "4"]
+        } 
+
         // Branch tumor and normal for downstream works
         bam_channel.branch{
             tumor: it[2].type == 'tumor'
@@ -89,7 +97,7 @@ workflow snv {
             .set{bams}
 
         // Prepare the chunks for each bam file.
-        make_chunks(bams)
+        make_chunks(bams, clair3_mode)
         chunks = make_chunks.out.chunks_file
             .splitText(){ 
                 cols = (it[1] =~ /(.+)\s(.+)\s(.+)/)[0]
@@ -108,7 +116,7 @@ workflow snv {
             .combine(chunks, by:0)
             .combine(clair3_model)
             .set{fragments}
-        pileup_variants(fragments)
+        pileup_variants(fragments, clair3_mode)
 
         // Aggregate outputs
         // Clairs model is required to define the correct var_pct_phasing 
@@ -180,7 +188,7 @@ workflow snv {
                 model: it[3]
             }.set { mangled }
         // phew! Run all-the-things
-        evaluate_candidates(mangled.bams, mangled.candidates, mangled.ref, mangled.model)
+        evaluate_candidates(mangled.bams, mangled.candidates, mangled.ref, mangled.model, clair3_mode)
 
         // merge and sort all files for all chunks for all contigs
         // gvcf is optional, stuff an empty file in, so we have at least one
@@ -273,11 +281,9 @@ workflow snv {
 
         // Extract candidates for the tensor generation.
         clairs_extract_candidates(chunks)
-        // Separate InDels and SNVs candidates
-        clairs_extract_candidates.out.candidates_snvs
 
         // Prepare the paired tensors for each tumor/normal pair.
-        clairs_create_paired_tensors(chunks.combine(clairs_extract_candidates.out.candidates_snvs, by: [0,1]))
+        clairs_create_paired_tensors(chunks.combine(clairs_extract_candidates.out.candidates_snvs.transpose(), by: [0,1]))
         
         // Predict variants based on the paired pileup model
         clairs_predict_pileup(clairs_create_paired_tensors.out)
@@ -338,7 +344,7 @@ workflow snv {
                         [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                 }
                 .combine(
-                    clairs_extract_candidates.out.candidates_snvs.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                    clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                 .combine(ref)
                 .combine(clairs_model)
                 .set{ paired_phased_channel }
@@ -347,7 +353,7 @@ workflow snv {
             clairs_haplotag.out.phased_data
                 .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                 .combine(
-                    clairs_extract_candidates.out.candidates_snvs.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                    clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                 .combine(ref)
                 .combine(clairs_model)
                 .set{paired_phased_channel}
@@ -412,7 +418,7 @@ workflow snv {
         // Perform indel calling if the model is appropriate
         if (params.basecaller_cfg.startsWith('dna_r10')){
             // Create paired tensors for the indels candidates
-            clairs_create_paired_tensors_indels(chunks.combine(clairs_extract_candidates.out.candidates_indels, by: [0,1]))
+            clairs_create_paired_tensors_indels(chunks.combine(clairs_extract_candidates.out.candidates_indels.transpose(), by: [0,1]))
 
             // Create paired tensors for the indels candidates
             clairs_predict_pileup_indel( clairs_create_paired_tensors_indels.out )
@@ -437,7 +443,7 @@ workflow snv {
                             [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                     }
                     .combine(
-                        clairs_extract_candidates.out.candidates_indels.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                        clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                     .combine(ref)
                     .combine(clairs_model)
                     .set{ paired_phased_indels_channel }
@@ -446,7 +452,7 @@ workflow snv {
                 clairs_haplotag.out.phased_data
                     .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                     .combine(
-                        clairs_extract_candidates.out.candidates_indels.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                        clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                     .combine(ref)
                     .combine(clairs_model)
                     .set{paired_phased_indels_channel}
@@ -535,22 +541,6 @@ workflow snv {
                     meta, txt -> [txt, "snv/${meta.sample}/vcf"]
                     })
             .concat(
-                forked_vcfs.tumor.map{
-                    meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/tumor"]
-                    })
-            .concat(
-                forked_vcfs.tumor.map{
-                    meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/tumor"]
-                    })
-            .concat(
-                forked_vcfs.normal.map{
-                    meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/normal"]
-                    })
-            .concat(
-                forked_vcfs.normal.map{
-                    meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/normal"]
-                    })
-            .concat(
                 vcfStats.out.map{
                     meta, stats -> [stats, "snv/${meta.sample}/varstats"]
                     })
@@ -576,9 +566,29 @@ workflow snv {
             .concat(
                 clairs_merge_final.out.pileup_tbi.map{meta, tbi -> [tbi, "snv/${meta.sample}/vcf/snv"]}
                 )
-            .set{tmp_outputs}
+            .set{outputs}
+        if (!params.fast_mode){
+            outputs
+                .concat(
+                    forked_vcfs.tumor.map{
+                        meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/tumor"]
+                        })
+                .concat(
+                    forked_vcfs.tumor.map{
+                        meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/tumor"]
+                        })
+                .concat(
+                    forked_vcfs.normal.map{
+                        meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/normal"]
+                        })
+                .concat(
+                    forked_vcfs.normal.map{
+                        meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/normal"]
+                        })
+                .set{ outputs }
+        }
         if (params.basecaller_cfg.startsWith('dna_r10')){
-            tmp_outputs
+            outputs
                 .concat(
                     clairs_merge_final_indels.out.indel_vcf.map{meta, vcf -> [vcf, "snv/${meta.sample}/vcf/indels"]}
                     )
@@ -587,7 +597,7 @@ workflow snv {
                     )
                 .set { outputs }
         } else {
-            tmp_outputs.set { outputs }
+            outputs.set { outputs }
         }
 
     emit:

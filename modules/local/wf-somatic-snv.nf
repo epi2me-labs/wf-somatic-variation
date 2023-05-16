@@ -298,13 +298,16 @@ process clairs_extract_candidates {
             path("indels/${region.contig}.*_indel"),
             emit: candidates_indels,
             optional: true
+
     script:
         def bedfile = params.bed ? "" : ""
         def indel_min_af = model == 'ont_r10' ? "--indel_min_af ${params.indel_min_af}" : "--indel_min_af 1.00"
         def select_indels = model == 'ont_r10' ? "--select_indel_candidates True" : "--select_indel_candidates False"
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
+        export REF_PATH=${ref_cache}/%2s/%2s/%s        
+        # Create output folder structure
         mkdir candidates; mkdir indels
+        # Create candidates
         pypy3 \$CLAIRS_PATH/clairs.py extract_pair_candidates \\
             --tumor_bam_fn ${tumor_bam.getName()} \\
             --normal_bam_fn ${normal_bam.getName()} \\
