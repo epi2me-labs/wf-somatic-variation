@@ -14,7 +14,6 @@ variables:
     CI_FLAVOUR: "new" # set to "classic" for old-style CI
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
 
-
 docker-run:
 
     # Define a 1D job matrix to inject a variable named MATRIX_NAME into
@@ -76,3 +75,8 @@ docker-run:
                   clairs_full_hap_filter,clairs_haplotag,clairs_merge_final,clairs_merge_full,clairs_merge_pileup,clairs_phase,clairs_predict_full,clairs_predict_pileup,clairs_select_het_snps,\
                   vcfStats,"
 
+macos-run:
+  # Let's avoid those ARM64 runners for now
+  tags:
+    - macos
+    - x86
