@@ -3,7 +3,8 @@
     "$id": "https://raw.githubusercontent.com/epi2me-labs/wf-somatic-variation/master/nextflow_schema.json",
     "title": "epi2me-labs/wf-somatic-variation",
     "description": "Nextflow workflow to identify somatic variation.",
-    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation-demo/wf-somatic-variation-demo.tar.gz",
+    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz",
+    "aws_demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/aws.nextflow.config",
     "url": "https://github.com/epi2me-labs/wf-somatic-variation",
     "type": "object",
     "definitions": {
