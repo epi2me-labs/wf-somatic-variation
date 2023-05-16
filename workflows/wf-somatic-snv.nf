@@ -283,7 +283,7 @@ workflow snv {
         clairs_extract_candidates(chunks)
 
         // Prepare the paired tensors for each tumor/normal pair.
-        clairs_create_paired_tensors(chunks.combine(clairs_extract_candidates.out.candidates_snvs, by: [0,1]))
+        clairs_create_paired_tensors(chunks.combine(clairs_extract_candidates.out.candidates_snvs.transpose(), by: [0,1]))
         
         // Predict variants based on the paired pileup model
         clairs_predict_pileup(clairs_create_paired_tensors.out)
@@ -344,7 +344,7 @@ workflow snv {
                         [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                 }
                 .combine(
-                    clairs_extract_candidates.out.candidates_snvs.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                    clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                 .combine(ref)
                 .combine(clairs_model)
                 .set{ paired_phased_channel }
@@ -353,7 +353,7 @@ workflow snv {
             clairs_haplotag.out.phased_data
                 .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                 .combine(
-                    clairs_extract_candidates.out.candidates_snvs.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                    clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                 .combine(ref)
                 .combine(clairs_model)
                 .set{paired_phased_channel}
@@ -418,7 +418,7 @@ workflow snv {
         // Perform indel calling if the model is appropriate
         if (params.basecaller_cfg.startsWith('dna_r10')){
             // Create paired tensors for the indels candidates
-            clairs_create_paired_tensors_indels(chunks.combine(clairs_extract_candidates.out.candidates_indels, by: [0,1]))
+            clairs_create_paired_tensors_indels(chunks.combine(clairs_extract_candidates.out.candidates_indels.transpose(), by: [0,1]))
 
             // Create paired tensors for the indels candidates
             clairs_predict_pileup_indel( clairs_create_paired_tensors_indels.out )
@@ -443,7 +443,7 @@ workflow snv {
                             [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                     }
                     .combine(
-                        clairs_extract_candidates.out.candidates_indels.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                        clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                     .combine(ref)
                     .combine(clairs_model)
                     .set{ paired_phased_indels_channel }
@@ -452,7 +452,7 @@ workflow snv {
                 clairs_haplotag.out.phased_data
                     .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
                     .combine(
-                        clairs_extract_candidates.out.candidates_indels.map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                        clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
                     .combine(ref)
                     .combine(clairs_model)
                     .set{paired_phased_indels_channel}

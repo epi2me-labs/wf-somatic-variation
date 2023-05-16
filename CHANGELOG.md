@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Fixed
 - Demo data
+- Fix occasional crash when candidate nested tuple is found
 ### Added
 - Fast mode
+### Changed
 - Updated to ClairS v0.1.1
 
 ## [v0.1.0]
