@@ -128,8 +128,21 @@ workflow {
                     return [bam, bai, meta]
                 })
 
+    // Check input region bed file.
+    // If it doesn't exists, then extract the regions from
+    // the reference faidx file.
+    bed = null
+    default_bed_set = false
+    if(params.bed){
+        bed = Channel.fromPath(params.bed, checkIfExists: true)
+    }
+    else {
+        default_bed_set = true
+        bed = getAllChromosomesBed(ref_channel).all_chromosomes_bed
+    }
+
     //Compute QC metrics and output QC statistics
-    qcdata = alignment_stats(all_bams, ref_channel, OPTIONAL, versions, parameters)
+    qcdata = alignment_stats(all_bams, ref_channel, bed, versions, parameters)
     output_qc( qcdata.outputs )
 
     // Apply bam coverage hard threshold to the pair
@@ -182,19 +195,6 @@ workflow {
         all_bams.set{ pass_bam_channel }
     }
 
-    // wf-somatic-snv
-    // Check input region bed file.
-    // If it doesn't exists, then extract the regions from
-    // the reference faidx file.
-    bed = null
-    default_bed_set = false
-    if(params.bed){
-        bed = Channel.fromPath(params.bed, checkIfExists: true)
-    }
-    else {
-        default_bed_set = true
-        bed = getAllChromosomesBed(ref_channel).all_chromosomes_bed
-    }
     // Run snv workflow if requested
     if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
