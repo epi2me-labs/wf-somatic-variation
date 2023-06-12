@@ -646,9 +646,9 @@ def populate_report(report, args, **kwargs):
                     # Consider replacing mean_pos with total_mean_pos to have a
                     # single line, instead of one line per chromosome.
                     plt = line_plot(
-                        df, 'mean_pos', 'depth', 'chrom', header, add_mean=mean_cov,
+                        df, 'total_mean_pos', 'depth', 'chrom', header,
                         xaxis='Position along reference', yaxis='Sequencing depth',
-                        max_y=max_y)
+                        max_y=max_y, add_mean=mean_cov)
                     EZChart(plt, 'epi2melabs')
         p(
             'Depth of coverage computed by',
