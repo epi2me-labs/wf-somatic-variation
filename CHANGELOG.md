@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enum choices are enumerated as part of the error message when a user has selected an invalid choice
 ### Fixed
 - Replaced `--threads` option in fastqingress with hardcoded values to remove warning about undefined `param.threads`
+- Depth plot with overlapping chromosomal coverage
 
 ## [v0.1.1]
 ### Fixed
