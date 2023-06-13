@@ -15,7 +15,6 @@ variables:
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
 
 docker-run:
-
     # Define a 1D job matrix to inject a variable named MATRIX_NAME into
     #   the CI environment, we can use the value of MATRIX_NAME to determine
     #   which options to apply as part of the rules block below
@@ -24,8 +23,9 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "base", "wf-somatic-snv-r10", "wf-somatic-snv-r9", "wf-somatic-snv-r10-fail"
-            ]
+                "base", "wf-somatic-snv-r10", "wf-somatic-snv-r9", "wf-somatic-snv-r10-fail",
+                "sv", "sv-full"
+                ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
         #   we must redefine this CI_COMMIT_BRANCH rule to prevent docker-run
@@ -74,6 +74,26 @@ docker-run:
                   clairs_predict_pileup_indel,lookup_clair3_model,annotate_spectra,clairs_create_fullalignment_paired_tensors,clairs_create_paired_tensors,clairs_extract_candidates,\
                   clairs_full_hap_filter,clairs_haplotag,clairs_merge_final,clairs_merge_full,clairs_merge_pileup,clairs_phase,clairs_predict_full,clairs_predict_pileup,clairs_select_het_snps,\
                   vcfStats,"
+        - if: $MATRIX_NAME == "sv"
+          variables:
+              NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
+              NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+                  bwa_index,nanomonsv_classify,nanomonsv_filter,annotate_filter,annotate_classify"
+        - if: $MATRIX_NAME == "sv-full"
+          variables:
+              NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
+              NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
 macos-run:
   # Let's avoid those ARM64 runners for now

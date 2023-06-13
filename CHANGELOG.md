@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage plots to alignment stats report
 
 ### Changed
+- Created a subworkflow to call somatic SV (`somatic_sv` in `workflows/wf-somatic-sv.nf`)
+- Add nanomonsv soft filtering SV when providing a bed file specifying the tandem repeat with `--tr_bed`
+- Add nanomonsv insert classification with `--classify_insert`, to add RepeatMasker annotation to the SVs
+- Add `report_sv`, that generates a report of the SV detected
 - Enum choices are enumerated in the `--help` output
 - Enum choices are enumerated as part of the error message when a user has selected an invalid choice
 - Bumped minimum required Nextflow version to 22.10.8

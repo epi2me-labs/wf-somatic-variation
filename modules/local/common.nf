@@ -71,6 +71,44 @@ process minimap2_ubam {
 }
 
 // Module to convert fai index to bed
+process bgzipper {
+    cpus 1
+    input:
+        path infile
+    output:
+        path "${infile.baseName}.gz", emit: bgzip
+        path "${infile.baseName}.gz.tbi", emit: tbi
+    script:
+    """
+    sort -k 1,1 -k2,2n ${infile} | bgzip -c > ${infile.baseName}.gz
+    """
+}
+
+// Module to convert fai index to bed
+process tabixer {
+    cpus 1
+    input:
+        path infile
+    output:
+        path "${infile.baseName}.tbi", emit: tbi
+    script:
+    // Define ideal preset based on the suffix
+    def preset = ""
+    if (infile.extension == 'bed'){
+        preset = "-p bed"
+    } else if (infile.extension == 'vcf'){
+        preset = "-p vcf"
+    } else if (infile.extension == 'gff' || infile.extension == 'gff3' || infile.extension == 'gtf'){
+        preset = "-p gff"
+    } else {
+        preset = "-s 1 -b 2"
+    }
+    """
+    tabix ${preset} ${infile.baseName}.gz
+    """
+}
+
+// Module to convert fai index to bed
 process getAllChromosomesBed {
     cpus 1
     input:

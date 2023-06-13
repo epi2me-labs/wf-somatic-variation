@@ -5,6 +5,9 @@ nextflow.enable.dsl = 2
 // Load base modules
 include {bam_ingress as bam_ingress_normal; bam_ingress as bam_ingress_tumor} from './lib/bamingress.nf'
 include {
+    somatic_sv
+    } from './workflows/wf-somatic-sv.nf'
+include {
     index_ref_gzi;
     index_ref_fai;
     cram_cache;
@@ -69,6 +72,7 @@ workflow {
         // easier to just decompress and pass it around rather than confusing the user
         decompress_ref(file(params.ref))
         ref = decompress_ref.out.decompressed_ref
+        ref_index = file("${ref}.fai").exists() ? Channel.of(file("${ref}.fai")) : index_ref_fai(ref).reference_index // Create fai index channel
     }
     else {
         ref = Channel.fromPath(params.ref, checkIfExists: true)
@@ -230,6 +234,12 @@ workflow {
         
         // Publish outputs in the appropriate folder
         clair_vcf | output_snv
+   
+    }
+    
+    // Start SV calling workflow
+    if (params.sv){
+        somatic_sv(pass_bam_channel, ref_channel, OPTIONAL)
     }
 
     // Emit reference and its index

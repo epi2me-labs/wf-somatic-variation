@@ -4,6 +4,7 @@ to identify somatic variation in a paired normal/tumor sample.
 This workflow currently perform:
  - Alignment QC and statistics.
  - Somatic short variant calling (SNV and Indels).
+ - Somatic structural variants calling (SV).
 
 
 
@@ -12,6 +13,8 @@ This workflow currently perform:
 
 This workflow enables analysis of somatic variation using the following tools:
 1. [ClairS](https://github.com/HKU-BAL/ClairS)
+2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)
+
 
 
 
@@ -57,7 +60,17 @@ Any other model provided will prevent the workflow to start.
 
 Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specify an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
 
+**Somatic structural variant (SV) calling with Nanomonsv**
+
+The workflow allows for the call of somatic SVs using long-read sequencing data.
+Starting from the paired cancer/control samples, the workflow will:
+1. Parse the SV signatures in the reads using `nanomonsv parse`
+2. Call the somatic SVs using `nanomonsv get`
+3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
+4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
+
 **Output folder**
+
 The output directory has the following structure:
 ```
 output/
@@ -108,10 +121,21 @@ output/
 │   │       └── snv  # VCF containing the SNVs from ClairS
 │   │           ├── SAMPLE_somatic_snv.vcf.gz
 │   │           └── SAMPLE_somatic_snv.vcf.gz.tbi
-│   ├── info  # Runtime info
-│   │   ├── params.json
-│   │   └── versions.txt
-│   └── reports  # Output report for the workflow
+│   └── info  # SNV runtime info
+│       ├── params.json
+│       └── versions.txt
+├── sv
+│   ├── SAMPLE
+│   │   ├── single_breakend
+│   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
+│   │   ├── txt
+│   │   │   └── SAMPLE.nanomonsv.result.annot.txt
+│   │   └── vcf
+│   │       ├── SAMPLE.nanomonsv.result.annot.wf_somatic_sv.vcf.gz
+│   │       └── SAMPLE.nanomonsv.result.annot.wf_somatic_sv.vcf.gz.tbi
+│   └── info  # SV runtime info
+│       ├── params.json
+│       └── versions.txt
 ├── SAMPLE.wf-somatic-snp-report.html
 ├── SAMPLE.wf-somatic-variation-readQC-report.html
 ├── params.json
@@ -122,6 +146,19 @@ The primary outputs are:
 2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
 3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
 4. `output/*.html`: the reports of the SNV pipeline
+
+**Somatic structural variant (SV) calling with Nanomonsv**
+
+The workflow allows for the call of somatic SVs using long-read sequencing data.
+Starting from the paired cancer/control samples, the workflow will:
+1. Parse the SV signatures in the reads using `nanomonsv parse`
+2. Call the somatic SVs using a custom version of `nanomonsv get`
+3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
+4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
+
+**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. please, ensure that 
+your system support it before running it.
+
 
 
 
@@ -139,3 +176,4 @@ The primary outputs are:
 * [bcftools](https://samtools.github.io/bcftools/bcftools.html)
 * [pysam](https://github.com/pysam-developers/pysam)
 * [tabix](https://github.com/samtools/htslib)
+* [nanomonsv](https://github.com/friend1ws/nanomonsv)
