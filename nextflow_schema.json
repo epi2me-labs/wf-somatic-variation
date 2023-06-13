@@ -17,8 +17,7 @@
                 "sv": {
                     "type": "boolean",
                     "description": "Call for somatic structural variants.",
-                    "help_text": "If this option is selected, somatic structural variant calling will be carried out using nanomonsv.",
-                    "hidden": true,
+                    "help_text": "If this option is selected, the workflow will call somatic structural variants using nanomonsv.",
                     "default": false
                 },
                 "methyl": {
@@ -72,6 +71,12 @@
                     "format": "file-path",
                     "description": "An optional BED file enumerating regions to process for variant calling.",
                     "help_text": ""
+                },
+                "tr_bed": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional BED file enumerating simple repeat regions.",
+                    "help_text": "This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
                 }
             },
             "required": [
@@ -242,21 +247,23 @@
                 "depth_window_size": {
                     "type": "number",
                     "default": 50000,
+                    "hidden": true,
                     "description": "Coverage window size in bp.",
-                    "help_text": "This options specify the window size to use when computing the coverage along the genome.",
-                    "hidden": true
+                    "help_text": "This options specify the window size to use when computing the coverage along the genome."
                 },
                 "tumor_min_coverage": {
                     "type": "number",
                     "default": 20,
+                    "hidden": false,
                     "description": "Minimum read coverage for the tumor sample required to run analysis.",
-                    "hidden": false
+                    "help_text": "Tumor bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
                 },
                 "normal_min_coverage": {
                     "type": "number",
                     "default": 20,
+                    "hidden": false,
                     "description": "Minimum read coverage for the normal sample required to run analysis.",
-                    "hidden": false
+                    "help_text": "Normal bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
                 }
             }
         },
@@ -276,7 +283,37 @@
                     "type": "string",
                     "default": "SAMPLE",
                     "description": "Sample name to be displayed in workflow outputs.",
-                    "help_text": ""
+                    "help_text": "The sample name will be used from the workflow to correctly name output files"
+                }
+            }
+        },
+        "sv_calling": {
+            "title": "Options for the somatic structural variant calling",
+            "type": "object",
+            "fa_icon": "fas fa-arrow-left",
+            "description": "Parameters for tweaking the run of the SV module.",
+            "properties": {
+                "min_sv_length": {
+                    "type": "integer",
+                    "default": 30,
+                    "description": "Minimum SV size to call.",
+                    "help_text": "Provide the minimum size of the structural variants to call with nanomonsv."
+                },
+                "genome_id": {
+                    "type": "string",
+                    "description": "ID of the genome to use for SV classification.",
+                    "help_text": "The genome ID allows the workflow to refer to the correct resources needed to perform some analyses.",
+                    "default": "hg38",
+                    "enum": [
+                        "hg38",
+                        "hg19"
+                    ]
+                },
+                "classify_insert": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Perform SV insert classification.",
+                    "help_text": "Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences."
                 }
             }
         },
@@ -301,6 +338,11 @@
                     "type": "integer",
                     "default": 4,
                     "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)"
+                },
+                "nanomonsv_get_threads": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Total number of threads to use in nanomonsv get (minimum of 2 and limited by config executor cpus)"
                 },
                 "haplotype_filter_threads": {
                     "type": "integer",
@@ -357,6 +399,9 @@
             "$ref": "#/definitions/snv_options"
         },
         {
+            "$ref": "#/definitions/sv_calling"
+        },
+        {
             "$ref": "#/definitions/advanced_options"
         },
         {
@@ -364,6 +409,9 @@
         },
         {
             "$ref": "#/definitions/qc_options"
+        },
+        {
+            "$ref": "#/definitions/sv_calling"
         },
         {
             "$ref": "#/definitions/misc"
@@ -390,7 +438,7 @@
         }
     },
     "docs": {
-        "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)",
-        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)"
+        "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)\n2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)\n",
+        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)\n* [nanomonsv](https://github.com/friend1ws/nanomonsv)\n"
     }
 }

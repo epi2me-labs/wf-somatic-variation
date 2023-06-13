@@ -297,11 +297,11 @@ def compute_n50(lengths):
     return n50
 
 
-def hist_max(variable_data, binwidth=None):
+def hist_max(variable_data, binwidth=None, bins='auto'):
     """Compute max value to set in a plot."""
     estimate_kws = dict(
         stat='count',
-        bins='auto',
+        bins=bins,
         binwidth=binwidth,
         binrange=None,
         discrete=None,
@@ -312,15 +312,18 @@ def hist_max(variable_data, binwidth=None):
     return max(heights)
 
 
-def compare_max_axes(df1, df2, col, ptype='val', binwidth=None):
+def compare_max_axes(
+        df1, df2, col, ptype='val',
+        bins='auto', binwidth=None,
+        buffer=1.1, precision=0):
     """Compute max value to set in a plot."""
     if ptype == 'hist':
-        v1max = hist_max(df1[col].dropna(), binwidth=binwidth)
-        v2max = hist_max(df2[col].dropna(), binwidth=binwidth)
+        v1max = hist_max(df1[col].dropna(), bins=bins, binwidth=binwidth)
+        v2max = hist_max(df2[col].dropna(), bins=bins, binwidth=binwidth)
     else:
         v1max = df1[col].max()
         v2max = df2[col].max()
-    return np.ceil(max(v1max, v2max) * 1.1)
+    return np.ceil(max(v1max, v2max) * buffer * (10**precision))/(10**precision)
 
 
 def add_cumulative(df):
@@ -337,7 +340,7 @@ def add_cumulative(df):
 def hist_plot(
         df, col, title, xaxis='', yaxis='', rounding=None,
         n50=None, color=None, binwidth=None, binrange=None, bins='auto',
-        max_y=None, max_x=None, min_x=None, min_y=None):
+        max_y=None, max_x=None, min_x=None, min_y=None, no_stats=False):
     """Make a histogram of given parameter."""
     histogram_data = df[col].values
 
@@ -373,24 +376,25 @@ def hist_plot(
         )
 
     # Add mean and median values (Thanks Julian!)
-    plt.add_series(
-        dict(
-            type="line",
-            name="Mean",
-            data=[dict(value=[meanv, 0]), dict(value=[meanv, max_y])],
-            itemStyle=(dict(color=COLORS.sandstorm)),
-            symbolSize=0
+    if not no_stats:
+        plt.add_series(
+            dict(
+                type="line",
+                name="Mean",
+                data=[dict(value=[meanv, 0]), dict(value=[meanv, max_y])],
+                itemStyle=(dict(color=COLORS.sandstorm)),
+                symbolSize=0
+            )
         )
-    )
-    plt.add_series(
-        dict(
-            type="line",
-            name="Median",
-            data=[dict(value=[medianv, 0]), dict(value=[medianv, max_y])],
-            itemStyle=(dict(color=COLORS.fandango)),
-            symbolSize=0
+        plt.add_series(
+            dict(
+                type="line",
+                name="Median",
+                data=[dict(value=[medianv, 0]), dict(value=[medianv, max_y])],
+                itemStyle=(dict(color=COLORS.fandango)),
+                symbolSize=0
+            )
         )
-    )
     # Add N50 if required
     if n50 is not None:
         plt.add_series(
