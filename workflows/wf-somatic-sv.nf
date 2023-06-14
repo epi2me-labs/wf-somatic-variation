@@ -123,26 +123,26 @@ workflow somatic_sv {
         // The report gets saved in the main outut directory (null out subfolder)
         // whereas the rest goes in the sv subdir.
         sortVCF.out.vcf_gz
-            .map{ meta, vcf -> [ vcf, "sv/${meta.sample}/vcf" ] }
+            .map{ meta, vcf -> [ vcf, null ] }
             .concat(
                 sortVCF.out.vcf_tbi.map{
-                    meta, txt -> [txt, "sv/${meta.sample}/vcf"]
+                    meta, tbi -> [tbi, null]
                     })
             .concat(
                 ch_txt.map{
-                    meta, txt -> [txt, "sv/${meta.sample}/txt"]
+                    meta, txt -> [txt, "${meta.sample}/sv/txt"]
                     })
             .concat(
                 ch_sbd.map{
-                    meta, sbd -> [sbd, "sv/${meta.sample}/single_breakend"]
+                    meta, sbd -> [sbd, "${meta.sample}/sv/single_breakend"]
                 })
             .concat(
                 workflow_params.map{
-                    params -> [params, "sv/info"]
+                    params -> [params, "info/sv/"]
                     })
             .concat(
                 software_versions.map{
-                    versions -> [versions, "sv/info"]
+                    versions -> [versions, "info/sv/"]
                     })
             .concat(
                 report.out.html.map{
