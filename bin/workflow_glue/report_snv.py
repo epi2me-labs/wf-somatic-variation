@@ -16,10 +16,13 @@ import numpy as np
 import pandas as pd
 import pysam
 
+from .report_sv import scatter_plot  # noqa: ABS101
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 
 # Global variables
 Colors = util.Colors
+# Number of digits
+PRECISION = 4
 
 # Mutation profile palette to match the COSMIC
 # patterns.
@@ -42,11 +45,16 @@ def vcf_parse(args):
     flt = []
     vaf = []
     naf = []
+    vtype = []
     for rec in vcf_df:
         flt.append(rec.filter.keys()[0])
         vaf.append(rec.samples[samplename]['AF'])
         naf.append(rec.samples[samplename]['NAF'])
-    return samplename, flt, vaf, naf
+        if len(rec.alts[0]) == len(rec.ref) and len(rec.ref) == 1:
+            vtype.append('SNV')
+        else:
+            vtype.append('Indel')
+    return samplename, flt, vaf, naf, vtype
 
 
 def vaf_plot(vaf, title, xaxis="", yaxis="", color=None):
@@ -127,6 +135,7 @@ def plot_spectra(spectra, sample):
     plot.yAxis.name = "Counts"
     for s in plot.series:
         s.colorBy = 'data'
+    plot.tooltip = dict({'trigger': 'item'})
     return plot
 
 
@@ -173,10 +182,17 @@ def plot_profile(df, sample):
     plt.yAxis.name = 'Count'
 
     # Add tooltip to facilitate reading
-    plt.tooltip = dict(
-        trigger="axis",
-        axisPointer=dict(type="shadow"),
-        formatter="{b7}")
+    tmp_df = plt.dataset[0].source
+    tmp_sum = np.array([tmp_df[:, 0], np.sum(tmp_df[:, 1:], axis=1)]).T
+    plt.add_series(
+        dict(
+            type="scatter",
+            name="Mean",
+            data=[dict(value=tmp_sum[i, :]) for i in range(0, tmp_sum.shape[0])],
+            symbolSize=0,
+            tooltip=dict(formatter='{c}')
+        ))
+    plt.tooltip = dict({'trigger': 'item'})
     return plt
 
 
@@ -197,7 +213,7 @@ def main(args):
         raise Exception("Invalid range of variant allele frequencies thresholds.")
 
     # Load the data
-    sample_id, filters, var_af, nvar_af = vcf_parse(args)
+    sample_id, filters, var_af, nvar_af, vtype = vcf_parse(args)
     filtstats = filt_stats(filters, var_af, nvar_af, thresholds=vaf_thresholds)
     spectra = process_spectra(args.mut_spectra)
     try:
@@ -216,8 +232,7 @@ def main(args):
 
     with report.add_section('At a glance', 'Summary'):
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(sample_id, active):
+        with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
                 p('The bcftools stats file is empty.')
             else:
@@ -239,8 +254,7 @@ def main(args):
     # Base statistics
     with report.add_section('Statistics', 'Stats'):
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(sample_id, active):
+        with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
                 p('The bcftools stats file is empty.')
             else:
@@ -253,33 +267,47 @@ def main(args):
 
     # Plot tumor/normal AF if provided
     with report.add_section('Variant allele frequencies', 'VAF'):
+        p(
+            'Variant allele frequency (VAF) comparison between normal (x-axis)'
+            ' and tumor (y-axis). The tooltips display the tumor VAF of each site.')
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(sample_id, active):
-            active = False
+        with tabs.add_tab(sample_id):
             if len(filters) == 0:
                 p('No variants are in the VCF file.')
             else:
-                with Grid():
-                    data = ((var_af, 'Tumor variant allele frequency', Colors.cerulean),
-                            (nvar_af, 'Normal variant allele frequency', Colors.green))
-                    for (d, header, color) in data:
-                        plt = vaf_plot(
-                            d, header,
-                            xaxis="Variant allele frequency",
-                            yaxis="Proportion of sites",
-                            color=color)
-                        EZChart(plt, 'epi2melabs')
                 DataTable.from_pandas(filtstats, use_index=False)
+                vcf_df = pd.DataFrame(
+                    data={
+                        'Filters': filters, 'VAF': var_af,
+                        'NVAF': nvar_af, 'TYPE': vtype})\
+                    .query('Filters=="PASS"')
+                with Grid():
+                    for vt in ('SNV', 'Indel'):
+                        sub_df = vcf_df.round(PRECISION).query(f'TYPE=="{vt}"')
+                        if sub_df.empty:
+                            p(f'No {vt}s to display.')
+                            continue
+                        plt = scatter_plot(
+                            sub_df, 'NVAF', 'VAF', None,
+                            f'Filtered Tumor vs Normal VAF ({vt})',
+                            xaxis='Normal VAF', yaxis='Tumor VAF',
+                            min_x=0, max_x=1, min_y=0, max_y=1)
+                        plt.color = [Colors.cerulean if vt == 'SNV' else Colors.green]
+                        for s in plt.series:
+                            s.symbolSize = 3
+                            s.encode = {
+                                'x': 'NVAF', 'y': 'VAF',
+                                'itemName': 'NVAF', 'tooltip': ['VAF']}
+                        # Add tooltip to facilitate reading
+                        plt.tooltip = dict({'trigger': 'item'})
+                        EZChart(plt, 'epi2melabs')
 
     # Plot mutation spectra if provided
     with report.add_section('Mutational characterisation', 'Changes'):
         p('This section shows the type of changes found and their '
             'distribution.')
         tabs = Tabs()
-        active = True
-        with tabs.add_tab(sample_id, active):
-            active = False
+        with tabs.add_tab(sample_id):
             if spectra.empty:
                 p('Mutation counts file is empty.')
             else:

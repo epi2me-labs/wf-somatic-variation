@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage plots to alignment stats report
 
 ### Changed
+- Variant allele frequency representation is now a scatterplot showing the relationship between normal and tumor VAF
 - Created a subworkflow to call somatic SV (`somatic_sv` in `workflows/wf-somatic-sv.nf`)
 - Add nanomonsv soft filtering SV when providing a bed file specifying the tandem repeat with `--tr_bed`
 - Add nanomonsv insert classification with `--classify_insert`, to add RepeatMasker annotation to the SVs
