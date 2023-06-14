@@ -242,7 +242,7 @@ workflow {
         somatic_sv(pass_bam_channel, ref_channel, OPTIONAL)
     }
 
-    // Emit reference and its index
+    // Emit reference, its index and the workflow info
     output(ref_channel.concat(versions).concat(parameters))
 
 }

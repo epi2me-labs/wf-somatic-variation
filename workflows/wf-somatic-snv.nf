@@ -534,66 +534,66 @@ workflow snv {
         // If null is passed, send it to out_dir/ directly.
         ch_vcf
             .map{ 
-                meta, vcf -> [ vcf, "snv/${meta.sample}/vcf" ]
+                meta, vcf -> [ vcf, null ]
                 }
             .concat(
                 ch_tbi.map{
-                    meta, txt -> [txt, "snv/${meta.sample}/vcf"]
+                    meta, tbi -> [tbi, null]
                     })
             .concat(
                 vcfStats.out.map{
-                    meta, stats -> [stats, "snv/${meta.sample}/varstats"]
+                    meta, stats -> [stats, "${meta.sample}/snv/varstats"]
                     })
             .concat(
                 annotate_spectra.out.spectrum.map{
-                    meta, spectra -> [spectra, "snv/${meta.sample}/spectra"]
+                    meta, spectra -> [spectra, "${meta.sample}/snv/spectra"]
                     })
             .concat(
                 workflow_params.map{
-                    params -> [params, "snv/info"]
+                    params -> [params, "info/snv/"]
                     })
             .concat(
                 software_versions.map{
-                    versions -> [versions, "snv/info"]
+                    versions -> [versions, "info/snv/"]
                     })
             .concat(
                 makeReport.out.html.map{
                     it -> [it, null]
                 })
             .concat(
-                clairs_merge_final.out.pileup_vcf.map{meta, vcf -> [vcf, "snv/${meta.sample}/vcf/snv"]}
+                clairs_merge_final.out.pileup_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
                 )
             .concat(
-                clairs_merge_final.out.pileup_tbi.map{meta, tbi -> [tbi, "snv/${meta.sample}/vcf/snv"]}
+                clairs_merge_final.out.pileup_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
                 )
             .set{outputs}
         if (!params.fast_mode){
             outputs
                 .concat(
                     forked_vcfs.tumor.map{
-                        meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/tumor"]
+                        meta, vcf, tbi -> [vcf, "${meta.sample}/snv/vcf/"]
                         })
                 .concat(
                     forked_vcfs.tumor.map{
-                        meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/tumor"]
+                        meta, vcf, tbi -> [tbi, "${meta.sample}/snv/vcf/"]
                         })
                 .concat(
                     forked_vcfs.normal.map{
-                        meta, vcf, tbi -> [vcf, "snv/${meta.sample}/vcf/germline/normal"]
+                        meta, vcf, tbi -> [vcf, "${meta.sample}/snv/vcf/"]
                         })
                 .concat(
                     forked_vcfs.normal.map{
-                        meta, vcf, tbi -> [tbi, "snv/${meta.sample}/vcf/germline/normal"]
+                        meta, vcf, tbi -> [tbi, "${meta.sample}/snv/vcf/"]
                         })
                 .set{ outputs }
         }
         if (params.basecaller_cfg.startsWith('dna_r10')){
             outputs
                 .concat(
-                    clairs_merge_final_indels.out.indel_vcf.map{meta, vcf -> [vcf, "snv/${meta.sample}/vcf/indels"]}
+                    clairs_merge_final_indels.out.indel_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
                     )
                 .concat(
-                    clairs_merge_final_indels.out.indel_tbi.map{meta, tbi -> [tbi, "snv/${meta.sample}/vcf/indels"]}
+                    clairs_merge_final_indels.out.indel_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
                     )
                 .set { outputs }
         } else {

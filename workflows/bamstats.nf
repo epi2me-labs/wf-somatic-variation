@@ -190,24 +190,24 @@ workflow alignment_stats {
         // If null is passed, send it to out_dir/ directly.
         if (params.depth_intervals){
             makeQCreport.out.map{it -> [it[1], null]}
-                .concat(stats.flagstat.map{meta, fstats -> [fstats, "qc/${meta.sample}/readstats"]})
-                .concat(stats.read_stats.map{meta, rstats -> [rstats, "qc/${meta.sample}/readstats"]})
-                .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "qc/${meta.sample}/coverage"]})
+                .concat(stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]})
+                .concat(stats.read_stats.map{meta, rstats -> [rstats, "${meta.sample}/qc/readstats"]})
+                .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "${meta.sample}/qc/coverage"]})
                 .concat(depths.mosdepth_tuple
                             .map {meta, reg, dist, thresh  -> [meta, [reg, dist, thresh]] }
                             .transpose()
-                            .map{meta, fname -> [fname, "qc/${meta.sample}/coverage"]})
-                .concat(depths.perbase.map{meta, pbase ->[pbase, "qc/${meta.sample}/coverage"]})
+                            .map{meta, fname -> [fname, "${meta.sample}/qc/coverage"]})
+                .concat(depths.perbase.map{meta, pbase ->[pbase, "${meta.sample}/qc/coverage"]})
                 .set{outputs}
         } else {
             makeQCreport.out.map{meta, report -> [report, null]}
-                .concat(stats.flagstat.map{meta, fstats -> [fstats, "qc/${meta.sample}/readstats"]})
-                .concat(stats.read_stats.map{meta, rstats -> [rstats, "qc/${meta.sample}/readstats"]})
-                .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "qc/${meta.sample}/coverage"]})
+                .concat(stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]})
+                .concat(stats.read_stats.map{meta, rstats -> [rstats, "${meta.sample}/qc/readstats"]})
+                .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "${meta.sample}/qc/coverage"]})
                 .concat(depths.mosdepth_tuple
                             .map {meta, reg, dist, thresh  -> [meta, [reg, dist, thresh]] }
                             .transpose()
-                            .map{meta, fname -> [fname, "qc/${meta.sample}/coverage"]})
+                            .map{meta, fname -> [fname, "${meta.sample}/qc/coverage"]})
                 .set{outputs}
         }
 

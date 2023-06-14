@@ -43,6 +43,28 @@ nextflow run epi2me-labs/wf-somatic-variation --help
 
 to see the options for the workflow.
 
+**Input and Data preparation**
+
+The workflow relies on three primary input files:
+1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
+2. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample
+3. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample
+
+The reference genome should be either hg19 (GRCh37) or hg38 (GRCh38).
+The aligned bam files can be generated starting from:
+1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
+2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
+
+Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
+
+**Demo data**
+
+The workflow comes with matched demo data accessible [here](https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz):
+```
+wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz
+```
+This demo is derived from a Tumor/Normal pair of samples, that we have made publicly accessible. Check out our [blog post](https://labs.epi2me.io/colo-2023.05/) for more details.
+
 **Somatic short variant calling**
 
 The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/normal sample.
@@ -74,78 +96,73 @@ Starting from the paired cancer/control samples, the workflow will:
 The output directory has the following structure:
 ```
 output/
-├── GRCh38_no_alt_chr17.fa
-├── GRCh38_no_alt_chr17.fa.fai
-├── ref_cache
 ├── execution # Execution reports
 │   ├── report.html
 │   ├── timeline.html
 │   └── trace.txt
-├── qc
-│   └── SAMPLE
-│       ├── coverage
-│       │   ├── SAMPLE_normal.mosdepth.global.dist.txt
-│       │   ├── SAMPLE_normal.mosdepth.summary.txt
-│       │   ├── SAMPLE_normal.per-base.bed.gz
-│       │   ├── SAMPLE_normal.regions.bed.gz
-│       │   ├── SAMPLE_normal.thresholds.bed.gz
-│       │   ├── SAMPLE_tumor.mosdepth.global.dist.txt
-│       │   ├── SAMPLE_tumor.mosdepth.summary.txt
-│       │   ├── SAMPLE_tumor.per-base.bed.gz
-│       │   ├── SAMPLE_tumor.regions.bed.gz
-│       │   └── SAMPLE_tumor.thresholds.bed.gz
-│       └── readstats
-│           ├── SAMPLE_normal.flagstat.tsv
-│           ├── SAMPLE_normal.readstats.tsv.gz
-│           ├── SAMPLE_tumor.flagstat.tsv
-│           └── SAMPLE_tumor.readstats.tsv.gz
-├── snp # ClairS outputs
-│   ├── SAMPLE  # ClairS outputs for SAMPLE
+├── SAMPLE
+│   ├── qc
+│   │   ├── coverage
+│   │   │   ├── SAMPLE_normal.mosdepth.global.dist.txt
+│   │   │   ├── SAMPLE_normal.mosdepth.summary.txt
+│   │   │   ├── SAMPLE_normal.per-base.bed.gz
+│   │   │   ├── SAMPLE_normal.regions.bed.gz
+│   │   │   ├── SAMPLE_normal.thresholds.bed.gz
+│   │   │   ├── SAMPLE_tumor.mosdepth.global.dist.txt
+│   │   │   ├── SAMPLE_tumor.mosdepth.summary.txt
+│   │   │   ├── SAMPLE_tumor.per-base.bed.gz
+│   │   │   ├── SAMPLE_tumor.regions.bed.gz
+│   │   │   └── SAMPLE_tumor.thresholds.bed.gz
+│   │   └── readstats
+│   │       ├── SAMPLE_normal.flagstat.tsv
+│   │       ├── SAMPLE_normal.readstats.tsv.gz
+│   │       ├── SAMPLE_tumor.flagstat.tsv
+│   │       └── SAMPLE_tumor.readstats.tsv.gz
+│   │
+│   ├── snv  # ClairS outputs
 │   │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
 │   │   │   └── SAMPLE_spectrum.csv
 │   │   ├── varstats  # Bcftools stats output
 │   │   │   └── SAMPLE.stats
-│   │   └── vcf  # VCF outputs
-│   │       ├── SAMPLE_somatic_mutype.vcf.gz
-│   │       ├── SAMPLE_somatic_mutype.vcf.gz.tbi
-│   │       ├── germline  # Clair3 Germline calling for both tumor and normal bams
-│   │       │   ├── tumor
-│   │       │   │   ├── SAMPLE_tumor_germline.vcf.gz
-│   │       │   │   └── SAMPLE_tumor_germline.vcf.gz.tbi
-│   │       │   └── normal
-│   │       │       ├── SAMPLE_normal_germline.vcf.gz
-│   │       │       └── SAMPLE_normal_germline.vcf.gz.tbi
-│   │       ├── indels  # VCF containing the indels from ClairS
-│   │       │   ├── SAMPLE_somatic_indels.vcf.gz
-│   │       │   └── SAMPLE_somatic_indels.vcf.gz.tbi
-│   │       └── snv  # VCF containing the SNVs from ClairS
-│   │           ├── SAMPLE_somatic_snv.vcf.gz
-│   │           └── SAMPLE_somatic_snv.vcf.gz.tbi
-│   └── info  # SNV runtime info
-│       ├── params.json
-│       └── versions.txt
-├── sv
-│   ├── SAMPLE
-│   │   ├── single_breakend
-│   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
-│   │   ├── txt
-│   │   │   └── SAMPLE.nanomonsv.result.annot.txt
-│   │   └── vcf
-│   │       ├── SAMPLE.nanomonsv.result.annot.wf_somatic_sv.vcf.gz
-│   │       └── SAMPLE.nanomonsv.result.annot.wf_somatic_sv.vcf.gz.tbi
-│   └── info  # SV runtime info
-│       ├── params.json
-│       └── versions.txt
+│   │   ├── vcf  # VCF outputs
+│   │   │   ├── SAMPLE_tumor_germline.vcf.gz
+│   │   │   ├── SAMPLE_tumor_germline.vcf.gz.tbi
+│   │   │   ├── SAMPLE_normal_germline.vcf.gz
+│   │   │   ├── SAMPLE_normal_germline.vcf.gz.tbi
+│   │   │   ├── SAMPLE_somatic_indels.vcf.gz
+│   │   │   ├── SAMPLE_somatic_indels.vcf.gz.tbi
+│   │   │   ├── SAMPLE_somatic_snv.vcf.gz
+│   │   │   └── SAMPLE_somatic_snv.vcf.gz.tbi
+│   │   └── info  # SV runtime info
+│   │       ├── params.json
+│   │       └── versions.txt
+│   │
+│   └── sv
+│       ├── single_breakend
+│       │   └── SAMPLE.nanomonsv.sbnd.result.txt
+│       ├── txt
+│       │   └── SAMPLE.nanomonsv.result.annot.txt
+│       └── info  # SV runtime info
+│           ├── params.json
+│           └── versions.txt
+├── SAMPLE_somatic_mutype.vcf.gz
+├── SAMPLE_somatic_mutype.vcf.gz.tbi
+├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz
+├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz.tbi
 ├── SAMPLE.wf-somatic-snp-report.html
+├── SAMPLE.wf-somatic-sv-report.html
 ├── SAMPLE.wf-somatic-variation-readQC-report.html
 ├── params.json
 └── versions.txt
 ```
 The primary outputs are:
-1. `output/snp/SAMPLE/vcf/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
-2. `output/snp/SAMPLE/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
-3. `output/snp/SAMPLE/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
-4. `output/*.html`: the reports of the SNV pipeline
+1. `output/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
+2. `output/SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
+3. `output/*.html`: the reports of the different stages
+4. `output/SAMPLE/snp/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
+5. `output/SAMPLE/snp/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
+6. `output/SAMPLE/sv/txt/SAMPLE.nanomonsv.result.annot.txt`: the somatic SVs called with nanomonsv in tabular format
+7. `output/SAMPLE/sv/single_breakend/SAMPLE.nanomonsv.sbnd.result.txt`: the single break-end SVs called with nanomonsv
 
 **Somatic structural variant (SV) calling with Nanomonsv**
 

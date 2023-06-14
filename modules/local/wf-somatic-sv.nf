@@ -171,12 +171,12 @@ process sortVCF {
     input:
         tuple val(meta), path(vcf)
     output:
-        tuple val(meta), path("${vcf.baseName}.wf_somatic_sv.vcf.gz"), emit: vcf_gz
-        tuple val(meta), path("${vcf.baseName}.wf_somatic_sv.vcf.gz.tbi"), emit: vcf_tbi
+        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz"), emit: vcf_gz
+        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz.tbi"), emit: vcf_tbi
     script:
     """
-    bcftools sort -m 2G -O z -o ${vcf.baseName}.wf_somatic_sv.vcf.gz -T ./ $vcf 
-    bcftools index -t ${vcf.baseName}.wf_somatic_sv.vcf.gz
+    bcftools sort -m 2G -O z -o ${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz -T ./ $vcf 
+    bcftools index -t ${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz
     """
 }
 
