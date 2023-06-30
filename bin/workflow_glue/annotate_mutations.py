@@ -55,6 +55,9 @@ def main(args):
                 start=rec.pos - 1 - fsize,
                 end=rec.pos + fsize
                 ).upper()
+            # Get filters
+            filters = [f for f in rec.filter.keys() if f not in ['PASS', '.']]
+            # Get SNVs
             is_snv = len(rec.ref) == len(rec.alts[0]) == 1
             # Check that there are valid nucleotides in the K-mers, that it is a SNP
             # and that it is sorrounded by actual flanks
@@ -78,14 +81,16 @@ def main(args):
                         raise ValueError(f"Change {mut} is not valid.")
                 # If so, set mutation type
                 rec.info['mutation_type'] = mut
-                mut_count[mut] += 1
+                # Count only if PASS
+                if len(filters) == 0:
+                    mut_count[mut] += 1
             # If not, save as missing mutation_type
             else:
                 rec.info.__setitem__('mutation_type', '.')
             o_vcf.write(rec)
 
     # Save output matrix of counts
-    with open(f'{sample_id}_spectrum.csv', 'w') as o_file:
+    with open(f'{sample_id}_changes.csv', 'w') as o_file:
         o_file.write(f'Type,{sample_id}\n')
         for key in sorted(mut_count.keys()):
             o_file.write(f'{key},{mut_count[key]}\n')
@@ -95,7 +100,7 @@ def main(args):
         outjson = {}
         min_rank = -1 * int(args.k/2)
         regexp = r'(?P<Before>[\s\S]+)\[(?P<Change>[\s\S\>]+)\](?P<After>[\s\S]+)'  # noqa: E501
-        df = pd.read_csv(f'{sample_id}_spectrum.csv')
+        df = pd.read_csv(f'{sample_id}_changes.csv')
         df[['Before', 'Change', 'After']] = df['Type'].str.extract(regexp, expand=True)
         df = df[['Before', 'Change', 'After', sample_id]]
 
@@ -131,7 +136,7 @@ def main(args):
                 }
 
         # Finally save the json
-        with open(f'{sample_id}_spectrum.json', 'w') as j_file:
+        with open(f'{sample_id}_changes.json', 'w') as j_file:
             json.dump(outjson, j_file)
     return 0
 

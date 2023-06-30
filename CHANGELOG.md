@@ -5,7 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [unreleased]
+### Changed
 - Updated to nanomonsv v0.6.0.
+- Refine change type counts and plot; file named [SAMPLE]_spectrum.csv renamed to [SAMPLE]_changes.csv.
 
 ## [v0.2.0]
 ### Added

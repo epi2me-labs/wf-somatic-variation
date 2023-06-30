@@ -971,8 +971,8 @@ process annotate_spectra {
     output:    
         tuple val(meta), path("${vcf.simpleName}_mutype.vcf.gz"), emit: mutype_vcf
         tuple val(meta), path("${vcf.simpleName}_mutype.vcf.gz.tbi"), emit: mutype_tbi
-        tuple val(meta), path("${meta.sample}_spectrum.csv"), emit: spectrum
-        tuple val(meta), path("${meta.sample}_spectrum.json"), emit: spectrum_json
+        tuple val(meta), path("${meta.sample}_changes.csv"), emit: changes
+        tuple val(meta), path("${meta.sample}_changes.json"), emit: changes_json
             
     script:
         """
