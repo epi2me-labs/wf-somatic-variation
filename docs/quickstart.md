@@ -101,7 +101,7 @@ output/
 │   │
 │   ├── snv  # ClairS outputs
 │   │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
-│   │   │   └── SAMPLE_spectrum.csv
+│   │   │   └── SAMPLE_changes.csv
 │   │   ├── varstats  # Bcftools stats output
 │   │   │   └── SAMPLE.stats
 │   │   ├── vcf  # VCF outputs
@@ -139,7 +139,7 @@ The primary outputs are:
 1. `output/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
 3. `output/*.html`: the reports of the different stages
-4. `output/SAMPLE/snp/spectra/SAMPLE_spectrum.csv`: the mutation spectrum for the sample
+4. `output/SAMPLE/snp/spectra/SAMPLE_changes.csv`: the mutation changes for the sample
 5. `output/SAMPLE/snp/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
 6. `output/SAMPLE/sv/txt/SAMPLE.nanomonsv.result.annot.txt`: the somatic SVs called with nanomonsv in tabular format
 7. `output/SAMPLE/sv/single_breakend/SAMPLE.nanomonsv.sbnd.result.txt`: the single break-end SVs called with nanomonsv

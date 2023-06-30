@@ -144,6 +144,9 @@ def plot_profile(df, sample):
     # Ensure sorting
     df = df.sort_values(["Change", "Flanks"])
 
+    # Convert to ratios instead of counts
+    df[sample] = df[sample] / df[sample].sum()
+
     # Create base barplot
     plt = barplot(
         data=df.assign(order=range(df.shape[0])),

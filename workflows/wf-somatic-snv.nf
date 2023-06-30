@@ -523,7 +523,7 @@ workflow snv {
         ch_vcf
             .combine(ch_tbi, by: 0)
             .combine(vcfStats.out[0], by: 0)
-            .combine(annotate_spectra.out.spectrum, by: 0)
+            .combine(annotate_spectra.out.changes, by: 0)
             .combine(software_versions)
             .combine(workflow_params)
             .set{ reporting }
@@ -545,8 +545,8 @@ workflow snv {
                     meta, stats -> [stats, "${meta.sample}/snv/varstats"]
                     })
             .concat(
-                annotate_spectra.out.spectrum.map{
-                    meta, spectra -> [spectra, "${meta.sample}/snv/spectra"]
+                annotate_spectra.out.changes.map{
+                    meta, spectra -> [spectra, "${meta.sample}/snv/change_counts"]
                     })
             .concat(
                 workflow_params.map{
