@@ -2,9 +2,9 @@
 
 import argparse
 
-from workflow_glue import report_snv
+from workflow_glue import report_sv
 
 
 def test():
     """Just showing that we can import using the workflow-glue."""
-    assert isinstance(report_snv.argparser(), argparse.ArgumentParser)
+    assert isinstance(report_sv.argparser(), argparse.ArgumentParser)

@@ -14,11 +14,13 @@ include {
     decompress_ref;
     getAllChromosomesBed;
     getVersions;
-    getParams
+    getParams;
+    getGenome
     } from './modules/local/common'
 include {lookup_clair3_model; output_snv} from './modules/local/wf-somatic-snv'
 include {alignment_stats; get_coverage; output_qc; discarded_sample} from './workflows/bamstats.nf'
 include {snv} from './workflows/wf-somatic-snv'
+include {mod} from './workflows/mod.nf'
 
 
 // This is the only way to publish files from a workflow whilst
@@ -47,8 +49,8 @@ workflow {
     }
 
     can_start = true
-    if (!params.snv && !params.sv && !params.methyl) {
-        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --methyl]" + colors.reset)
+    if (!params.snv && !params.sv && !params.mod) {
+        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --mod]" + colors.reset)
         can_start = false
     }
     if (!params.bam_normal || !params.bam_tumor) {
@@ -199,6 +201,14 @@ workflow {
         all_bams.set{ pass_bam_channel }
     }
 
+    // Add genome build information
+    getGenome(pass_bam_channel)
+    getGenome.out.genome_build.map{
+            bam, bai, meta, g_build -> 
+                meta.genome_build = g_build
+                [bam, bai, meta]
+        }.set{pass_bam_channel}
+    
     // Run snv workflow if requested
     if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
@@ -242,8 +252,17 @@ workflow {
         somatic_sv(pass_bam_channel, ref_channel, OPTIONAL)
     }
 
-    // Emit reference, its index and the workflow info
+    // Extract modified bases
+    if (params.mod){
+        mod(
+            pass_bam_channel,
+            ref_channel,
+        )
+    }
+
+    // Emit reference and its index
     output(ref_channel.concat(versions).concat(parameters))
+
 
 }
 

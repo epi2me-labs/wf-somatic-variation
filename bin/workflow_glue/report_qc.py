@@ -2,469 +2,19 @@
 """Plot QC metrics."""
 
 from dominate.tags import a, p
-from ezcharts import lineplot
+from ezcharts.components.common import fasta_idx
 from ezcharts.components.ezchart import EZChart
+from ezcharts.components.fastcat import load_bamstats_flagstat, load_stats
+from ezcharts.components.mosdepth import load_mosdepth_regions, load_mosdepth_summary
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
 from ezcharts.layout.snippets import DataTable, Grid, Stats, Tabs
-from ezcharts.plots import util
-from ezcharts.plots.distribution import histplot
-import numpy as np
 import pandas as pd
-from pandas.api import types as pd_types
-from seaborn._statistics import Histogram
 
+from .report_utils.utils import COLORS, compute_n50  # noqa: ABS101
+from .report_utils.utils import compare_max_axes  # noqa: ABS101
+from .report_utils.visualizations import hist_plot, line_plot  # noqa: ABS101
 from .util import get_named_logger, wf_parser  # noqa: ABS101
-
-# Global variables
-COLORS = util.Colors
-CATEGORICAL = pd_types.CategoricalDtype(ordered=True)
-CHROMOSOMES = {str(i): i for i in range(1, 23)}
-CHROMOSOMES.update({f"chr{i}": int(i) for i in CHROMOSOMES})
-CHROMOSOMES.update({'X': 23, 'Y': 24, 'chrX': 23, 'chrY': 24})
-
-
-# File loaders
-def fasta_idx(faidx):
-    """Read faidx for the reference fasta."""
-    relevant_stats_cols_dtypes = {
-        "chrom": CATEGORICAL,
-        "length": int,
-        "offset1": int,
-        "offset2": int,
-        "offset3": int,
-    }
-    try:
-        df = pd.read_csv(
-            faidx,
-            sep="\t",
-            names=relevant_stats_cols_dtypes.keys(),
-            dtype=relevant_stats_cols_dtypes,
-        ).drop(columns=['offset1', 'offset2', 'offset3'])
-    except pd.errors.EmptyDataError:
-        df = pd.DataFrame(columns=relevant_stats_cols_dtypes)
-    return df
-
-
-def process_fastcat(fastcat_file):
-    """Load fastcat results into dataframe."""
-    relevant_stats_cols_dtypes = {
-        "name": str,
-        "sample_name": CATEGORICAL,
-        "ref": CATEGORICAL,
-        "coverage": float,
-        "ref_coverage": float,
-        "read_length": int,
-        "mean_quality": float,
-        "acc": float,
-    }
-    try:
-        d = pd.read_csv(
-            fastcat_file,
-            sep="\t",
-            header=0,
-            usecols=relevant_stats_cols_dtypes,
-            dtype=relevant_stats_cols_dtypes
-            )
-    except pd.errors.EmptyDataError:
-        d = pd.DataFrame(columns=relevant_stats_cols_dtypes)
-    return d
-
-
-def make_breaks(minval, maxval, winsize):
-    """Create intervals inclusive of last value."""
-    # Create the intervals
-    breaks = list(range(minval, maxval, winsize))
-    # Check that the max value is the chr length
-    if breaks[-1] > maxval:
-        breaks[-1] = maxval
-    if breaks[-1] < maxval:
-        breaks += [maxval]
-    return breaks
-
-
-def add_missing_windows(intervals, faidx, winsize=25000):
-    """Add missing windows to depth dataframe.
-
-    If the depth refers to a narrow region of the chromosome, this will
-    cause to generate a dataframe with either a single-entry, or only
-    few entries. This causes the production of poor quality or impossible to
-    understand plots.
-    This function fixes this by adding the missing leading or trailing
-    intervals, matching the full length of the chromosome. Moreover, it will
-    check for the presence of gaps in the region, adding back the missing
-    points. All added intervals are set to 0-coverage values.
-    """
-    relevant_stats_cols_dtypes = {
-        "chrom": CATEGORICAL,
-        "start": int,
-        "end": int,
-        "depth": float,
-    }
-    # Get unique chromosomes
-    chrs = intervals.chrom.unique().tolist()
-    # New intervals
-    final_intervals = []
-    # Add missing windows for each chromosome
-    for chr_id in chrs:
-        # Get chromosome entries
-        chr_entry = intervals.loc[intervals['chrom'] == chr_id].reset_index(drop=True)
-        # First window start
-        minval = chr_entry.start.min()
-        # Final window end
-        maxval = chr_entry.end.max()
-        # Chromosome length
-        chr_len = faidx[faidx['chrom'] == chr_id].length.max()
-        # If the minimum value is != 0, add intermediate windows
-        if minval != 0:
-            # Create the breaks for the intervals
-            breaks = make_breaks(0, minval, winsize)
-            # Add leading intervals
-            final_intervals.append(
-                pd.DataFrame(data={
-                    'chrom': chr_id,
-                    'start': breaks[0:-1],
-                    'end': breaks[1:],
-                    'depth': 0}))
-        # Append precomputed intervals, checking for breaks
-        # in between regions.
-        for idx, region in chr_entry.iterrows():
-            # To DF
-            region = region.to_frame().T
-            # Add the first window as default
-            if idx == 0:
-                final_intervals.append(region)
-                continue
-            # If the new window start is not the end of the previous,
-            # then create new regions
-            if region.start.min() != final_intervals[-1].end.max():
-                # Create intervals
-                breaks = make_breaks(
-                    final_intervals[-1].end.max(),
-                    region.start.min(),
-                    winsize)
-                # Add heading    intervals
-                final_intervals.append(
-                    pd.DataFrame(data={
-                        'chrom': chr_id,
-                        'start': breaks[0:-1],
-                        'end': breaks[1:],
-                        'depth': 0}))
-            final_intervals.append(region)
-        # If the max value is less than the chromosome length, add these too
-        if maxval < chr_len:
-            # Create the breaks for the intervals
-            breaks = make_breaks(maxval, chr_len, winsize)
-            # Create vectors to populate the DF
-            chr_vec = [chr_id] * (len(breaks) - 1)
-            depths = [0] * (len(breaks) - 1)
-            # Add tailing intervals
-            final_intervals.append(
-                pd.DataFrame(data={
-                    'chrom': chr_vec,
-                    'start': breaks[0:-1],
-                    'end': breaks[1:],
-                    'depth': depths}))
-    return pd.concat(final_intervals).astype(
-        relevant_stats_cols_dtypes).reset_index(drop=True)
-
-
-def load_mosdepth(mosdepth_file, faidx, winsize):
-    """Load mosdepth results into dataframe."""
-    relevant_stats_cols_dtypes = {
-        "chrom": CATEGORICAL,
-        "start": int,
-        "end": int,
-        "depth": float,
-    }
-    try:
-        df = pd.read_csv(
-            mosdepth_file,
-            sep="\t",
-            names=relevant_stats_cols_dtypes.keys(),
-            dtype=relevant_stats_cols_dtypes
-        )
-        df = add_missing_windows(df, faidx, winsize)
-        df = df.loc[df['chrom'].isin(CHROMOSOMES)]
-        df = (
-            df.eval("mean_pos = (start + end) / 2")
-            .eval("step = end - start")
-            .reset_index()
-            )
-        # Sort column by chromosome number
-        df = df.eval("chr_id = chrom.map(@CHROMOSOMES)") \
-            .sort_values(["chr_id", "start"]) \
-            .drop(columns="chr_id")
-        # Reordering
-        df['chrom'] = \
-            df.chrom.cat.remove_unused_categories()
-        df['chrom'] = \
-            df.chrom.cat.reorder_categories(
-            [i for i in df.chrom.unique()])
-        # Extract ref lengths
-        ref_lengths = df.groupby(
-            "chrom", observed=True, sort=False)["end"].last()
-        total_ref_starts = ref_lengths.cumsum().shift(1, fill_value=0)
-        # Add cumulative depth
-        df["total_mean_pos"] = df.apply(
-            lambda x: x.mean_pos + total_ref_starts[x.chrom], axis=1)
-    except pd.errors.EmptyDataError:
-        df = pd.DataFrame(columns=relevant_stats_cols_dtypes) \
-            .astype({"chrom": CATEGORICAL})
-    return df
-
-
-def load_mosdepth_summary(summary_file):
-    """Load mosdepth results into dataframe."""
-    relevant_stats_cols_dtypes = {
-        "chrom": CATEGORICAL,
-        "length": int,
-        "bases": int,
-        "mean": float,
-        "min": int,
-        "max": int
-    }
-    try:
-        df = pd.read_csv(
-            summary_file,
-            sep="\t",
-            usecols=relevant_stats_cols_dtypes.keys(),
-            dtype=relevant_stats_cols_dtypes
-            )
-        df_tot = df[~df['chrom'].str.contains("_region")]
-        df_reg = df[df['chrom'].str.contains("_region")]
-    except pd.errors.EmptyDataError:
-        df_tot = pd.DataFrame(columns=relevant_stats_cols_dtypes)
-        df_reg = pd.DataFrame(columns=relevant_stats_cols_dtypes)
-    return df_tot, df_reg
-
-
-def load_flagstat(flagstat_file):
-    """Load and process flagstat."""
-    relevant_stats_cols_dtypes = {
-        "ref": CATEGORICAL,
-        "sample_name": CATEGORICAL,
-        "total": int,
-        "primary": int,
-        "secondary": int,
-        "supplementary": int,
-        "unmapped": int,
-        "qcfail": int,
-        "duplicate": int,
-    }
-    try:
-        df = pd.read_csv(
-            flagstat_file, sep="\t",
-            usecols=relevant_stats_cols_dtypes,
-            dtype=relevant_stats_cols_dtypes)
-        conditions = [(df['ref'] == '*'), (df['ref'] != '*')]
-        choices = ['Unmapped', 'Mapped']
-        df['Status'] = np.select(conditions, choices, default='Unmapped')
-        df.pop('ref')
-        movecol(df, "Status", 0)
-        movecol(df, "sample_name", 0)
-        df = df.groupby(['sample_name', 'Status']).sum().reset_index()
-    except pd.errors.EmptyDataError:
-        df = pd.DataFrame()
-    return df
-
-
-# Data manipulation
-def movecol(df, colname, pos):
-    """Move a column in a dataframe."""
-    df.insert(pos, colname, df.pop(colname))
-
-
-def process_chr_sizes(fai):
-    """Load the chromosome sizes."""
-    sizes = pd.read_csv(
-        fai,
-        sep="\t",
-        header=None, names=['chr', 'length', 'offset', 'b1', 'b2'])
-    # Add percentage and return
-    sizes['percent'] = sizes['length']/sizes['length'].sum()*100
-    return sizes
-
-
-def compute_n50(lengths):
-    """Compute read N50."""
-    # Sort the read lengths
-    sorted_l = np.sort(lengths)[::-1]
-    # Generate cumsum
-    cumsum = np.cumsum(sorted_l)
-    # Get lowest cumulative value >= (total_length/2)
-    n50 = sorted_l[cumsum >= cumsum[-1]/2][0]
-    return n50
-
-
-def hist_max(variable_data, binwidth=None, bins='auto'):
-    """Compute max value to set in a plot."""
-    estimate_kws = dict(
-        stat='count',
-        bins=bins,
-        binwidth=binwidth,
-        binrange=None,
-        discrete=None,
-        cumulative=False,
-    )
-    estimator = Histogram(**estimate_kws)
-    heights, edges = estimator(variable_data, weights=None)
-    return max(heights)
-
-
-def compare_max_axes(
-        df1, df2, col, ptype='val',
-        bins='auto', binwidth=None,
-        buffer=1.1, precision=0):
-    """Compute max value to set in a plot."""
-    if ptype == 'hist':
-        v1max = hist_max(df1[col].dropna(), bins=bins, binwidth=binwidth)
-        v2max = hist_max(df2[col].dropna(), bins=bins, binwidth=binwidth)
-    else:
-        v1max = df1[col].max()
-        v2max = df2[col].max()
-    return np.ceil(max(v1max, v2max) * buffer * (10**precision))/(10**precision)
-
-
-def add_cumulative(df):
-    """Compute cumulative length."""
-    ref_lengths = df.groupby("chrom", observed=True)["stop"].last()
-    total_ref_starts = ref_lengths.cumsum().shift(1, fill_value=0)
-    df["total_mean_pos"] = df.groupby(
-        "chrom", observed=True, group_keys=False
-    )["mean_pos"].apply(lambda s: s + total_ref_starts[s.name])
-    return df
-
-
-# Histogram
-def hist_plot(
-        df, col, title, xaxis='', yaxis='', rounding=None,
-        n50=None, color=None, binwidth=None, binrange=None, bins='auto',
-        max_y=None, max_x=None, min_x=None, min_y=None, no_stats=False):
-    """Make a histogram of given parameter."""
-    histogram_data = df[col].values
-
-    plt = histplot(
-        data=histogram_data,
-        bins=bins,
-        binwidth=binwidth,
-        binrange=binrange,
-        color=color)
-    if isinstance(rounding, int):
-        meanv = df[col].mean().round(rounding)
-        medianv = df[col].median().round(rounding)
-    else:
-        meanv = df[col].mean()
-        medianv = df[col].median()
-
-    if n50 is None:
-        plt.title = dict(
-            text=title,
-            subtext=(
-                f"Mean: {meanv}. "
-                f"Median: {medianv}. "
-            ),
-        )
-    else:
-        plt.title = dict(
-            text=title,
-            subtext=(
-                f"Mean: {meanv}. "
-                f"Median: {medianv}. "
-                f"N50: {n50}. "
-            ),
-        )
-
-    # Add mean and median values (Thanks Julian!)
-    if not no_stats:
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean",
-                data=[dict(value=[meanv, 0]), dict(value=[meanv, max_y])],
-                itemStyle=(dict(color=COLORS.sandstorm)),
-                symbolSize=0
-            )
-        )
-        plt.add_series(
-            dict(
-                type="line",
-                name="Median",
-                data=[dict(value=[medianv, 0]), dict(value=[medianv, max_y])],
-                itemStyle=(dict(color=COLORS.fandango)),
-                symbolSize=0
-            )
-        )
-    # Add N50 if required
-    if n50 is not None:
-        plt.add_series(
-            dict(
-                type="line",
-                name="N50",
-                data=[dict(value=[n50, 0]), dict(value=[n50, max_y])],
-                itemStyle=(dict(color=COLORS.cinnabar)),
-                symbolSize=0
-            )
-        )
-    # Change color if requested
-    if color is not None:
-        plt.color = [color]
-    # Customize X-axis
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    plt.yAxis.nameGap = 0
-    if max_x is not None:
-        plt.xAxis.max = max_x
-    if min_x is not None:
-        plt.xAxis.min = min_x
-    if max_y is not None:
-        plt.yAxis.max = max_y
-    if min_y is not None:
-        plt.yAxis.min = min_y
-    return plt
-
-
-# Line plot
-def line_plot(
-        df, x, y, hue, title, add_mean=None,
-        xaxis='', yaxis='', max_y=None):
-    """Make a histogram of given parameter."""
-    plt = lineplot(
-        data=df,
-        x=x,
-        y=y,
-        hue=hue
-    )
-    # Change axes names
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    plt.yAxis.nameGap = 0
-    # Set y limit
-    if max_y is not None:
-        plt.yAxis.max = max_y
-    # Remove markers
-    for s in plt.series:
-        s.showSymbol = False
-    # Change title and add mean as subtitle and horiz. line, if provided
-    if add_mean is not None:
-        plt.title = {
-            "text": title,
-            "subtext": f"Mean coverage: {round(add_mean, 2)}."
-            }
-        max_x_val = df.max()[x]
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean coverage",
-                data=[dict(value=[0, add_mean]), dict(value=[max_x_val, add_mean])],
-                itemStyle=(dict(color=COLORS.black)),
-                lineStyle=(dict(type='dashed')),
-                symbolSize=0
-            )
-        )
-    else:
-        plt.title = {"text": title}
-    return plt
 
 
 # Reporting function
@@ -577,8 +127,8 @@ def populate_report(report, args, **kwargs):
                 for (df, n50, header, color) in inputs:
                     plt = hist_plot(
                         df, 'read_length', header, xaxis='Read length', color=color,
-                        yaxis='Number of reads', n50=n50, binwidth=1000, max_y=max_y,
-                        rounding=0)
+                        yaxis='Number of reads', extra_metric={'N50': n50},
+                        binwidth=1000, max_y=max_y, rounding=0)
                     EZChart(plt, 'epi2melabs')
             p("""Red: read N50; Yellow: mean length; Purple: median length.""")
 
@@ -677,14 +227,14 @@ def main(args):
     faidx = fasta_idx(args.reference_fai)
 
     logger.info(f'Loading {args.read_stats_tumor}')
-    stats_df_t = process_fastcat(args.read_stats_tumor)
+    stats_df_t = load_stats(args.read_stats_tumor, format='bamstats')
     logger.info(f'Loading {args.read_stats_normal}')
-    stats_df_n = process_fastcat(args.read_stats_normal)
+    stats_df_n = load_stats(args.read_stats_normal, format='bamstats')
 
     logger.info(f'Loading {args.flagstat_tumor}')
-    flags_df_t = load_flagstat(args.flagstat_tumor)
+    flags_df_t = load_bamstats_flagstat(args.flagstat_tumor)
     logger.info(f'Loading {args.flagstat_normal}')
-    flags_df_n = load_flagstat(args.flagstat_normal)
+    flags_df_n = load_bamstats_flagstat(args.flagstat_normal)
 
     logger.info(f'Loading {args.mosdepth_summary_tumor}')
     depth_su_t = load_mosdepth_summary(args.mosdepth_summary_tumor)
@@ -692,9 +242,11 @@ def main(args):
     depth_su_n = load_mosdepth_summary(args.mosdepth_summary_normal)
 
     logger.info(f'Loading {args.depth_tumor}')
-    depth_df_t = load_mosdepth(args.depth_tumor, faidx, args.window_size)
+    depth_df_t = load_mosdepth_regions(
+        args.depth_tumor, faidx=faidx, winsize=args.window_size, min_size=10000000)
     logger.info(f'Loading {args.depth_normal}')
-    depth_df_n = load_mosdepth(args.depth_normal, faidx, args.window_size)
+    depth_df_n = load_mosdepth_regions(
+        args.depth_normal, faidx=faidx, winsize=args.window_size, min_size=10000000)
 
     # Populate report
     populate_report(

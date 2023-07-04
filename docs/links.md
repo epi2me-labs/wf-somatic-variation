@@ -13,3 +13,4 @@
 * [pysam](https://github.com/pysam-developers/pysam)
 * [tabix](https://github.com/samtools/htslib)
 * [nanomonsv](https://github.com/friend1ws/nanomonsv)
+* [modkit](https://github.com/nanoporetech/modkit)

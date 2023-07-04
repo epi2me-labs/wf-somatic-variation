@@ -23,27 +23,30 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "base", "wf-somatic-snv-r10", "wf-somatic-snv-r9", "wf-somatic-snv-r10-fail",
-                "sv", "sv-full"
-                ]
+                "all", "snv-r10", "snv-r9", "snv-r10-fail",
+                "sv", "sv-full", "mod", "mod-strand", "mod-args"
+            ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
         #   we must redefine this CI_COMMIT_BRANCH rule to prevent docker-run
         #   being incorrectly scheduled for "detached merge request pipelines" etc.
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
-        - if: $MATRIX_NAME == "base"
+        - if: $MATRIX_NAME == "all"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-              NF_PROCESS_FILES: ""
-              NF_WORKFLOW_OPTS: "--sv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf modules/local/wf-somatic-sv.nf workflows/mod.nf"
+              NF_WORKFLOW_OPTS: "--sv --snv --mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
-        - if: $MATRIX_NAME == "wf-somatic-snv-r9"
+              NF_IGNORE_PROCESSES: "annotate_classify,annotate_filter,bwa_index,lookup_clair3_model,nanomonsv_classify,nanomonsv_filter"
+
+        - if: $MATRIX_NAME == "snv-r9"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
               NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
@@ -53,18 +56,22 @@ docker-run:
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,clairs_create_fullalignment_paired_tensors_indels,\
                   clairs_create_paired_tensors_indels,clairs_merge_final_indels,clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,\
                   clairs_predict_pileup_indel,lookup_clair3_model"
-        - if: $MATRIX_NAME == "wf-somatic-snv-r10"
+
+        - if: $MATRIX_NAME == "snv-r10"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
               NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0.00001 --normal_min_coverage 0.00001 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels"
-        - if: $MATRIX_NAME == "wf-somatic-snv-r10-fail"
+
+        - if: $MATRIX_NAME == "snv-r10-fail"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
               NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
@@ -74,6 +81,7 @@ docker-run:
                   clairs_predict_pileup_indel,lookup_clair3_model,annotate_spectra,clairs_create_fullalignment_paired_tensors,clairs_create_paired_tensors,clairs_extract_candidates,\
                   clairs_full_hap_filter,clairs_haplotag,clairs_merge_final,clairs_merge_full,clairs_merge_pileup,clairs_phase,clairs_predict_full,clairs_predict_pileup,clairs_select_het_snps,\
                   vcfStats,"
+
         - if: $MATRIX_NAME == "sv"
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
@@ -84,6 +92,7 @@ docker-run:
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                   bwa_index,nanomonsv_classify,nanomonsv_filter,annotate_filter,annotate_classify"
+
         - if: $MATRIX_NAME == "sv-full"
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
@@ -93,6 +102,40 @@ docker-run:
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "mod-args"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --modkit_args '--combine-mods --combine-strands --cpg' "
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "mod-strand"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --force_strand \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "mod"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
+              NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
 macos-run:

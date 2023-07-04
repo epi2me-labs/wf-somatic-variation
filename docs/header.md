@@ -5,3 +5,4 @@ This workflow currently perform:
  - Alignment QC and statistics.
  - Somatic short variant calling (SNV and Indels).
  - Somatic structural variants calling (SV).
+ - Modified sites calling (mod).
