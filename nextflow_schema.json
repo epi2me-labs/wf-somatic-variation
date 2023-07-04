@@ -20,11 +20,10 @@
                     "help_text": "If this option is selected, the workflow will call somatic structural variants using nanomonsv.",
                     "default": false
                 },
-                "methyl": {
+                "mod": {
                     "type": "boolean",
-                    "description": "Enable output of differentially methylated regions [requires input BAMs with Ml and Mm tags]",
-                    "help_text": "If this option is selected, aggregation of methylation calls with be carried out using modbam2bed and differential methylation will be computed with DSS.",
-                    "hidden": true,
+                    "description": "Enable output of differentially modified sites and differentially modified regions [requires input BAMs with Ml and Mm tags]",
+                    "help_text": "If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS.",
                     "default": false
                 },
                 "snv": {
@@ -299,21 +298,29 @@
                     "description": "Minimum SV size to call.",
                     "help_text": "Provide the minimum size of the structural variants to call with nanomonsv."
                 },
-                "genome_id": {
-                    "type": "string",
-                    "description": "ID of the genome to use for SV classification.",
-                    "help_text": "The genome ID allows the workflow to refer to the correct resources needed to perform some analyses.",
-                    "default": "hg38",
-                    "enum": [
-                        "hg38",
-                        "hg19"
-                    ]
-                },
                 "classify_insert": {
                     "type": "boolean",
                     "default": false,
                     "description": "Perform SV insert classification.",
                     "help_text": "Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences."
+                }
+            }
+        },
+        "mod_options": {
+            "title": "Methylation calling options",
+            "type": "object",
+            "description": "Options specific to the methyl calling subworkflow.",
+            "properties": {
+                "modkit_args": {
+                    "type": "string",
+                    "description": "The additional options for modkit.",
+                    "help_text": "This is advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow."
+                },
+                "force_strand": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Require modkit to call strand-aware modifications.",
+                    "help_test": "By default strand calls are collapsed (strand reported as '.'). Enabling this will force stranding to be considered when calling modifications, creating one output per modification per strand and the report will be tabulated by both modification and strand."
                 }
             }
         },
@@ -343,6 +350,12 @@
                     "type": "integer",
                     "default": 4,
                     "description": "Total number of threads to use in nanomonsv get (minimum of 2 and limited by config executor cpus)"
+                },
+                "dss_threads": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus)",
+                    "help_test": "The DSS R Package step identifies differentially modified loci and regions, a computationally intensive step. Increasing this parameter speeds up the analysis, at the cost of increased memory requirements."
                 },
                 "haplotype_filter_threads": {
                     "type": "integer",
@@ -402,6 +415,9 @@
             "$ref": "#/definitions/sv_calling"
         },
         {
+            "$ref": "#/definitions/mod_options"
+        },
+        {
             "$ref": "#/definitions/advanced_options"
         },
         {
@@ -438,7 +454,7 @@
         }
     },
     "docs": {
-        "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)\n2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)\n",
-        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)\n* [nanomonsv](https://github.com/friend1ws/nanomonsv)\n"
+        "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)\n2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)\n3. [modkit](https://github.com/nanoporetech/modkit)\n",
+        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)\n* [nanomonsv](https://github.com/friend1ws/nanomonsv)\n* [modkit](https://github.com/nanoporetech/modkit)\n"
     }
 }

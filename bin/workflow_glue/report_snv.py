@@ -9,30 +9,26 @@ from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
 from ezcharts.layout.snippets import DataTable, Grid, Stats, Tabs
-from ezcharts.plots import util
-from ezcharts.plots.categorical import barplot
-from ezcharts.plots.distribution import histplot
 import numpy as np
 import pandas as pd
 import pysam
 
-from .report_sv import scatter_plot  # noqa: ABS101
+from .report_utils.utils import COLORS, PRECISION  # noqa: ABS101
+from .report_utils.visualizations import plot_profile  # noqa: ABS101
+from .report_utils.visualizations import plot_spectra  # noqa: ABS101
+from .report_utils.visualizations import scatter_plot  # noqa: ABS101
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 
-# Global variables
-Colors = util.Colors
-# Number of digits
-PRECISION = 4
 
 # Mutation profile palette to match the COSMIC
 # patterns.
 cmap = {
-    'C>A': Colors.cerulean,
-    'C>G': Colors.black,
-    'C>T': Colors.cinnabar,
-    'T>A': Colors.grey70,
-    'T>C': Colors.medium_spring_bud,
-    'T>G': Colors.fandango,
+    'C>A': COLORS.cerulean,
+    'C>G': COLORS.black,
+    'C>T': COLORS.cinnabar,
+    'T>A': COLORS.grey70,
+    'T>C': COLORS.medium_spring_bud,
+    'T>G': COLORS.fandango,
 }
 
 
@@ -55,26 +51,6 @@ def vcf_parse(args):
         else:
             vtype.append('Indel')
     return samplename, flt, vaf, naf, vtype
-
-
-def vaf_plot(vaf, title, xaxis="", yaxis="", color=None):
-    """Plot the allele frequencies for tumor sample."""
-    # Plot the histogram of the allele frequencies in the tumor and normal
-    plt = histplot(
-        vaf, binrange=(0, 1), binwidth=0.01,
-        stat='proportion', color=color)
-    plt.title = dict(text=title)
-    # Update axis parameters
-    plt.xAxis.name = xaxis
-    # Define y-axis
-    plt.yAxis = dict(
-        name=yaxis,
-        max=1.0,
-        min=0.0,
-        type='value',
-        axisTick=dict(alignWithLabel=True),
-        data=[dict(value=i) for i in plt.dataset[0].source[:, 2].round(1)])
-    return plt
 
 
 def filt_stats(filters, vaf, naf, thresholds=[0.2, 0.1, 0.05]):
@@ -119,84 +95,6 @@ def process_spectra(inspectra):
     except pd.errors.EmptyDataError:
         spectra = pd.DataFrame()
     return spectra
-
-
-def plot_spectra(spectra, sample):
-    """Plot the mutation spectra."""
-    # Plot change spectrum
-    df = spectra[['Change', sample]]
-    # Count by change type
-    tots = df.groupby('Change').sum().reset_index()
-    tots.columns = ['Change', sample]
-    # Create bar plot
-    plot = barplot(data=tots, x='Change', y=sample)
-    plot.color = list(cmap.values())
-    plot.xAxis.name = 'Change'
-    plot.yAxis.name = "Counts"
-    for s in plot.series:
-        s.colorBy = 'data'
-    plot.tooltip = dict({'trigger': 'item'})
-    return plot
-
-
-def plot_profile(df, sample):
-    """Plot the mutation profile."""
-    # Ensure sorting
-    df = df.sort_values(["Change", "Flanks"])
-
-    # Convert to ratios instead of counts
-    df[sample] = df[sample] / df[sample].sum()
-
-    # Create base barplot
-    plt = barplot(
-        data=df.assign(order=range(df.shape[0])),
-        x="order", y=sample,
-        hue='Change', dodge=False)
-
-    # Replace NaN with zeros to avoid ValueError('invalid input Character)
-    plt.dataset[0].source = np.nan_to_num(plt.dataset[0].source, nan=0)
-
-    # Define appropriate palette
-    plt.color = list(cmap.values())
-
-    # Definition of the x-axis
-    # in distinct axes
-    flanks_axis = dict(
-        data=[dict(value=x) for x in df["Flanks"]],
-        axisLabel=dict(
-            rotate=90,
-            fontSize=10,
-            interval=0,  # this forces echarts to show all tick labels
-        ),
-        axisTick=dict(alignWithLabel=True),
-    )
-    change_axis = dict(
-        position="bottom",
-        # make sure the df is sorted by `change` (otherwise the labels will be wrong)
-        data=[dict(value=x) for x in df["Change"].unique()],
-        # tick length and label margin below might need tweaking
-        axisTick=dict(length=50),
-        axisLabel=dict(margin=40),
-        splitLine=dict(show=True),
-    )
-
-    # replace the original axis with the new ones
-    plt.xAxis = [flanks_axis, change_axis]
-    plt.yAxis.name = 'Count'
-
-    # Add tooltip to facilitate reading
-    tmp_df = plt.dataset[0].source
-    tmp_sum = np.array([tmp_df[:, 0], np.sum(tmp_df[:, 1:], axis=1)]).T
-    plt.add_series(
-        dict(
-            type="scatter",
-            name="Mean",
-            data=[dict(value=tmp_sum[i, :]) for i in range(0, tmp_sum.shape[0])],
-            symbolSize=0,
-            tooltip=dict(formatter='{c}')
-        ))
-    plt.tooltip = dict({'trigger': 'item'})
-    return plt
 
 
 def main(args):
@@ -295,7 +193,7 @@ def main(args):
                             f'Filtered Tumor vs Normal VAF ({vt})',
                             xaxis='Normal VAF', yaxis='Tumor VAF',
                             min_x=0, max_x=1, min_y=0, max_y=1)
-                        plt.color = [Colors.cerulean if vt == 'SNV' else Colors.green]
+                        plt.color = [COLORS.cerulean if vt == 'SNV' else COLORS.green]
                         for s in plt.series:
                             s.symbolSize = 3
                             s.encode = {
@@ -315,10 +213,10 @@ def main(args):
                 p('Mutation counts file is empty.')
             else:
                 h6('Change distribution')
-                spect = plot_spectra(spectra, sample_id)
+                spect = plot_spectra(spectra, sample_id, cmap=cmap)
                 EZChart(spect, 'epi2melabs')
                 h6('96 mutational profile')
-                prof = plot_profile(spectra, sample_id)
+                prof = plot_profile(spectra, sample_id, cmap=cmap)
                 EZChart(prof, 'epi2melabs')
 
     # write report

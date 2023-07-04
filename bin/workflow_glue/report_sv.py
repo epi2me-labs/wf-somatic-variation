@@ -2,19 +2,20 @@
 """Create workflow report."""
 
 from dominate.tags import p
-from ezcharts import scatterplot
+from ezcharts.components.common import CATEGORICAL
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
 from ezcharts.layout.snippets import DataTable, Grid, Stats, Tabs
-from ezcharts.plots import util
 from ezcharts.plots.ideogram import ideogram
 import numpy as np
 import pandas as pd
-from pandas.api import types as pd_types
 import pysam
-from .report_qc import compare_max_axes  # noqa: ABS101
-from .report_qc import hist_plot  # noqa: ABS101
+
+from .report_utils.utils import compare_max_axes  # noqa: ABS101
+from .report_utils.utils import COLORS, PRECISION  # noqa: ABS101
+from .report_utils.visualizations import hist_plot  # noqa: ABS101
+from .report_utils.visualizations import scatter_plot  # noqa: ABS101
 from .util import wf_parser  # noqa: ABS101
 
 vcf_cols = [
@@ -22,58 +23,6 @@ vcf_cols = [
     'INFO', 'FORMAT', 'TUMOR', 'NORMAL'
     ]
 chroms_37 = [str(x) for x in range(1, 23)] + ['X', 'Y']
-CATEGORICAL = pd_types.CategoricalDtype(ordered=True)
-COLORS = util.Colors
-# Number of digits to display in plots
-PRECISION = 4
-
-
-# Plots
-def scatter_plot(
-        df, x, y, hue, title, add_mean=None, xaxis='', yaxis='',
-        min_x=None, max_x=None, min_y=None, max_y=None, tooltip_label=None):
-    """Make a scatterplot."""
-    plt = scatterplot(
-        data=df,
-        x=x,
-        y=y,
-        hue=hue
-    )
-    # Change axes names
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    # Set y limit
-    if min_y is not None:
-        plt.yAxis.min = min_y
-    if max_y is not None:
-        plt.yAxis.max = max_y
-    if min_x is not None:
-        plt.xAxis.min = min_x
-    if max_x is not None:
-        plt.xAxis.max = max_x
-    # Remove markers
-    for s in plt.series:
-        s.showSymbol = True
-    # Change title and add mean as subtitle and horiz. line, if provided
-    if add_mean is not None:
-        plt.title = {
-            "text": title,
-            "subtext": f"Mean coverage: {round(add_mean, 2)}."
-            }
-        max_x_val = df.max()[x]
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean coverage",
-                data=[dict(value=[0, add_mean]), dict(value=[max_x_val, add_mean])],
-                itemStyle=(dict(color=COLORS.black)),
-                lineStyle=(dict(type='dashed')),
-                symbolSize=0
-            )
-        )
-    else:
-        plt.title = {"text": title}
-    return plt
 
 
 def read_vcf(fname):

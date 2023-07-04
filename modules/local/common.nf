@@ -134,8 +134,8 @@ process getVersions {
     mosdepth --version | sed 's/ /,/' >> versions.txt
     ezcharts --version | sed 's/ /,/' >> versions.txt
     python -c "import pysam; print(pysam.__version__)" | sed 's/^/pysam,/'  >> versions.txt
-    bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions
-    tabix --version | awk 'NR==1 {print \$1","\$3}' >> versions
+    bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions.txt
+    tabix --version | awk 'NR==1 {print \$1","\$3}' >> versions.txt
     """
 }
 
@@ -150,4 +150,19 @@ process getParams {
     # Output nextflow params object to JSON
     echo '$paramsJSON' > params.json
     """
+}
+
+
+process getGenome {
+    cpus 1
+    input:
+        tuple path(xam), path(xam_idx), val(xam_meta)
+    output:
+        tuple path(xam), path(xam_idx), val(xam_meta), env(genome_build), emit: genome_build, optional: true
+     script:
+        """
+        samtools idxstats ${xam} > ${xam}_genome.txt
+        get_genome.py --chr_counts ${xam}_genome.txt -o output.txt
+        genome_build=`cat output.txt`
+        """
 }

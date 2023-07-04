@@ -123,18 +123,15 @@ process annotate_filter {
 process nanomonsv_classify {
     label "wf_somatic_sv"
     input:
-        tuple val(meta), path(txt)
-        tuple val(meta), path(vcf)
+        tuple val(meta), path(txt), path(vcf)
         tuple path(ref), path(fai), path(cram_cache), path(amb), path(ann), path(bwt), path(pac), path(sa)
         val n_valid_inserts
     output:
         tuple val(meta), path(txt), path(vcf), path("${txt.baseName}.annot.txt"), emit: txt
     script:
-    def control_dataset = params.control_dataset ? file(params.control_dataset) : null
-    def do_control = control_dataset ? "--control_panel_prefix ${control_dataset}" : ""
     if (n_valid_inserts > 0)
     """
-    nanomonsv insert_classify ${do_control} --genome_id ${params.genome_id} ${txt} ${txt.baseName}.annot.txt ${ref} 
+    nanomonsv insert_classify --genome_id ${meta.genome_build} ${txt} ${txt.baseName}.annot.txt ${ref} 
     """
     else
     """
@@ -147,12 +144,8 @@ process annotate_classify {
     input:
         tuple val(meta), path(txt), path(vcf), path(annot_txt)
     output:
-        tuple val(meta), path(annot_txt), emit: txt
-        tuple val(meta), path("${vcf.baseName}.annot.vcf"), emit: vcf
-        //tuple val(meta), path("${sbd.baseName}.annot.txt"), emit: single_breakend
+        tuple val(meta), path(annot_txt), path("${vcf.baseName}.annot.vcf"), emit: annotated
     script:
-    def control_dataset = params.control_dataset ? file(params.control_dataset) : null
-    def do_control = control_dataset ? "--control_panel_prefix ${control_dataset}" : ""
     """
     workflow-glue classify_vcf_svs \\
         --in_vcf ${vcf} \\

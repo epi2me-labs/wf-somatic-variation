@@ -100,10 +100,27 @@ workflow somatic_sv {
             }
             // Check if the results have insert size of at least 100bp in size. If not, skip.
             n_valid_inserts = ch_txt.splitCsv(sep: '\t', header: true).filter{ meta, file -> file.Inserted_Seq.length() >= 100 }.count()
+            // Check that the genome type is of an appropriate type
+            ch_txt.combine(ch_vcf, by:0).branch{
+                proper: it[0].genome_build=='hg19' || it[0].genome_build=='hg38'
+                improper: true
+            }.set{branched_svs}
+
+            // Log if a file can't be annotated due to wrong build.
+            // This will emit a pre-annotation VCF, without collapsing and predisposing for 
+            // future multisample with some passing and potentially some failing.
+            branched_svs.improper.subscribe{
+                log.warn "Genome build incompatible with insert_classify for ${it[0].sample}. The final vcf will not contain additional information on potential transposable and repetitive elements."
+            }
+
             // Run nanomonsv classify
-            nanomonsv_classify( ch_txt, ch_vcf, indexed, n_valid_inserts ) | annotate_classify
-            ch_txt = annotate_classify.out.txt
-            ch_vcf = annotate_classify.out.vcf
+            nanomonsv_classify(branched_svs.proper , indexed, n_valid_inserts ) | annotate_classify
+
+            // Define the right outputs
+            post_annot_vcf = annotate_classify.out.annotated.mix(branched_svs.improper)
+
+            ch_txt = post_annot_vcf.map{meta, txt, vcf -> [meta, txt]}
+            ch_vcf = post_annot_vcf.map{meta, txt, vcf -> [meta, vcf]}
         }
 
         // Sort and index each SV

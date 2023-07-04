@@ -71,6 +71,13 @@ Starting from the paired cancer/control samples, the workflow will:
 3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
 4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
 
+**Modified base calling**
+
+Modified base calling can be performed by specifying `--mod`. The workflow will call modified bases using [modkit](https://github.com/nanoporetech/modkit). 
+The default behaviour of the workflow is to run modkit with the `--cpg --combine-strands` options set. It is possible to report strand-aware modifications 
+by providing `--force_strand`, which will trigger modkit to run in default mode.
+The modkit run can be fully customized by providing `--modkit_args`. This will override any preset, and allow full control over the run of modkit.
+
 **Output folder**
 
 The output directory has the following structure:
@@ -80,6 +87,7 @@ output/
 │   ├── report.html
 │   ├── timeline.html
 │   └── trace.txt
+│
 ├── SAMPLE
 │   ├── qc
 │   │   ├── coverage
@@ -100,7 +108,7 @@ output/
 │   │       └── SAMPLE_tumor.readstats.tsv.gz
 │   │
 │   ├── snv  # ClairS outputs
-│   │   ├── spectra  # Mutational spectra for the workflow; for now, it only works for the SNVs
+│   │   ├── change_counts  # Mutational change counts for the sample; for now, it only works for the SNVs
 │   │   │   └── SAMPLE_changes.csv
 │   │   ├── varstats  # Bcftools stats output
 │   │   │   └── SAMPLE.stats
@@ -117,18 +125,40 @@ output/
 │   │       ├── params.json
 │   │       └── versions.txt
 │   │
-│   └── sv
-│       ├── single_breakend
-│       │   └── SAMPLE.nanomonsv.sbnd.result.txt
-│       ├── txt
-│       │   └── SAMPLE.nanomonsv.result.annot.txt
-│       └── info  # SV runtime info
+│   ├── sv
+│   │   ├── single_breakend
+│   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
+│   │   ├── txt
+│   │   │   └── SAMPLE.nanomonsv.result.annot.txt
+│   │   └── info  # SV runtime info
+│   │       ├── params.json
+│   │       └── versions.txt
+│   │
+│   └── methyl
+│       ├── modC   # Modified bases code
+│       │   ├── DML   # Differentially methylated loci
+│       │   │   └── SAMPLE.modC.dml.tsv
+│       │   ├── DMR   # Differentially methylated regions
+│       │   │   └── SAMPLE.modC.dmr.tsv
+│       │   ├── DSS   # DSS input files
+│       │   │   ├── modC.SAMPLE_normal.dss.tsv
+│       │   │   └── modC.SAMPLE_tumor.dss.tsv
+│       │   └── bedMethyl   # bedMethyl output files
+│       │       ├── modC.SAMPLE_normal.bed.gz
+│       │       └── modC.SAMPLE_tumor.bed.gz
+│       ├── raw   # Raw outputs from modkit
+│       │   ├── SAMPLE_normal.bed
+│       │   └── SAMPLE_tumor.bed
+│       └── info  # methyl runtime info
 │           ├── params.json
 │           └── versions.txt
+│
 ├── SAMPLE_somatic_mutype.vcf.gz
 ├── SAMPLE_somatic_mutype.vcf.gz.tbi
 ├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz
 ├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz.tbi
+├── SAMPLE.normal.mod_summary.tsv
+├── SAMPLE.tumor.mod_summary.tsv
 ├── SAMPLE.wf-somatic-snp-report.html
 ├── SAMPLE.wf-somatic-sv-report.html
 ├── SAMPLE.wf-somatic-variation-readQC-report.html
