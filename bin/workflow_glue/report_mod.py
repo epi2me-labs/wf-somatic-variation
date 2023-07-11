@@ -48,6 +48,8 @@ def intervals_to_points(dmr, faidx, total_ref_starts, colname, logger):
     # Add missing windows to depth intervals
     logger.info('Add missing windows...')
     dmr = add_missing_windows(dmr, faidx, value='areaStat')
+    # Remove DMRs that are in sequences not in total_ref_starts
+    dmr = dmr.loc[dmr['chrom'].isin(total_ref_starts.index)]
     # Compute progressive position
     dmr["start"] = dmr.apply(
         lambda x: x.start + total_ref_starts[x.chrom], axis=1)
