@@ -134,29 +134,23 @@ output/
 │   │   │   └── SAMPLE_changes.csv
 │   │   ├── varstats  # Bcftools stats output
 │   │   │   └── SAMPLE.stats
-│   │   ├── vcf  # VCF outputs
-│   │   │   ├── SAMPLE_tumor_germline.vcf.gz
-│   │   │   ├── SAMPLE_tumor_germline.vcf.gz.tbi
-│   │   │   ├── SAMPLE_normal_germline.vcf.gz
-│   │   │   ├── SAMPLE_normal_germline.vcf.gz.tbi
-│   │   │   ├── SAMPLE_somatic_indels.vcf.gz
-│   │   │   ├── SAMPLE_somatic_indels.vcf.gz.tbi
-│   │   │   ├── SAMPLE_somatic_snv.vcf.gz
-│   │   │   └── SAMPLE_somatic_snv.vcf.gz.tbi
-│   │   └── info  # SV runtime info
-│   │       ├── params.json
-│   │       └── versions.txt
+│   │   └── vcf  # VCF outputs
+│   │       ├── SAMPLE_tumor_germline.vcf.gz
+│   │       ├── SAMPLE_tumor_germline.vcf.gz.tbi
+│   │       ├── SAMPLE_normal_germline.vcf.gz
+│   │       ├── SAMPLE_normal_germline.vcf.gz.tbi
+│   │       ├── SAMPLE_somatic_indels.vcf.gz
+│   │       ├── SAMPLE_somatic_indels.vcf.gz.tbi
+│   │       ├── SAMPLE_somatic_snv.vcf.gz
+│   │       └── SAMPLE_somatic_snv.vcf.gz.tbi
 │   │
 │   ├── sv
 │   │   ├── single_breakend
 │   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
-│   │   ├── txt
-│   │   │   └── SAMPLE.nanomonsv.result.annot.txt
-│   │   └── info  # SV runtime info
-│   │       ├── params.json
-│   │       └── versions.txt
+│   │   └── txt
+│   │       └── SAMPLE.nanomonsv.result.annot.txt
 │   │
-│   └── methyl
+│   └── mod
 │       ├── modC   # Modified bases code
 │       │   ├── DML   # Differentially methylated loci
 │       │   │   └── SAMPLE.modC.dml.tsv
@@ -168,12 +162,20 @@ output/
 │       │   └── bedMethyl   # bedMethyl output files
 │       │       ├── modC.SAMPLE_normal.bed.gz
 │       │       └── modC.SAMPLE_tumor.bed.gz
-│       ├── raw   # Raw outputs from modkit
-│       │   ├── SAMPLE_normal.bed
-│       │   └── SAMPLE_tumor.bed
-│       └── info  # methyl runtime info
-│           ├── params.json
-│           └── versions.txt
+│       └── raw   # Raw outputs from modkit
+│           ├── SAMPLE_normal.bed
+│           └── SAMPLE_tumor.bed
+│
+├── info  # single component runtime info
+│   ├── mod
+│   │   ├── params.json
+│   │   └── versions.txt
+│   ├── snv
+│   │   ├── params.json
+│   │   └── versions.txt
+│   └── sv
+│       ├── params.json
+│       └── versions.txt
 │
 ├── SAMPLE_somatic_mutype.vcf.gz
 ├── SAMPLE_somatic_mutype.vcf.gz.tbi
@@ -195,6 +197,7 @@ The primary outputs are:
 5. `output/SAMPLE/snp/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
 6. `output/SAMPLE/sv/txt/SAMPLE.nanomonsv.result.annot.txt`: the somatic SVs called with nanomonsv in tabular format
 7. `output/SAMPLE/sv/single_breakend/SAMPLE.nanomonsv.sbnd.result.txt`: the single break-end SVs called with nanomonsv
+8. `output/SAMPLE/mod/`: the results from modkit and DSS
 
 **Somatic structural variant (SV) calling with Nanomonsv**
 

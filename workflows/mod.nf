@@ -63,18 +63,16 @@ process validate_modbam {
 
 process modkit {
     label "wf_somatic_methyl"
-    cpus 4
+    cpus params.modkit_threads
     input:
         tuple path(alignment), 
             path(alignment_index), 
             val(meta), 
             path(reference), 
             path(reference_index), 
-            path(reference_cache)
+            path(reference_cache),
+            path(bed)
     output:
-        tuple val(meta), 
-            path("*.${meta.sample}_${meta.type}.bed.gz"), 
-            emit: mod_outputs
         tuple val(meta), 
             val('all'),
             path("${meta.sample}_${meta.type}.bed.gz"), 
@@ -93,13 +91,32 @@ process modkit {
         ${meta.sample}_${meta.type}.bed \\
         --ref ${reference} \\
         --threads ${task.cpus} ${options}
-    workflow-glue mod_split ${meta.sample}_${meta.type}.bed
     bgzip ${meta.sample}_${meta.type}.bed
-    for i in `ls *.${meta.sample}_${meta.type}.bed`; do
+    """
+}
+
+
+process bedmethyl_split {
+    label "wf_somatic_methyl"
+    cpus 1
+    input:
+        tuple val(meta), 
+            val('all'),
+            path(bed)
+    output:
+        tuple val(meta), 
+            path("*.${meta.sample}_${meta.type}.bed.gz"), 
+            emit: mod_outputs
+
+    script:
+    """
+    workflow-glue mod_split ${bed}
+    for i in `ls *.bed`; do
         bgzip \$i
     done
     """
 }
+
 
 process summary {
     label "wf_somatic_methyl"
@@ -172,10 +189,11 @@ process dss {
     #!/usr/bin/env Rscript
     library(DSS)
     require(bsseq)
+    require(data.table)
 
     # Import data
-    tumor = read.table("tumor.bed", header=TRUE)
-    normal = read.table("normal.bed", header=TRUE)
+    tumor = fread("tumor.bed", sep = '\t', header = T)
+    normal = fread("normal.bed", sep = '\t', header = T)
     # Create BSobject
     BSobj = makeBSseqData( list(tumor, normal),
         c("Tumor", "Normal") )
@@ -278,9 +296,21 @@ workflow mod {
             it -> log.warn "Input ${it[1]} is not a modified bam file."
         }
 
+        // Define input bed, if provided
+        if (params.bed){
+            bed = Channel.fromPath(params.bed)
+        } else {
+            bed = Channel.fromPath("$projectDir/data/OPTIONAL_FILE")
+        }
+
         // Run modkit on the valid files.
-        modkit(validated_bam.modbam.map{it[0..-2]})
-        modbed = modkit.out.mod_outputs
+        modkit(validated_bam.modbam.map{it[0..-2]}.combine(bed))
+
+        // Split modkit, and use file to rename the outputs
+        bedmethyl_split(modkit.out.full_output)
+        // Each channel has a nested tuple. Transpose linearize it,
+        // and then we extract the modification type with simpleName.
+        modbed = bedmethyl_split.out.mod_outputs
             .transpose()
             .map{ meta, tsv -> 
                 [meta, tsv.simpleName, tsv]
@@ -342,14 +372,14 @@ workflow mod {
 
         // Create output directory
         modbed.map{
-            meta, mod, file -> [file, "${meta.sample}/methyl/${mod}/bedMethyl/"]
+            meta, mod, file -> [file, "${meta.sample}/mod/${mod}/bedMethyl/"]
         }.mix(
             modkit.out.full_output.map{
-                meta, mod, file -> [file, "${meta.sample}/methyl/raw/"]
+                meta, mod, file -> [file, "${meta.sample}/mod/raw/"]
             }
         ).mix(
             bed2dss.out.dss_outputs.map{
-                meta, mod, file -> [file, "${meta.sample}/methyl/${mod}/DSS/"]
+                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DSS/"]
             }
         ).mix(
             summary.out.mod_summary.map{
@@ -357,20 +387,20 @@ workflow mod {
             }
         ).mix(
             dss.out.dml.map{
-                meta, mod, file -> [file, "${meta.sample}/methyl/${mod}/DML"]
+                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DML"]
             }
         ).mix(
             dss.out.dmr.map{
-                meta, mod, file -> [file, "${meta.sample}/methyl/${mod}/DMR"]
+                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DMR"]
             }
         ) 
         .mix(
             workflow_params.map{
-                params -> [params, "methyl/"]
+                params -> [params, "info/mod/"]
             }
         ).mix(
             software_versions.map{
-                versions -> [versions, "methyl/"]
+                versions -> [versions, "info/mod/"]
             }
         ).mix(
             makeModReport.out.map{
@@ -379,6 +409,6 @@ workflow mod {
         ) | output_modbase
 
     emit:
-        modbam2bed = modkit.out.mod_outputs
+        modbam2bed = bedmethyl_split.out.mod_outputs
         dss = bed2dss.out.dss_outputs
 }

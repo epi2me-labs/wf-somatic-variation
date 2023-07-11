@@ -60,8 +60,14 @@ process get_coverage {
 
     shell:
         '''
-        passes=$( awk 'BEGIN{v="false"}; NR>1 && $1~"total" && $4>=!{meta.type == "tumor" ? params.tumor_min_coverage : params.normal_min_coverage} && v=="false" {v="true"}; END {print v}' !{mosdepth_summary} )
-        value=$( awk 'BEGIN{v=0}; NR>1 && $1~"total" && $4>v {v=$4}; END {print v}' !{mosdepth_summary} )
+        # Check if the first column is "total_region", skipping the header (NR>1) and if the value is above the 
+        # threshold for the right type. This is defined with the elvis ops checking the metadata for the bam, getting 
+        # the file type (tumor or normal) and, therefore, the right threshold. If it is >= than the threshold, return "true"
+        # otherwise return "false".
+        passes=$( awk 'BEGIN{v="false"}; NR>1 && $1=="total_region" && $4>=!{meta.type == "tumor" ? params.tumor_min_coverage : params.normal_min_coverage} && v=="false" {v="true"}; END {print v}' !{mosdepth_summary} )
+
+        # Same as above, but simply return the coverage value for the bam file in the "total_region".
+        value=$( awk 'BEGIN{v=0}; NR>1 && $1=="total_region" && $4>v {v=$4}; END {print v}' !{mosdepth_summary} )
         '''
 }
 
