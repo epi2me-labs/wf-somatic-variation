@@ -190,6 +190,8 @@ process dss {
     library(DSS)
     require(bsseq)
     require(data.table)
+    # Disable scientific notation
+    options(scipen=999)
 
     # Import data
     tumor = fread("tumor.bed", sep = '\t', header = T)
