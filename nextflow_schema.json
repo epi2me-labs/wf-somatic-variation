@@ -42,11 +42,17 @@
             }
         },
         "input": {
-            "title": "Input Options",
+            "title": "Main options",
             "type": "object",
             "fa_icon": "fas fa-arrow-right",
-            "description": "Parameters for finding and handling input data for analysis.",
+            "description": "Primary options for the data analysis.",
             "properties": {
+                "sample_name": {
+                    "type": "string",
+                    "default": "SAMPLE",
+                    "description": "Sample name to be displayed in workflow outputs.",
+                    "help_text": "The sample name will be used from the workflow to correctly name output files"
+                },
                 "bam_normal": {
                     "type": "string",
                     "format": "file-path",
@@ -76,6 +82,12 @@
                     "format": "file-path",
                     "description": "An optional BED file enumerating simple repeat regions.",
                     "help_text": "This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
+                },
+                "out_dir": {
+                    "type": "string",
+                    "default": "output",
+                    "format": "directory-path",
+                    "description": "Directory for output of all workflow results."
                 }
             },
             "required": [
@@ -266,26 +278,6 @@
                 }
             }
         },
-        "output": {
-            "title": "Output Options",
-            "type": "object",
-            "fa_icon": "fas fa-arrow-left",
-            "description": "Parameters for saving and naming workflow outputs.",
-            "properties": {
-                "out_dir": {
-                    "type": "string",
-                    "default": "output",
-                    "format": "directory-path",
-                    "description": "Directory for output of all workflow results."
-                },
-                "sample_name": {
-                    "type": "string",
-                    "default": "SAMPLE",
-                    "description": "Sample name to be displayed in workflow outputs.",
-                    "help_text": "The sample name will be used from the workflow to correctly name output files"
-                }
-            }
-        },
         "sv_calling": {
             "title": "Options for the somatic structural variant calling",
             "type": "object",
@@ -409,9 +401,6 @@
         },
         {
             "$ref": "#/definitions/input"
-        },
-        {
-            "$ref": "#/definitions/output"
         },
         {
             "$ref": "#/definitions/snv_options"
