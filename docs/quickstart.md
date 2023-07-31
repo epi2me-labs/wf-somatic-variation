@@ -30,7 +30,10 @@ The workflow relies on three primary input files:
 2. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample
 3. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample
 
-The reference genome should be either hg19 (GRCh37) or hg38 (GRCh38).
+The workflow is designed to work with human samples, and the reference genome should be either hg19 (GRCh37) or hg38 (GRCh38).
+Despite this, the majority of tasks within the workflow are species agnostic. The following options will require the workflow to check for the genome build, and will require hg19 or hg38:
+1. Insert classification in nanomonSV (enabled with `--classify_insert`)
+
 The aligned bam files can be generated starting from:
 1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).

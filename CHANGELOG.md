@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `Input options` and `Output options` have been combined in the `Main options` category
 
+### Fixed
+- The workflow is now mostly species agnostic (with the exception of insert classification enabled with `--classify_insert`)
+
 ## [v0.3.0]
 ### Added
 - Add modified base calling with `--mod`
