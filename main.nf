@@ -202,12 +202,23 @@ workflow {
     }
 
     // Add genome build information
-    getGenome(pass_bam_channel)
-    getGenome.out.genome_build.map{
-            bam, bai, meta, g_build -> 
-                meta.genome_build = g_build
+    // CW-2491: make this optional, allowing any genome to be processed
+    if (params.sv && params.classify_insert){
+        getGenome(pass_bam_channel)
+        getGenome.out.genome_build.map{
+                bam, bai, meta, g_build -> 
+                    meta.genome_build = g_build
+                    [bam, bai, meta]
+            }.set{pass_bam_channel}
+    } else {
+        pass_bam_channel
+            .map{
+                bam, bai, meta ->
+                meta.genome_build = false
                 [bam, bai, meta]
-        }.set{pass_bam_channel}
+            }
+            .set{pass_bam_channel}
+    }
     
     // Run snv workflow if requested
     if (params.snv) {
