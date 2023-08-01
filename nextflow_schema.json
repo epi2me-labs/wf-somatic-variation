@@ -15,28 +15,24 @@
             "description": "Select which sub-workflows of wf-human-variation you wish to run. Parameters for each sub-workflow can be changed using the sections below.",
             "properties": {
                 "sv": {
+                    "title": "SV: Structural variants",
                     "type": "boolean",
                     "description": "Call for somatic structural variants.",
                     "help_text": "If this option is selected, the workflow will call somatic structural variants using nanomonsv.",
                     "default": false
                 },
                 "mod": {
+                    "title": "MOD: Differential modifications",
                     "type": "boolean",
                     "description": "Enable output of differentially modified sites and differentially modified regions [requires input BAMs with Ml and Mm tags]",
                     "help_text": "If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS.",
                     "default": false
                 },
                 "snv": {
+                    "title": "SNV: Short variants",
                     "type": "boolean",
                     "description": "Call for somatic small variants",
                     "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
-                    "default": false
-                },
-                "str": {
-                    "type": "boolean",
-                    "description": "Enable identification of differential short tandem repeat",
-                    "help_text": "This analysis identifies short tandem repeat (STR) elements in both tumor and normal sample. It then compares the two to identify the somatic changes.",
-                    "hidden": true,
                     "default": false
                 }
             }
@@ -48,42 +44,49 @@
             "description": "Primary options for the data analysis.",
             "properties": {
                 "sample_name": {
+                    "title": "Sample name",
                     "type": "string",
                     "default": "SAMPLE",
                     "description": "Sample name to be displayed in workflow outputs.",
                     "help_text": "The sample name will be used from the workflow to correctly name output files"
                 },
                 "bam_normal": {
+                    "title": "Normal BAM",
                     "type": "string",
                     "format": "file-path",
                     "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample.",
                     "help_text": "You may choose to provide a BAM/CRAM, but not both."
                 },
                 "bam_tumor": {
+                    "title": "Tumor BAM",
                     "type": "string",
                     "format": "file-path",
                     "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample.",
                     "help_text": "You may choose to provide a BAM/CRAM, but not both."
                 },
                 "ref": {
+                    "title": "Reference genome file",
                     "type": "string",
                     "format": "file-path",
                     "description": "Path to a reference FASTA file.",
                     "help_text": "Reference against which to compare reads for variant calling."
                 },
                 "bed": {
+                    "title": "Target region BED file",
                     "type": "string",
                     "format": "file-path",
                     "description": "An optional BED file enumerating regions to process for variant calling.",
                     "help_text": ""
                 },
                 "tr_bed": {
+                    "title": "Tandem repeat BED file",
                     "type": "string",
                     "format": "file-path",
                     "description": "An optional BED file enumerating simple repeat regions.",
                     "help_text": "This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
                 },
                 "out_dir": {
+                    "title": "Output directory",
                     "type": "string",
                     "default": "output",
                     "format": "directory-path",
@@ -100,6 +103,7 @@
             "description": "Options specific to the small variant calling subworkflow.",
             "properties": {
                 "basecaller_cfg": {
+                    "title": "Basecaller configuration",
                     "type": "string",
                     "description": "Name of the model to use for converting signal and selecting a small variant calling model.",
                     "help_text": "Required for basecalling and small variant calling. The basecaller configuration is used to automatically select the appropriate small variant calling model. Refer to the [model table on the Dorado repository for selecting a simplex basecalling model](https://github.com/nanoporetech/dorado#available-basecalling-models).",
@@ -119,52 +123,54 @@
                     "hidden": true
                 },
                 "include_all_ctgs": {
+                    "title": "Include all contigs",
                     "type": "boolean",
                     "description": "Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y}.",
                     "help_text": "Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
                 },
                 "skip_haplotype_filter": {
+                    "title": "Skip haplotype filtering",
                     "type": "boolean",
                     "default": false,
                     "description": "Skip haplotype filtering of variants.",
                     "help_text": "Setting this will skip haplotype filtering of variants."
                 },
                 "fast_mode": {
+                    "title": "Fast mode",
                     "type": "boolean",
                     "default": false,
                     "description": "Fast germline variants calling in Clair3 (does not emit germline calls).",
-                    "hidden": true,
                     "help_text": "Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs."
                 },
                 "snv_min_af": {
                     "type": "number",
                     "default": 0.05,
                     "description": "Minimum SNP AF required for a candidate variant.",
-                    "hidden": false
+                    "hidden": true
                 },
                 "min_contig_size": {
                     "type": "number",
                     "default": 0.0,
                     "description": "Contigs with contig size < min_contig_size are filtered.",
-                    "hidden": false
+                    "hidden": true
                 },
                 "min_qual": {
                     "type": "number",
                     "default": 8.0,
                     "description": "Variants with QUAL < min_qual are soft filtered.",
-                    "hidden": false
+                    "hidden": true
                 },
                 "min_cov": {
                     "type": "number",
                     "default": 4.0,
                     "description": "Minimum coverage required to call somatic variants.",
-                    "hidden": false
+                    "hidden": true
                 },
                 "indel_min_af": {
                     "type": "number",
                     "default": 0.05,
                     "description": "Minimum somatic indel allelic frequency (if the model is r9, this will be automatically set to 1.00).",
-                    "hidden": false
+                    "hidden": true
                 },
                 "GVCF": {
                     "type": "boolean",
@@ -192,6 +198,7 @@
                     "hidden": true
                 },
                 "phase_normal": {
+                    "title": "Phase normal sample",
                     "type": "boolean",
                     "default": false,
                     "hidden": true,
@@ -249,8 +256,8 @@
             "description": "Parameters that relate to the quality control of the reads.",
             "properties": {
                 "depth_intervals": {
+                    "title": "Depth intervals",
                     "type": "boolean",
-                    "hidden": false,
                     "default": false,
                     "description": "Output a bedGraph file with entries for each genomic interval featuring homogeneous depth.",
                     "help_text": "The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications."
@@ -263,6 +270,7 @@
                     "help_text": "This options specify the window size to use when computing the coverage along the genome."
                 },
                 "tumor_min_coverage": {
+                    "title": "Tumor minimum coverage",
                     "type": "number",
                     "default": 20,
                     "hidden": false,
@@ -270,6 +278,7 @@
                     "help_text": "Tumor bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
                 },
                 "normal_min_coverage": {
+                    "title": "Normal minimum coverage",
                     "type": "number",
                     "default": 20,
                     "hidden": false,
@@ -285,12 +294,14 @@
             "description": "Parameters for tweaking the run of the SV module.",
             "properties": {
                 "min_sv_length": {
+                    "title": "Minimum SV size",
                     "type": "integer",
-                    "default": 30,
+                    "default": 50,
                     "description": "Minimum SV size to call.",
                     "help_text": "Provide the minimum size of the structural variants to call with nanomonsv."
                 },
                 "classify_insert": {
+                    "title": "Classify insertion sequence",
                     "type": "boolean",
                     "default": false,
                     "description": "Perform SV insert classification.",
@@ -304,11 +315,13 @@
             "description": "Options specific to the methyl calling subworkflow.",
             "properties": {
                 "modkit_args": {
+                    "title": "Modkit additional arguments",
                     "type": "string",
                     "description": "The additional options for modkit.",
                     "help_text": "This is advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow."
                 },
                 "force_strand": {
+                    "title": "Force strand",
                     "type": "boolean",
                     "default": false,
                     "description": "Require modkit to call strand-aware modifications.",
