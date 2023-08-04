@@ -26,7 +26,7 @@ include {
     clairs_merge_full_indels;
     clairs_merge_final_indels;
     clairs_merge_snv_and_indels;
-    annotate_spectra
+    change_count
 } from "../modules/local/wf-somatic-snv.nf"
 
 include {
@@ -42,6 +42,8 @@ include {
     merge_pileup_and_full_vars;
     aggregate_all_variants;
 } from "../modules/local/wf-clair3-snp.nf"
+
+include {annotate_vcf as annotate_snv} from '../modules/local/common.nf'
 
 // workflow module
 workflow snv {
@@ -510,12 +512,24 @@ workflow snv {
             .combine(pileup_tbi, by: 0)
             .combine(ref)
             .set{clairs_vcf}
-        annotate_spectra(clairs_vcf)
-        ch_vcf = annotate_spectra.out.mutype_vcf
-        ch_tbi = annotate_spectra.out.mutype_tbi
+        change_count(clairs_vcf)
+        ch_vcf = change_count.out.mutype_vcf
+        ch_tbi = change_count.out.mutype_tbi
+        
+        // Add snpEff annotation if requested
+        if (params.annotation){
+            annotate_snv(ch_vcf.combine(ch_tbi, by:0), 'somatic-snv')
+            ch_vcf = annotate_snv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
+            ch_tbi = annotate_snv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
+            clinvar_vcf = annotate_snv.out.annot_vcf_clinvar
+            gene_txt = annotate_snv.out.gene_txt
+        // Otherwise, create optional file from the vcf channel to preserve the structure
+        } else {
+            clinvar_vcf = ch_vcf.map{meta, vcf -> [meta, file("$projectDir/data/OPTIONAL_FILE")]}
+        }
 
         // Generate basic statistics for the VCF file
-        vcfStats(ch_vcf, ch_tbi)
+        vcfStats(ch_vcf.combine(ch_tbi, by: 0))
 
         // Create the report for the variants called
         software_versions = getVersions()
@@ -523,7 +537,8 @@ workflow snv {
         ch_vcf
             .combine(ch_tbi, by: 0)
             .combine(vcfStats.out[0], by: 0)
-            .combine(annotate_spectra.out.changes, by: 0)
+            .combine(change_count.out.changes, by: 0)
+            .combine(clinvar_vcf, by: 0)
             .combine(software_versions)
             .combine(workflow_params)
             .set{ reporting }
@@ -545,7 +560,7 @@ workflow snv {
                     meta, stats -> [stats, "${meta.sample}/snv/varstats"]
                     })
             .concat(
-                annotate_spectra.out.changes.map{
+                change_count.out.changes.map{
                     meta, spectra -> [spectra, "${meta.sample}/snv/change_counts"]
                     })
             .concat(
@@ -586,6 +601,18 @@ workflow snv {
                         meta, vcf, tbi -> [tbi, "${meta.sample}/snv/vcf/"]
                         })
                 .set{ outputs }
+        }
+        if (params.annotation){
+            outputs
+                .concat(
+                    gene_txt.map{
+                        meta, gene -> [gene, "${meta.sample}/snv/annot/"]
+                        })
+                .concat(
+                    clinvar_vcf.map{
+                        meta, vcf -> [vcf, "${meta.sample}/snv/annot/"]
+                        })
+                .set{outputs}
         }
         if (params.basecaller_cfg.startsWith('dna_r10')){
             outputs
