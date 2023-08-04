@@ -203,7 +203,7 @@ workflow {
 
     // Add genome build information
     // CW-2491: make this optional, allowing any genome to be processed
-    if (params.sv && params.classify_insert){
+    if ((params.sv && params.classify_insert) || params.annotation){
         getGenome(pass_bam_channel)
         getGenome.out.genome_build.map{
                 bam, bai, meta, g_build -> 
@@ -250,7 +250,7 @@ workflow {
             // mosdepth_stats,
             // bam_stats,
             clairs_model,
-            clair3_model,
+            clair3_model
         )
         
         // Publish outputs in the appropriate folder

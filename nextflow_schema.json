@@ -91,6 +91,12 @@
                     "default": "output",
                     "format": "directory-path",
                     "description": "Directory for output of all workflow results."
+                },
+                "annotation": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Perform SnpEff annotation.",
+                    "help_text": "If this option is deselected, VCFs will not be annotated with SnpEff."
                 }
             },
             "required": [
@@ -171,13 +177,6 @@
                     "default": 0.05,
                     "description": "Minimum somatic indel allelic frequency (if the model is r9, this will be automatically set to 1.00).",
                     "hidden": true
-                },
-                "GVCF": {
-                    "type": "boolean",
-                    "default": false,
-                    "hidden": true,
-                    "description": "Enable to output a gVCF file in addition to the VCF outputs (experimental).",
-                    "help_text": "By default the the workflow outputs a VCF file containing only records where a variant has been detected. Enabling this option will output additionally a gVCF with records spanning all reference positions regardless of whether a variant was detected in the sample."
                 },
                 "clair3_min_mq": {
                     "type": "number",
@@ -351,6 +350,11 @@
                     "default": 1,
                     "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)"
                 },
+                "annotation_threads": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Total number of threads to use in snpEff annotation (limited by config executor cpus)"
+                },
                 "nanomonsv_get_threads": {
                     "type": "integer",
                     "default": 4,
@@ -380,7 +384,15 @@
             "fa_icon": "far fa-question-circle",
             "description": "Advanced options for configuring processes inside the workflow.",
             "help_text": "These advanced options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
-            "properties": {}
+            "properties": {
+                "GVCF": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Enable to output a gVCF file in addition to the VCF outputs (experimental).",
+                    "help_text": "By default the the workflow outputs a VCF file containing only records where a variant has been detected. Enabling this option will output additionally a gVCF with records spanning all reference positions regardless of whether a variant was detected in the sample."
+                }
+            }
         },
         "misc": {
             "title": "Miscellaneous Options",

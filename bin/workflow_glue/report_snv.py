@@ -3,8 +3,9 @@
 
 import os
 
-from aplanat.parsers.bcfstats import parse_bcftools_stats_multi
-from dominate.tags import h6, p
+from dominate.tags import a, h6, p
+from ezcharts.components.bcfstats import load_bcfstats
+from ezcharts.components.clinvar import load_clinvar_vcf
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
@@ -118,8 +119,8 @@ def main(args):
     filtstats = filt_stats(filters, var_af, nvar_af, thresholds=vaf_thresholds)
     spectra = process_spectra(args.mut_spectra)
     try:
-        bcfstats = parse_bcftools_stats_multi(
-            [args.vcf_stats],
+        bcfstats = load_bcfstats(
+            args.vcf_stats,
             sample_names=[sample_id])
     except IndexError:
         bcfstats = {'SN': pd.DataFrame(), 'TSTV': pd.DataFrame()}
@@ -160,10 +161,10 @@ def main(args):
                 p('The bcftools stats file is empty.')
             else:
                 DataTable.from_pandas(
-                    bcfstats['SN'].drop(columns=['sample', 'samples']),
+                    bcfstats['SN'].drop(columns=['id']),
                     use_index=False)
                 DataTable.from_pandas(
-                    bcfstats['TSTV'].drop(columns='sample'),
+                    bcfstats['TSTV'].drop(columns='id'),
                     use_index=False)
 
     # Plot tumor/normal AF if provided
@@ -219,6 +220,39 @@ def main(args):
                 prof = plot_profile(spectra, sample_id, cmap=cmap)
                 EZChart(prof, 'epi2melabs')
 
+    # ClinVar variants
+    if args.clinvar_vcf is not None:
+        if os.path.exists(args.clinvar_vcf):
+            with report.add_section('ClinVar variant annotations', 'ClinVar'):
+                clinvar_docs_url = "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/"
+                p(
+                    "The ",
+                    a("SnpEff", href="https://pcingola.github.io/SnpEff/"),
+                    " annotation tool has been used to annotate with",
+                    a("ClinVar", href="https://www.ncbi.nlm.nih.gov/clinvar/"), '.'
+                    " If any variants have ClinVar annotations, they will appear in a ",
+                    "table below. Please note, this table excludes variants with",
+                    " 'Benign' or 'Likely benign' significance, however these ",
+                    "variants will appear in the VCF output by the workflow. For ",
+                    "further details on the terms in the 'Significance' column,",
+                    "  please visit ",
+                    a("this page", href=clinvar_docs_url),
+                    '.')
+
+                # check if there are any ClinVar sites to report
+                clinvar_for_report = load_clinvar_vcf(args.clinvar_vcf)
+                if clinvar_for_report.empty:
+                    h6('No ClinVar sites to report.')
+                else:
+                    DataTable.from_pandas(
+                        clinvar_for_report, export=True, use_index=False)
+    else:
+        # Annotations were skipped
+        with report.add_section('ClinVar variant annotations', 'ClinVar'):
+            p(
+                "This report was generated without annotations. To see"
+                " them, re-run the workflow with --annotation true.")
+
     # write report
     report.write(args.report)
     logger.info(f"Written report to '{args.report}'.")
@@ -235,6 +269,9 @@ def argparser():
     parser.add_argument(
         "--vcf", default='unknown',
         help="input vcf file")
+    parser.add_argument(
+        "--clinvar_vcf", required=False,
+        help="VCF file of variants annotated in ClinVar")
     parser.add_argument(
         "--vcf_stats", default='unknown',
         help="final vcf stats file")

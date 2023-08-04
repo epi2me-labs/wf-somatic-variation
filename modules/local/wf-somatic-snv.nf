@@ -51,8 +51,7 @@ process vcfStats {
     label "wf_somatic_snv"
     cpus 1
     input:
-        tuple val(meta), path(vcf)
-        tuple val(meta), path(index)
+        tuple val(meta), path(vcf), path(index)
     output:
         tuple val(meta), path("${meta.sample}.stats")
     """
@@ -63,11 +62,19 @@ process vcfStats {
 
 process makeReport {
     input:
-        tuple val(meta), path(vcf), path(tbi), path("vcfstats.txt"), path("spectra.csv"), path("version.txt"), path("params.json")
+        tuple val(meta), 
+            path(vcf), 
+            path(tbi), 
+            path("vcfstats.txt"), 
+            path("spectra.csv"), 
+            path(clinvar_vcf), 
+            path("version.txt"), 
+            path("params.json")
     output:
         path "*report.html", emit: html
     script:
         def report_name = "${params.sample_name}.wf-somatic-snv-report.html"
+        def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
         wfversion = workflow.manifest.version
         if( workflow.commitId ){
             wfversion = workflow.commitId
@@ -79,7 +86,8 @@ process makeReport {
             --params params.json \\
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
-            --mut_spectra spectra.csv 
+            --mut_spectra spectra.csv \\
+            ${clinvar}
         """
 }
 
@@ -957,26 +965,26 @@ process clairs_merge_snv_and_indels {
         '''
 }
 
-// Annotate the mutational spectrum
-process annotate_spectra {
+// Annotate the mutation counts
+process change_count {
     // Filters a VCF by contig, selecting only het SNPs.
     cpus 1
     input:
         tuple val(meta),
-            path(vcf),
-            path(tbi),
+            path("input.vcf.gz"),
+            path("input.vcf.gz.tbi"),
             path(ref), 
             path(fai), 
             path(ref_cache)
     output:    
-        tuple val(meta), path("${vcf.simpleName}_mutype.vcf.gz"), emit: mutype_vcf
-        tuple val(meta), path("${vcf.simpleName}_mutype.vcf.gz.tbi"), emit: mutype_tbi
+        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_vcf
+        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_tbi
         tuple val(meta), path("${meta.sample}_changes.csv"), emit: changes
         tuple val(meta), path("${meta.sample}_changes.json"), emit: changes_json
             
     script:
         """
-        workflow-glue annotate_mutations ${vcf} ${vcf.simpleName}_mutype.vcf.gz --json -k 3 --genome ${ref}
-        tabix -p vcf ${vcf.simpleName}_mutype.vcf.gz
+        workflow-glue annotate_mutations input.vcf.gz ${meta.sample}_somatic.vcf.gz --json -k 3 --genome ${ref}
+        tabix -p vcf ${meta.sample}_somatic.vcf.gz
         """
 }
