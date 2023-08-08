@@ -35,7 +35,24 @@
                     "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
                     "default": false
                 }
-            }
+            },
+            "anyOf": [
+                {
+                    "required": [
+                        "sv"
+                    ]
+                },
+                {
+                    "required": [
+                        "snv"
+                    ]
+                },
+                {
+                    "required": [
+                        "mod"
+                    ]
+                }
+            ]
         },
         "input": {
             "title": "Main options",
@@ -100,7 +117,9 @@
                 }
             },
             "required": [
-                "ref"
+                "ref",
+                "bam_normal",
+                "bam_tumor"
             ]
         },
         "snv_options": {
