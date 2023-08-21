@@ -10,6 +10,19 @@ process getVersions {
     python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions.txt
     modkit --version | tr -s ' ' ',' >> versions.txt
     bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions.txt
+    """
+}
+
+
+process rVersions {
+    label "dss"
+    cpus 1
+    input:
+        path "versions.txt"
+    output:
+        path "versions.txt"
+    script:
+    """
     R --version | awk 'NR==1 {print "R,"\$3}' >> versions.txt
     R -e "packageVersion('DSS')" | awk '\$1=="[1]" {print "DSS,"\$2}' >> versions.txt
     """
@@ -166,7 +179,7 @@ process bed2dss {
 
 // Run DSS to compute DMR/L
 process dss {
-    label "wf_somatic_methyl"
+    label "dss"
     cpus params.dss_threads
     input:
         tuple val(meta), 
@@ -342,7 +355,7 @@ workflow mod {
         paired_beds | dss 
 
         // Get versions and params
-        software_versions = getVersions()
+        software_versions = getVersions() | rVersions
         workflow_params = getParams()
 
         // Make report

@@ -15,6 +15,19 @@ variables:
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
 
 docker-run:
+    # Exclude artifacts to speed up execution
+    artifacts:
+        when: always
+        paths:
+            - ${CI_PROJECT_NAME}
+            - .nextflow.log
+        exclude:
+            - ${CI_PROJECT_NAME}/**/*.bam
+            - ${CI_PROJECT_NAME}/**/*.cram
+            - ${CI_PROJECT_NAME}/**/*.fa
+            - ${CI_PROJECT_NAME}/**/*.fna
+            - ${CI_PROJECT_NAME}/**/*.fasta
+            - ${CI_PROJECT_NAME}/**/ref_cache/**
     # Define a 1D job matrix to inject a variable named MATRIX_NAME into
     #   the CI environment, we can use the value of MATRIX_NAME to determine
     #   which options to apply as part of the rules block below
