@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Automated annotation of SNVs and small indels.
     - Disable with `--annotation false`
+- ARM-compatible modified base calling
 
 ### Changed
 - `Input options` and `Output options` have been combined in the `Main options` category
+- Updated `DSS` to v2.38.0
+- Updated `modkit` to v0.1.12
 
 ### Fixed
 - The workflow is now mostly species agnostic (with the exception of insert classification enabled with `--classify_insert`)
