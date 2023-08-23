@@ -96,6 +96,16 @@ Starting from the paired cancer/control samples, the workflow will:
 3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
 4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
 
+As of `nanomonsv` v0.7.1, users can provide the approximate single base quality value (QV) for their dataset. To decide which is the most appropriate value for your dataset visit `nanomonsv get` [web page](https://github.com/friend1ws/nanomonsv#get), but it can be summarized as follow:
+
+|     Basecaller     |  Quality value  |
+|--------------------|-----------------|
+|     guppy (v5)     |       10        |
+|  guppy (v5 or v6)  |       15        |
+|       dorado       |       20        |
+
+To provide the correct qc value, simply use `--qv 20`.
+
 **Modified base calling**
 
 Modified base calling can be performed by specifying `--mod`. The workflow will call modified bases using [modkit](https://github.com/nanoporetech/modkit). 
