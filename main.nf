@@ -65,6 +65,16 @@ workflow {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
         can_start = false
     }
+    // Normally, I would use a enum statement in nextflow_schema. However, EPI2ME at the moment cannot handle 
+    // enum options with integer values. Changing it to string fixes the app issue, but causes the workflow to
+    // crash. Therefore, we check it in-code for now, and then replace that with an enum once fixed in app.
+    ArrayList valid_qvs = [10, 15, 20, 25]
+    if (params.sv && params.qv){
+        if (!valid_qvs.any { qv -> params.qv == qv } ) {
+            log.error (colors.red + "The QV value chosen is not valid. Choose one of 10, 15, 20 or 25 and try again." + colors.reset)
+            can_start = false
+        }
+    }
 
     // Check ref and decompress if needed
     ref = null

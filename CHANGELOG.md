@@ -9,14 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated annotation of SNVs and small indels.
     - Disable with `--annotation false`
 - ARM-compatible modified base calling
+- Option `--qv`, to specify the expected quality value for nanomonsv
 
 ### Changed
 - `Input options` and `Output options` have been combined in the `Main options` category
 - Updated `DSS` to v2.38.0
 - Updated `modkit` to v0.1.12
+- Updated `nanomonsv` to v0.7.1
 
 ### Fixed
-- The workflow is now mostly species agnostic (with the exception of insert classification enabled with `--classify_insert`)
+- The workflow is now mostly species agnostic (with the exception of `--annotation` and `--classify_insert`)
 
 ## [v0.3.0]
 ### Added

@@ -57,6 +57,7 @@ process nanomonsv_get {
         tuple val(meta), path("${meta.sample}.nanomonsv.sbnd.result.txt"), emit: single_breakend
     script:
     def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
+    def qv = params.qv ? "--qv${params.qv}" : ""
     """
     export REF_PATH=${ref_cache}/%2s/%2s/%s
     nanomonsv get \\
@@ -69,7 +70,7 @@ process nanomonsv_get {
         --processes ${ncores} \\
         --single_bnd \\
         --use_racon \\
-        --max_memory_minimap2 2
+        --max_memory_minimap2 2 ${qv}
 
     mv ${parsed_tumor}/parsed.nanomonsv.result.txt ${meta.sample}.nanomonsv.result.txt
     mv ${parsed_tumor}/parsed.nanomonsv.result.vcf ${meta.sample}.nanomonsv.result.vcf

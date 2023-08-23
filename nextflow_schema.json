@@ -324,6 +324,12 @@
                     "default": false,
                     "description": "Perform SV insert classification.",
                     "help_text": "Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences."
+                },
+                "qv": {
+                    "title": "Quality value",
+                    "type": "integer",
+                    "description": "Approximate single base quality value (QV), one of 10, 15, 20 or 25.",
+                    "help_text": "Expected single base quality as described in the [nanomonsv web page](https://github.com/friend1ws/nanomonsv#get)."
                 }
             }
         },
