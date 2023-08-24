@@ -36,7 +36,7 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "all", "snv-r10", "snv-r9", "snv-r10-fail",
+                "snv-r10-som_only", "all", "snv-r10", "snv-r9", "snv-r10-fail",
                 "sv", "sv-full", "mod", "mod-strand", "mod-args"
             ]
     rules:
@@ -116,6 +116,20 @@ docker-run:
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "snv-r10-som_only"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna --germline false"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,\
+                    lookup_clair3_model,clairs_select_het_snps,clairs_phase,clairs_haplotag,make_chunks,pileup_variants,\
+                    aggregate_pileup_variants,select_het_snps,phase_contig,get_qual_filter,create_candidates,\
+                    evaluate_candidates,aggregate_full_align_variants,merge_pileup_and_full_vars,aggregate_all_variants,\
+                    add_missing_vars,getVariantType"
 
         - if: $MATRIX_NAME == "mod-args"
           variables:

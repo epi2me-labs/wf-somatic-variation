@@ -80,6 +80,12 @@ workflow snv {
             .map{ it -> it.flatten() }
             .set{paired_samples}
         wf_build_regions( paired_samples, ref.collect(), clairs_model, bed )
+        
+        // Define default and placeholder channels for downstream processes.
+        bam_for_germline = params.germline ? bam_channel : Channel.empty()
+        paired_vcfs = Channel.empty()
+        aggregated_vcfs = bam_channel.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
+        forked_vcfs = Channel.empty()
 
         // Extract contigs to feed into make_chunks to keep consistent parameters
         clair3_input_ctgs = wf_build_regions.out.contigs_file.map() { it -> [it[0].sample, it[1]] }
@@ -89,7 +95,7 @@ workflow snv {
         /* =============================================== */
 
         // Prepare the bam channel for the chunking.
-        bam_channel.map{bam, bai, meta -> [meta.sample, bam, bai, meta]}
+        bam_for_germline.map{bam, bai, meta -> [meta.sample, bam, bai, meta]}
             .combine(clair3_input_ctgs, by: 0)
             .map{
                 sample, bam, bai, meta, ctgs -> [meta, bam, bai, ctgs]
@@ -109,7 +115,7 @@ workflow snv {
 
         // Run the "pileup" caller on all chunks and collate results
         // > Step 1 
-        bam_channel
+        bam_for_germline
             .combine(ref)
             .combine(bed)
             .map{bam, bai, meta, ref, fai, ref_cache, bed ->
@@ -147,7 +153,7 @@ workflow snv {
         // the reference channel.
         // Then run the phasing
         phase_inputs = select_het_snps.out.het_snps_vcf
-            .combine(bam_channel, by: 2)
+            .combine(bam_for_germline, by: 2)
             .combine(ref)
         phase_contig(phase_inputs)
         phase_contig.out.phased_bam_and_vcf.set { phased_bam_and_vcf }
@@ -233,17 +239,26 @@ workflow snv {
         // Before proceeding to ClairS, we need to prepare the appropriate 
         // matched VCFs for tumor/normal pairs.
         // First, we branch based on whether they are tumor or normal:
-        aggregate_all_variants.out.final_vcf
-            .branch{
-                tumor: it[0].type == 'tumor'
-                normal: it[0].type == 'normal'
-            }.set{forked_vcfs}
+        // If skip phasing, set channel for downstream compatibility.
+        if (params.germline){
+            aggregated_vcfs = aggregate_all_variants.out.final_vcf
+            aggregated_vcfs
+                .branch{
+                    tumor: it[0].type == 'tumor'
+                    normal: it[0].type == 'normal'
+                }.set{forked_vcfs}
+        }
 
-        // Then we can combine tumor and normal for the same sample.
-        forked_vcfs.normal
+        // Then we can combine tumor and normal for the same sample.        
+        // If normal VCF is provided, then use it; if not check if germline calling is on, and eventually skip it
+        normal_vcf_to_cross = params.germline ? forked_vcfs.normal : Channel.empty()
+        // Check if phasing is on, and if not use empty channel
+        tumor_vcf_to_cross = params.germline ? forked_vcfs.tumor : Channel.empty()
+        // Perform VCF pairing
+        normal_vcf_to_cross
             .map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] } 
             .cross(
-                forked_vcfs.tumor.map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] }
+                tumor_vcf_to_cross.map{ meta, vcf, tbi -> [ meta.sample, vcf, tbi, meta ] }
             )
             .map { normal, tumor ->
                     [tumor[3], tumor[1], tumor[2], normal[3], normal[1], normal[2], ]
@@ -300,48 +315,66 @@ workflow snv {
         /*
         /  Processing the full alignments
         */
-        // Extract the germline heterozygote sites using both normal and tumor
-        // VCF files
-        clairs_select_het_snps(paired_vcfs.combine(clairs_contigs, by: 0))
+        // Create compatible channels in case no phasing is required
+        forked_channel.tumor.map{it -> [it[2], it[0], it[1]]}
+                    .combine(clairs_contigs, by: 0)
+                    .map{meta, bam, bai, contigs -> [meta.sample, contigs, bam, bai, meta]}
+                    .combine(
+                        forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0
+                        )
+                    .combine(
+                        clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                    .combine(ref)
+                    .combine(clairs_model)
+                    .set{paired_phased_channel}
 
-        // Prepare the input channel for the phasing (tumor or tumor+normal if requested).
-        if (params.phase_normal){
-            clairs_select_het_snps.out.normal_hets
-                .combine(forked_channel.normal
-                            .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
-                            )
-                .combine(ref)
-                .mix(
-                    clairs_select_het_snps.out.tumor_hets
-                        .combine(forked_channel.tumor
-                                    .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
-                                    )
-                        .combine(ref)
-                )
-                .set { het_to_phase }
-        } else {
-            clairs_select_het_snps.out.tumor_hets
+        // Create tagged reads channel for downstream analyses.
+        // Set contigs to all to avoid issues of duplicated file names.
+        tagged = bam_channel
+            .map{bam, bai, meta -> [meta.sample, 'all', bam, bai, meta]}
+
+        // Otherwise, perform the phasing and tagging
+        if (params.germline){
+            // Extract the germline heterozygote sites using both normal and tumor
+            // VCF files
+            clairs_select_het_snps(paired_vcfs.combine(clairs_contigs, by: 0))
+            // Collect tumor het sites.
+            het_tumor = clairs_select_het_snps.out.tumor_hets
                 .combine(forked_channel.tumor
                             .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
                             )
                 .combine(ref)
+            // If normal data are phased, use them. Otherwise, empty channel.
+            het_normal = params.phase_normal ? clairs_select_het_snps.out.normal_hets : Channel.empty()
+            
+            // Combine heterozygote sites.
+            het_normal
+                .combine(forked_channel.normal
+                            .map {bam, bai, meta -> [meta, bam, bai]}, by: 0
+                            )
+                .combine(ref)
+                .mix(het_tumor)
                 .set { het_to_phase }
-        }
 
-        // Phase and haplotag the selected vcf and bams (tumor-only or both).
-        het_to_phase | clairs_phase | clairs_haplotag
+            // Phase and haplotag the selected vcf and bams (tumor-only or both).
+            het_to_phase | clairs_phase | clairs_haplotag
 
-        // Prepare the channel for the tensor generation.
-        // If phase normal is specified, then combine the phased VCF files 
-        // for both the tumor and the normal haplotagged samples...
-        if (params.phase_normal){
-            clairs_haplotag.out.phased_data
+            // Create tagged reads channel for downstream analyses
+            tagged = clairs_haplotag.out.phased_data
+
+            // Branch to separate tumor and normal tagged bams
+            tagged
                 .branch{
                     tumor: it[4].type == 'tumor'
                     normal: it[4].type == 'normal'
                 }.set{f_phased_channel}
-            f_phased_channel.tumor
-                .combine(f_phased_channel.normal, by: [0,1])
+            tagged_bam_tumor = f_phased_channel.tumor
+            // If phase normal is specified then use the haplotagged bams, otherwise use the original ones.
+            tagged_bam_normal = params.phase_normal ? f_phased_channel.normal : forked_channel.normal.map{it -> [it[2].sample, it[0], it[1], it[2]]}
+
+            // Prepare the channel for the tensor generation.
+            tagged_bam_tumor
+                .combine(tagged_bam_normal, by: params.phase_normal ? [0, 1] : 0)
                 .map{sample, contig, tbam, tbai, tmeta, nbam, nbai, nmeta -> 
                         [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                 }
@@ -350,15 +383,6 @@ workflow snv {
                 .combine(ref)
                 .combine(clairs_model)
                 .set{ paired_phased_channel }
-        // ...otherwise keep only the tumor haplotagged bam files.
-        } else {
-            clairs_haplotag.out.phased_data
-                .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
-                .combine(
-                    clairs_extract_candidates.out.candidates_snvs.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
-                .combine(ref)
-                .combine(clairs_model)
-                .set{paired_phased_channel}
         }
 
         // Create the full-alignment tensors
@@ -396,11 +420,11 @@ workflow snv {
             // Create channel with the tumor bam, all the VCFs
             // (germline, pileup and full-alignment) and the 
             // reference genome.
-            clairs_haplotag.out.phased_data
+            tagged
                 .map{ samp, ctg, bam, bai, meta -> [meta, bam, bai] }
                 .groupTuple(by: 0)
                 .combine(
-                    aggregate_all_variants.out.final_vcf, by: 0
+                    aggregated_vcfs.map{it -> [it[0], it[1]]}, by: 0
                 )
                 .combine(
                     clairs_merge_pileup.out.pileup_vcf, by: 0
@@ -432,15 +456,33 @@ workflow snv {
                 .set{collected_indels}
             clairs_merge_pileup_indels(collected_indels, ref.collect())
 
-            // Create the full alignment indel paired tensors
-            if (params.phase_normal){
-                clairs_haplotag.out.phased_data
+            // Create default channel in case germline is deactivated
+            forked_channel.tumor
+                .map{bam, bai, meta -> [meta, bam, bai]}
+                .combine(clairs_contigs, by:0)
+                .map{meta, bam, bai, contig -> [meta.sample, contig, bam, bai, meta]}
+                .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
+                .combine(
+                    clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
+                .combine(ref)
+                .combine(clairs_model)
+                .set{paired_phased_indels_channel}
+
+            // Otherwise, use the phased data
+            if (params.germline){
+                // Check if the normal is requested, and if so consider that as well.
+                tagged
                     .branch{
                         tumor: it[4].type == 'tumor'
                         normal: it[4].type == 'normal'
                     }.set{f_phased_channel}
-                f_phased_channel.tumor
-                    .combine(f_phased_channel.normal, by: [0,1])
+                tagged_bam_tumor = f_phased_channel.tumor
+                // If phase normal is specified then use the haplotagged bams, otherwise use the original ones.
+                tagged_bam_normal = params.phase_normal ? f_phased_channel.normal : forked_channel.normal.map{it -> [it[2].sample, it[0], it[1], it[2]]}
+
+                // Prepare the channel for the tensor generation.
+                tagged_bam_tumor
+                    .combine(tagged_bam_normal, by: params.phase_normal ? [0, 1] : 0)
                     .map{sample, contig, tbam, tbai, tmeta, nbam, nbai, nmeta -> 
                             [sample, contig, tbam, tbai, tmeta, nbam, nbai]
                     }
@@ -449,16 +491,8 @@ workflow snv {
                     .combine(ref)
                     .combine(clairs_model)
                     .set{ paired_phased_indels_channel }
-            // ...otherwise keep only the tumor haplotagged bam files.
-            } else {
-                clairs_haplotag.out.phased_data
-                    .combine(forked_channel.normal.map{it -> [it[2].sample, it[0], it[1]]}, by: 0)
-                    .combine(
-                        clairs_extract_candidates.out.candidates_indels.transpose().map{it -> [it[0].sample, it[1].contig, it[3]]}, by: [0,1] )
-                    .combine(ref)
-                    .combine(clairs_model)
-                    .set{paired_phased_indels_channel}
             }
+
             clairs_create_fullalignment_paired_tensors_indels( paired_phased_indels_channel )
 
             // Predict full alignment indels
@@ -582,7 +616,7 @@ workflow snv {
                 clairs_merge_final.out.pileup_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
                 )
             .set{outputs}
-        if (!params.fast_mode){
+        if (params.germline && !params.fast_mode){
             outputs
                 .concat(
                     forked_vcfs.tumor.map{

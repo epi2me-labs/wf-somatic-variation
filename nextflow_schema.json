@@ -215,6 +215,12 @@
                     "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling.",
                     "hidden": true
                 },
+                "germline": {
+                    "type": "boolean",
+                    "title": "Call germline sites",
+                    "default": true,
+                    "description": "The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution)."
+                },
                 "phase_normal": {
                     "title": "Phase normal sample",
                     "type": "boolean",

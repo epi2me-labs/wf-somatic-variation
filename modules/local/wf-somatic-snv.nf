@@ -79,6 +79,7 @@ process makeReport {
         if( workflow.commitId ){
             wfversion = workflow.commitId
         }
+        def germline = params.germline ? "" : "--no_germline"
         """
         workflow-glue report_snv \\
             $report_name \\
@@ -87,7 +88,7 @@ process makeReport {
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
             --mut_spectra spectra.csv \\
-            ${clinvar}
+            ${clinvar} ${germline}
         """
 }
 
@@ -597,7 +598,6 @@ process clairs_full_hap_filter {
             path(tumor_bams, stageAs: "bams/*"),
             path(tumor_bai, stageAs: "bams/*"),
             path(germline_vcf),
-            path(germline_tbi),
             path(pileup_vcf),
             path(full_alignment_vcf),
             path(ref), 

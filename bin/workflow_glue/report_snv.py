@@ -3,7 +3,7 @@
 
 import os
 
-from dominate.tags import a, h6, p
+from dominate.tags import a, div, h6, p
 from ezcharts.components.bcfstats import load_bcfstats
 from ezcharts.components.clinvar import load_clinvar_vcf
 from ezcharts.components.ezchart import EZChart
@@ -133,6 +133,12 @@ def main(args):
     # VCF At-a-glance report
 
     with report.add_section('At a glance', 'Summary'):
+        if args.no_germline:
+            with div(cls="alert alert-warning"):
+                p(
+                    "This report was produced in somatic only mode,"
+                    " no germline calling was performed."
+                )
         tabs = Tabs()
         with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
@@ -284,6 +290,9 @@ def argparser():
     parser.add_argument(
         "--vaf_thresholds", default="0.2,0.1,0.05",
         help="read coverage output from mosdepth")
+    parser.add_argument(
+        "--no_germline", action="store_true",
+        help="workflow run without germline call")
     parser.add_argument(
         "--versions", required=True,
         help="directory containing CSVs containing name,version.")

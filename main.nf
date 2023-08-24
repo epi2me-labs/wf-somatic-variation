@@ -65,6 +65,9 @@ workflow {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
         can_start = false
     }
+    if (!params.germline) {
+        log.warn ("The workflow is running in somatic-only mode, germline calling will be skipped")
+    }
     // Normally, I would use a enum statement in nextflow_schema. However, EPI2ME at the moment cannot handle 
     // enum options with integer values. Changing it to string fixes the app issue, but causes the workflow to
     // crash. Therefore, we check it in-code for now, and then replace that with an enum once fixed in app.
