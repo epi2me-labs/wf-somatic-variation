@@ -101,18 +101,19 @@ process makeQCreport {
             path("ref.fa.fai")
         path "versions.txt"
         path "params.json"
-        val tumor_min_coverage
-        val normal_min_coverage
 
     output:
         tuple val(meta), path("${meta.sample}.wf-somatic-variation-readQC*.html")
 
     script:
+        // If no *_min_coverage provided, or set to null by mistake, set it to 0.
+        def tumor_cvg = params.tumor_min_coverage ?: 0
+        def normal_cvg = params.normal_min_coverage ?: 0
         """
         workflow-glue report_qc \\
             --window_size ${params.depth_window_size} \\
-            --tumor_cov_threshold ${tumor_min_coverage} \\
-            --normal_cov_threshold ${normal_min_coverage} \\
+            --tumor_cov_threshold ${tumor_cvg} \\
+            --normal_cov_threshold ${normal_cvg} \\
             --sample_id ${meta.sample} \\
             --name ${meta.sample}.wf-somatic-variation-readQC \\
             --read_stats_normal readstats_normal.tsv.gz \\
@@ -188,8 +189,8 @@ workflow alignment_stats {
                 } 
             .combine(ref.map{it[1]})
             .set{paired_samples}
-
-        makeQCreport(paired_samples, versions, parameters, params.tumor_min_coverage, params.normal_min_coverage)
+        
+        makeQCreport(paired_samples, versions, parameters)
 
         // Prepare output channel
         // Send the output to the specified sub-directory of params.out_dir.
