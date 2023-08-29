@@ -68,6 +68,15 @@ workflow {
     if (!params.germline) {
         log.warn ("The workflow is running in somatic-only mode, germline calling will be skipped")
     }
+    if (params.normal_vcf) {
+        if (!file("${params.normal_vcf}", checkifExists: true)){
+            throw new Exception("--normal_vcf is specified, but the file doesn't exist: ${params.normal_vcf}")
+        }
+        if (params.normal_vcf.endsWith('.gz') && !file("${params.normal_vcf}.tbi", checkifExists: true)){
+            throw new Exception("No TBI index for VCF file: ${params.normal_vcf}")
+        }
+        log.info ("Pre-computed VCF for the normal sample provided; running germline calling only for tumor sample")
+    }
     // Normally, I would use a enum statement in nextflow_schema. However, EPI2ME at the moment cannot handle 
     // enum options with integer values. Changing it to string fixes the app issue, but causes the workflow to
     // crash. Therefore, we check it in-code for now, and then replace that with an enum once fixed in app.

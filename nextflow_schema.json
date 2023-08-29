@@ -147,6 +147,12 @@
                     "description": "The name of the sequence to be processed.",
                     "hidden": true
                 },
+                "normal_vcf": {
+                    "title": "Pre-computed normal VCF",
+                    "type": "string",
+                    "description": "VCF file input containing normal sites for the given sample.",
+                    "help_text": "Pointing to a pre-computed normal VCF file will prevent the workflow from calling the germline sites for the normal sample, reducing processing time."
+                },
                 "include_all_ctgs": {
                     "title": "Include all contigs",
                     "type": "boolean",

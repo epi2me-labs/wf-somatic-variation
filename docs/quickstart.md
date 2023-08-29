@@ -48,6 +48,7 @@ wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazona
 ```
 This demo is derived from a Tumor/Normal pair of samples, that we have made publicly accessible. Check out our [blog post](https://labs.epi2me.io/colo-2023.05/) for more details.
 
+
 **Somatic short variant calling**
 
 The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/normal sample.
@@ -64,6 +65,15 @@ Any other model provided will prevent the workflow to start.
 **Indel calling**
 
 Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specify an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
+
+**Tweaking the variant calling**
+
+By default, the workflow uses `Clair3` to call germline sites on both the normal and tumor sample, that are then used internally to refine the somatic variant calling.
+This mode is computationally demanding, and it's behaviour can be changed with a few options:
+* Reduce the accuracy of the variant calling with `--fast_mode`; 
+* Provide a pre-computed VCF file reporting the germline calls for the normal sample with `--normal_vcf`;
+* Disable the germline calling altogether with `--germline false`.
+
 
 **Somatic structural variant (SV) calling with Nanomonsv**
 
@@ -84,12 +94,14 @@ As of `nanomonsv` v0.7.1, users can provide the approximate single base quality 
 
 To provide the correct qc value, simply use `--qv 20`.
 
+
 **Modified base calling**
 
 Modified base calling can be performed by specifying `--mod`. The workflow will call modified bases using [modkit](https://github.com/nanoporetech/modkit). 
 The default behaviour of the workflow is to run modkit with the `--cpg --combine-strands` options set. It is possible to report strand-aware modifications 
 by providing `--force_strand`, which will trigger modkit to run in default mode.
 The modkit run can be fully customized by providing `--modkit_args`. This will override any preset, and allow full control over the run of modkit.
+
 
 **Output folder**
 
