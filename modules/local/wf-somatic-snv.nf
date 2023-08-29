@@ -80,6 +80,7 @@ process makeReport {
             wfversion = workflow.commitId
         }
         def germline = params.germline ? "" : "--no_germline"
+        def normal_vcf = params.normal_vcf ? "--normal_vcf ${file(params.normal_vcf).name}" : ""
         """
         workflow-glue report_snv \\
             $report_name \\
@@ -88,7 +89,7 @@ process makeReport {
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
             --mut_spectra spectra.csv \\
-            ${clinvar} ${germline}
+            ${clinvar} ${germline} ${normal_vcf}
         """
 }
 
@@ -614,13 +615,14 @@ process clairs_full_hap_filter {
             
     script:
         def debug = params.clairs_debug ? "--debug" : ""
+        def germline = germline_vcf.baseName != 'OPTIONAL_FILE' ? "--germline_vcf_fn ${germline_vcf}" : "--germline_vcf_fn None"
         """
         mkdir vcf_output/
         export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py haplotype_filtering \\
             --tumor_bam_fn bams/${meta.sample}_${meta.type}_ \\
             --ref_fn ${ref} \\
-            --germline_vcf_fn ${germline_vcf} \\
+            ${germline} \\
             --pileup_vcf_fn ${pileup_vcf} \\
             --full_alignment_vcf_fn ${full_alignment_vcf} \\
             --output_dir vcf_output/ \\

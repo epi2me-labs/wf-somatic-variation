@@ -86,6 +86,18 @@ workflow snv {
         paired_vcfs = Channel.empty()
         aggregated_vcfs = bam_channel.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
         forked_vcfs = Channel.empty()
+        
+        // If a normal vcf is provided, skip clair3 calling for the normal sample.
+        if (params.normal_vcf){
+            // Use the metadata from the bam channel
+            // Use the vcf for the normal channel.
+            normal_vcf = bam_channel
+                .filter{bam, bai, meta -> meta.type == 'normal'}
+                .map{ bam, bai, meta -> [meta, file("${params.normal_vcf}"), file("${params.normal_vcf}.tbi")] }
+            // Prepare the channel for Clair3 to contain only normal samples.
+            bam_for_germline = bam_channel
+                .filter{bam, bai, meta -> meta.type != 'normal'}
+        } 
 
         // Extract contigs to feed into make_chunks to keep consistent parameters
         clair3_input_ctgs = wf_build_regions.out.contigs_file.map() { it -> [it[0].sample, it[1]] }
@@ -251,7 +263,7 @@ workflow snv {
 
         // Then we can combine tumor and normal for the same sample.        
         // If normal VCF is provided, then use it; if not check if germline calling is on, and eventually skip it
-        normal_vcf_to_cross = params.germline ? forked_vcfs.normal : Channel.empty()
+        normal_vcf_to_cross = params.normal_vcf ? normal_vcf : params.germline ? forked_vcfs.normal : Channel.empty()
         // Check if phasing is on, and if not use empty channel
         tumor_vcf_to_cross = params.germline ? forked_vcfs.tumor : Channel.empty()
         // Perform VCF pairing

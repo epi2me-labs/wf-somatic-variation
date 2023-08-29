@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Added
 - Option to skip germline calling and variant phasing with `--germline false`.
+- Option `--normal_vcf` to provide a pre-computed normal VCF file.
 
 ## [v0.4.0]
 ### Added

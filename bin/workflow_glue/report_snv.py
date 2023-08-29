@@ -139,6 +139,12 @@ def main(args):
                     "This report was produced in somatic only mode,"
                     " no germline calling was performed."
                 )
+        if args.normal_vcf:
+            with div(cls="alert alert-warning"):
+                p(
+                    "Germline calls for the normal sample were provided by the user",
+                    f" in file {args.normal_vcf}"
+                )
         tabs = Tabs()
         with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
@@ -292,6 +298,9 @@ def argparser():
         help="read coverage output from mosdepth")
     parser.add_argument(
         "--no_germline", action="store_true",
+        help="workflow run without germline call")
+    parser.add_argument(
+        "--normal_vcf", type=str,
         help="workflow run without germline call")
     parser.add_argument(
         "--versions", required=True,
