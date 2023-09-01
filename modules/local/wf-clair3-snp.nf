@@ -18,7 +18,6 @@ process make_chunks {
         def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
         // Define calling parameters to reflect ClairS behaviour
         // Default is Clair3 fast mode
-        // If enabled germline calling, then use slower, but accurate options
         """
         mkdir -p clair_output
         CTG_LIST=\$( tr '\\n' ',' < ${contigs} )

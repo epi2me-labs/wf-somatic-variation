@@ -77,6 +77,9 @@ workflow {
         }
         log.info ("Pre-computed VCF for the normal sample provided; running germline calling only for tumor sample")
     }
+    if (params.snv && params.hybrid_mode_vcf && params.genotyping_mode_vcf){
+        throw new Exception("Can run --hybrid_mode_vcf or --genotyping_mode_vcf, not both. Choose one and try again.")
+    }
     // Normally, I would use a enum statement in nextflow_schema. However, EPI2ME at the moment cannot handle 
     // enum options with integer values. Changing it to string fixes the app issue, but causes the workflow to
     // crash. Therefore, we check it in-code for now, and then replace that with an enum once fixed in app.

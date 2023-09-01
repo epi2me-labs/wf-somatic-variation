@@ -44,6 +44,8 @@ def vcf_parse(args):
     naf = []
     vtype = []
     for rec in vcf_df:
+        if not rec.alts:
+            continue
         flt.append(rec.filter.keys()[0])
         vaf.append(rec.samples[samplename]['AF'])
         naf.append(rec.samples[samplename]['NAF'])
@@ -54,12 +56,14 @@ def vcf_parse(args):
     return samplename, flt, vaf, naf, vtype
 
 
-def filt_stats(filters, vaf, naf, thresholds=[0.2, 0.1, 0.05]):
+def filt_stats(filters, vaf, naf, noalt=0, thresholds=[0.2, 0.1, 0.05]):
     """Plot the filtering stats."""
     df = pd.DataFrame({'Filter': filters, 'Tumor_AF': vaf, 'Normal_AF': naf})
     # Filtering table
     summary_table = {
         'N sites': [df.count()['Filter'],
+                    ""],
+        'No ALTS': [noalt,
                     ""],
         'PASS': [df[df['Filter'] == 'PASS'].count()['Filter'],
                  ""],
@@ -145,6 +149,18 @@ def main(args):
                     "Germline calls for the normal sample were provided by the user",
                     f" in file {args.normal_vcf}"
                 )
+        if args.hybrid_mode_vcf_fn:
+            with div(cls="alert alert-warning"):
+                p(
+                    "Hybrid calling from VCF file provided by the user",
+                    f": {args.hybrid_mode_vcf_fn}"
+                )
+        if args.genotyping_mode_vcf_fn:
+            with div(cls="alert alert-warning"):
+                p(
+                    "Genotyping sites in VCF file provided by the user",
+                    f": {args.genotyping_mode_vcf_fn}"
+                )
         tabs = Tabs()
         with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
@@ -154,13 +170,17 @@ def main(args):
                     i.replace('SNP', 'SNV').replace('MNP', 'MNV')
                     for i in bcfstats['SN'].columns
                 ]
+                # Extract values to avoid displaying as list in Stats
                 titv = bcfstats['TSTV']['ts/tv'].values[0]
                 nsites = bcfstats['SN']['records'].values[0]
                 nsnvs = bcfstats['SN']['SNVs'].values[0]
                 nindels = bcfstats['SN']['indels'].values[0]
+                nvars = int(bcfstats['SN']['records'].values[0]) -\
+                    int(bcfstats['SN']['no-ALTs'].values[0])
                 Stats(
                     columns=4,
-                    items=[(f'{"{:,}".format(int(nsites))}', 'Variants'),
+                    items=[(f'{"{:,} ({:,})".format(int(nsites), nvars)}',
+                            'Sites (of which variants)'),
                            (f'{"{:,}".format(int(nsnvs))}', 'SNVs'),
                            (f'{"{:,}".format(int(nindels))}', 'Indels'),
                            (f'{titv}', 'Ti/Tv')])
@@ -301,7 +321,13 @@ def argparser():
         help="workflow run without germline call")
     parser.add_argument(
         "--normal_vcf", type=str,
-        help="workflow run without germline call")
+        help="workflow run with germline VCF for normal sample")
+    parser.add_argument(
+        "--hybrid_mode_vcf_fn", type=str,
+        help="workflow run hybrid typing with the given VCF")
+    parser.add_argument(
+        "--genotyping_mode_vcf_fn", type=str,
+        help="workflow run genotyping with the given VCF")
     parser.add_argument(
         "--versions", required=True,
         help="directory containing CSVs containing name,version.")
