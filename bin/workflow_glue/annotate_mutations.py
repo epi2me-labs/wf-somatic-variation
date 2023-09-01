@@ -47,7 +47,12 @@ def main(args):
     # Define output file and process inputs
     with pysam.VariantFile(args.o_vcf, 'w', header=i_vcf.header) as o_vcf:
         for rec in i_vcf:
-            # First, we get the upcase reference K-mer
+            # If it's a no-alt site (i.e. from genotyping), save
+            # the record as-is and continue.
+            if not rec.alts:
+                o_vcf.write(rec)
+                continue
+            # First, we get the upper case reference K-mer
             # It now accounts for the size of the flanks when selecting
             # the region (pos is 1-based)
             ref_kmer = fasta.fetch(

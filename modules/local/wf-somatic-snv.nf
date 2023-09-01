@@ -46,7 +46,7 @@ process getParams {
         """
 }
 
-
+// extract base metrics on the provided VCF file.
 process vcfStats {
     label "wf_somatic_snv"
     cpus 1
@@ -60,6 +60,7 @@ process vcfStats {
 }
 
 
+// Generate report file.
 process makeReport {
     input:
         tuple val(meta), 
@@ -69,18 +70,25 @@ process makeReport {
             path("spectra.csv"), 
             path(clinvar_vcf), 
             path("version.txt"), 
-            path("params.json")
+            path("params.json"),
+            path(typing_vcf),
+            val(typing_opt)
     output:
         path "*report.html", emit: html
     script:
+        // Define report name.
         def report_name = "${params.sample_name}.wf-somatic-snv-report.html"
+        // Define report name.
         def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
         wfversion = workflow.manifest.version
         if( workflow.commitId ){
             wfversion = workflow.commitId
         }
+        // Provide additional options for skipped germline calling, pre-computed germline calls, or
+        // genotyping/hybrid mode VCF input file.
         def germline = params.germline ? "" : "--no_germline"
         def normal_vcf = params.normal_vcf ? "--normal_vcf ${file(params.normal_vcf).name}" : ""
+        def typing_vcf = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """
         workflow-glue report_snv \\
             $report_name \\
@@ -89,11 +97,11 @@ process makeReport {
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
             --mut_spectra spectra.csv \\
-            ${clinvar} ${germline} ${normal_vcf}
+            ${clinvar} ${germline} ${normal_vcf} ${typing_vcf}
         """
 }
 
-
+// Define the appropriate model to use.
 process lookup_clair3_model {
     label "wf_somatic_snv"
     input:
@@ -110,9 +118,9 @@ process lookup_clair3_model {
 
 //
 // Individual ClairS subprocesses to better handle the workflow.
-// 
+//
+// Prepare chunks and contigs list for parallel processing.
 process wf_build_regions {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -124,16 +132,20 @@ process wf_build_regions {
         tuple path(ref), path(fai), path(ref_cache)
         val model
         path bed
+        tuple path(typing_vcf), val(typing_opt)
             
     output:
         tuple val(meta), path("${meta.sample}/tmp/CONTIGS"), emit: contigs_file
         tuple val(meta), path("${meta.sample}/tmp/CHUNK_LIST"), emit: chunks_file
         tuple val(meta), path("${meta.sample}/tmp/split_beds"), emit: split_beds
     script:
+        // Define additional inputs, such as target contigs, target region as bed file and more.
         def bedargs = params.bed ? "--bed_fn ${bed}" : ""
         def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
         def target_ctg = params.ctg_name == "EMPTY" ? "" : "--ctg_name ${params.ctg_name}"
         def indels_call = params.basecaller_cfg.startsWith('dna_r10') ? "--enable_indel_calling" : ""
+        // Enable hybrid/genotyping mode if passed
+        def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """
         \$CLAIRS_PATH/run_clairs ${target_ctg} ${include_ctgs} \\
             --tumor_bam_fn ${tumor_bam.getName()} \\
@@ -148,15 +160,16 @@ process wf_build_regions {
             --qual ${params.min_qual} \\
             --chunk_size 5000000 \\
             --dry_run \\
-            ${bedargs} ${indels_call}
+            ${bedargs} ${indels_call} ${typing_mode}
 
         # Save empty file to prevent empty directory errors on AWS
         touch ${meta.sample}/tmp/split_beds/EMPTY
         """
 }
 
+// Select heterozygote sites using both normal and tumor germline calls
+// for phasing.
 process clairs_select_het_snps {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -185,9 +198,8 @@ process clairs_select_het_snps {
         '''
 }
 
-// Run haplotag on the bam files
+// Run variant phasing on each contig using either longphase or whatshap.
 process clairs_phase {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus { params.use_longphase_intermediate ? 4 : 1 }
     input:
@@ -240,9 +252,8 @@ process clairs_phase {
         """
 }
 
-// Run haplotag on the bam files
+// Run whatshap haplotag on the bam file
 process clairs_haplotag {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -278,9 +289,8 @@ process clairs_haplotag {
 }
 
 
-// Extract candidate regions
+// Extract candidate regions to process
 process clairs_extract_candidates {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -295,6 +305,7 @@ process clairs_extract_candidates {
             path(fai), 
             path(ref_cache),
             val(model)
+        tuple path(typing_vcf), val(typing_opt)
     output:
     tuple val(meta),
             val(region),
@@ -308,15 +319,28 @@ process clairs_extract_candidates {
             path("indels/${region.contig}.*_indel"),
             emit: candidates_indels,
             optional: true
+    tuple val(meta),
+            val(region),
+            path("hybrid/${region.contig}.*_hybrid_info"),
+            emit: candidates_hybrids,
+            optional: true
+    tuple val(meta),
+            val(region),
+            path("candidates/bed/*"),
+            emit: candidates_bed,
+            optional: true
 
     script:
         def bedfile = params.bed ? "" : ""
+        // Call indels when r10 model is provided.
         def indel_min_af = model == 'ont_r10' ? "--indel_min_af ${params.indel_min_af}" : "--indel_min_af 1.00"
         def select_indels = model == 'ont_r10' ? "--select_indel_candidates True" : "--select_indel_candidates False"
+        // Enable hybrid/genotyping mode if passed
+        def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """
         export REF_PATH=${ref_cache}/%2s/%2s/%s        
         # Create output folder structure
-        mkdir candidates; mkdir indels
+        mkdir candidates indels hybrid
         # Create candidates
         pypy3 \$CLAIRS_PATH/clairs.py extract_pair_candidates \\
             --tumor_bam_fn ${tumor_bam.getName()} \\
@@ -333,7 +357,8 @@ process clairs_extract_candidates {
             --bed_fn ${split_beds}/${region.contig} \\
             --candidates_folder candidates/ \\
             ${select_indels} \\
-            --output_depth True 
+            --output_depth True \\
+            ${typing_mode} 
         for i in `ls candidates/INDEL_*`; do
             echo "Moved \$i"
             mv \$i indels/
@@ -342,12 +367,15 @@ process clairs_extract_candidates {
             echo "Moved \$i"
             mv \$i indels/
         done
+        for i in `ls candidates/*_hybrid_info`; do 
+            echo "Moved \$i"
+            mv \$i hybrid/
+        done
         """
 }
 
-// Create pileup Paired Tensors 
+// Create Paired Tensors for pileup variant calling step
 process clairs_create_paired_tensors {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -397,9 +425,8 @@ process clairs_create_paired_tensors {
 }
 
 
-// Predict pileup variants 
+// Perform pileup variant prediction using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_pileup {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
@@ -422,8 +449,15 @@ process clairs_predict_pileup {
         tuple val(meta), path("vcf_output/p_${intervals.getName()}.vcf"), optional: true
             
     script:
-        def print_ref = params.print_ref_calls ? "--show_ref" : ""
-        def print_ger = params.print_germline_calls ? "--show_germline" : ""
+        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
+        def print_ref = ""
+        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ref = "--show_ref"
+        } 
+        def print_ger = ""
+        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ger = "--show_germline"
+        }
         def run_gpu = "--use_gpu False"
         """
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -441,9 +475,8 @@ process clairs_predict_pileup {
         """
 }
 
-// Merge predicted pileup variants 
+// Merge single-contig pileup variants in one VCF file
 process clairs_merge_pileup {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -469,9 +502,8 @@ process clairs_merge_pileup {
 }
 
 
-// Create full-alignment Paired Tensors 
+// Create Paired Tensors for full-alignment variant calling.
 process clairs_create_fullalignment_paired_tensors {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -520,9 +552,8 @@ process clairs_create_fullalignment_paired_tensors {
 
 
 
-// Predict full-alignment variants 
+// Call variants using the full-alignment paired tensors 
 process clairs_predict_full {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
@@ -543,8 +574,15 @@ process clairs_predict_full {
         tuple val(meta), path("vcf_output/fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
             
     script:
-        def print_ref = params.print_ref_calls ? "--show_ref" : ""
-        def print_ger = params.print_germline_calls ? "--show_germline" : ""
+        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
+        def print_ref = ""
+        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ref = "--show_ref"
+        } 
+        def print_ger = ""
+        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ger = "--show_germline"
+        }
         def run_gpu = "--use_gpu False"
         """
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -561,9 +599,8 @@ process clairs_predict_full {
 }
 
 
-// Merge full-alignment variants 
+// Merge single-contigs full-alignment variants in a single VCF file
 process clairs_merge_full {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -588,9 +625,8 @@ process clairs_merge_full {
         '''
 }
 
-// Filter variants
+// Filter variants based on haplotype information.
 process clairs_full_hap_filter {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
     cpus params.haplotype_filter_threads
@@ -615,7 +651,10 @@ process clairs_full_hap_filter {
             
     script:
         def debug = params.clairs_debug ? "--debug" : ""
+        // If a germline VCF file has been computed, then use it; otherwise set it to None.
         def germline = germline_vcf.baseName != 'OPTIONAL_FILE' ? "--germline_vcf_fn ${germline_vcf}" : "--germline_vcf_fn None"
+        // If reference calls are requested, or it is a hybrid/genotyping mode, then add --show_ref option.
+        def show_ref = params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf ? "--show_ref" : ""
         """
         mkdir vcf_output/
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -628,13 +667,13 @@ process clairs_full_hap_filter {
             --output_dir vcf_output/ \\
             --samtools samtools \\
             --threads ${task.cpus} \\
+            ${show_ref} \\
             ${debug}
         """
 }
 
-// Final merging of the sites
+// Final merging of pileup and full-alignment sites.
 process clairs_merge_final {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -670,9 +709,8 @@ process clairs_merge_final {
 *  Add modules to call indels
 */ 
 // TODO: Several of these modules can probably be replaced with a modified version of one module, then imported with several aliases and appropriate switches
-// Create indels pileup Paired Tensors 
+// Create paired tensors for the pileup variant calling of the indels 
 process clairs_create_paired_tensors_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -721,9 +759,8 @@ process clairs_create_paired_tensors_indels {
         """
 }
 
-// Predict indels pileup 
+// Perform pileup variant prediction of indels using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_pileup_indel {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
@@ -746,8 +783,15 @@ process clairs_predict_pileup_indel {
         tuple val(meta), path("vcf_output/indel_p_${intervals.getName()}.vcf"), optional: true
             
     script:
-        def print_ref = params.print_ref_calls ? "--show_ref" : ""
-        def print_ger = params.print_germline_calls ? "--show_germline" : ""
+        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
+        def print_ref = ""
+        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ref = "--show_ref"
+        } 
+        def print_ger = ""
+        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ger = "--show_germline"
+        }
         def run_gpu = "--use_gpu False"
         """
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -766,9 +810,8 @@ process clairs_predict_pileup_indel {
         """
 }
 
-// Merge predicted indels pileup
+// Merge single-contigs pileup indels in a single VCF file
 process clairs_merge_pileup_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -793,9 +836,8 @@ process clairs_merge_pileup_indels {
         '''
 }
 
-// Create full-alignment indels Paired Tensors 
+// Create paired tensors for the full-alignment variant calling of the indels 
 process clairs_create_fullalignment_paired_tensors_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
     input:
@@ -842,9 +884,8 @@ process clairs_create_fullalignment_paired_tensors_indels {
         """
 }
 
-// Predict full-alignment indels
+// Perform full-alignment variant prediction of indels using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_full_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
@@ -865,8 +906,15 @@ process clairs_predict_full_indels {
         tuple val(meta), path("vcf_output/indels_fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
             
     script:
-        def print_ref = params.print_ref_calls ? "--show_ref" : ""
-        def print_ger = params.print_germline_calls ? "--show_germline" : ""
+        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
+        def print_ref = ""
+        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ref = "--show_ref"
+        } 
+        def print_ger = ""
+        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
+            print_ger = "--show_germline"
+        }
         def run_gpu = "--use_gpu False"
         """
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -883,9 +931,8 @@ process clairs_predict_full_indels {
         """
 }
 
-// Merge full-alignment variants 
+// Merge single-contigs full-alignment indels in a single VCF file
 process clairs_merge_full_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -910,9 +957,8 @@ process clairs_merge_full_indels {
         '''
 }
 
-// Final merging of the sites
+// Final merging of pileup and full-alignment indels.
 process clairs_merge_final_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 1
     input:
@@ -948,10 +994,30 @@ process clairs_merge_final_indels {
 /*
  * Post-processing processes
  */
-// Merge full-alignment variants 
+
+// CW-1949: add_missing_variants adds all types of sites to the resulting VCF file,
+// regardless of the input. As a consequence, merging introduces duplicated sites, which can
+// theorethically be dealt with by bcftools norm. However, bcftools norm drops all
+// sites that lack a genotype, which are most of the sites detected by the genotyping mode.
+// We therefore extract indels and SNPs independently, allowing then to merge them without
+// duplicated sites.
+process getVariantType {
+    cpus 1
+    input:
+        tuple val(meta), path(vcf), path(tbi)
+        val variant_type
+    output:
+        tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz"), emit: vcf
+        tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz.tbi"), emit: tbi
+    """
+    bcftools view -O z -v ${variant_type} ${vcf} > ${vcf.simpleName}.subset.vcf.gz && \
+        tabix -p vcf ${vcf.simpleName}.subset.vcf.gz
+    """
+}
+
+
+// Concatenate SNVs and Indels in a single VCF file. 
 process clairs_merge_snv_and_indels {
-    // Filters a VCF by contig, selecting only het SNPs.
-    label "wf_somatic_snv"
     cpus 1
     input:
         tuple val(meta), path(vcfs, stageAs: 'VCFs/*'), path(tbis, stageAs: 'VCFs/*')
@@ -959,17 +1025,26 @@ process clairs_merge_snv_and_indels {
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: pileup_vcf
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: pileup_tbi
             
-    shell:
-        '''
-        bcftools concat -a VCFs/*.vcf.gz | \\
-            bcftools sort -m 2G -T ./ -O z > !{meta.sample}_somatic.vcf.gz && \\
-            tabix -p vcf !{meta.sample}_somatic.vcf.gz
-        '''
+    script:
+    // CW-1949: bcftools sort always drop sites without alleles/genotypes, which is not
+    // ideal for this mode. bedtools doesn't have this issue, and therefore use this instead.
+    if (params.genotyping_mode_vcf || params.hybrid_mode_vcf)
+    """
+    bcftools concat -O v -a VCFs/*.vcf.gz | \\
+        bedtools sort -header -i - | \\
+            bcftools view -O z > ${meta.sample}_somatic.vcf.gz && \\
+        tabix -p vcf ${meta.sample}_somatic.vcf.gz
+    """
+    else
+    """
+    bcftools concat -a VCFs/*.vcf.gz | \\
+        bcftools sort -m 2G -T ./ -O z > ${meta.sample}_somatic.vcf.gz && \\
+        tabix -p vcf ${meta.sample}_somatic.vcf.gz
+    """
 }
 
-// Annotate the mutation counts
+// Annotate the change type counts (e.g. mutation_type=AAA>ATA)
 process change_count {
-    // Filters a VCF by contig, selecting only het SNPs.
     cpus 1
     input:
         tuple val(meta),
@@ -980,7 +1055,7 @@ process change_count {
             path(ref_cache)
     output:    
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_vcf
-        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_tbi
+        tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: mutype_tbi
         tuple val(meta), path("${meta.sample}_changes.csv"), emit: changes
         tuple val(meta), path("${meta.sample}_changes.json"), emit: changes_json
             
@@ -988,5 +1063,36 @@ process change_count {
         """
         workflow-glue annotate_mutations input.vcf.gz ${meta.sample}_somatic.vcf.gz --json -k 3 --genome ${ref}
         tabix -p vcf ${meta.sample}_somatic.vcf.gz
+        """
+}
+
+/*
+ * Genotyping/hybrid mode
+ * Add missing variants from a given VCF file to a target VCF file
+ */
+process add_missing_vars {
+    label "wf_somatic_snv"
+    cpus 1
+    input:
+        tuple val(meta), 
+            path(vcf), 
+            path(tbi),
+            path('candidates/*'),
+            path('candidates/bed/*')
+        tuple path(typing_vcf), val(typing_opt)
+            
+    output:
+        tuple val(meta), path("${vcf.simpleName}.gt.vcf.gz"), emit: pileup_vcf
+        tuple val(meta), path("${vcf.simpleName}.gt.vcf.gz.tbi"), emit: pileup_tbi
+            
+    script:
+        // Enable hybrid/genotyping mode if passed
+        def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
+        """
+        pypy3 \$CLAIRS_PATH/clairs.py add_back_missing_variants_in_genotyping \\
+            ${typing_mode} \\
+            --call_fn ${vcf} \\
+            --candidates_folder candidates/ \\
+            --output_fn ${vcf.simpleName}.gt.vcf
         """
 }

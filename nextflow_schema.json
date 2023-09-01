@@ -147,9 +147,22 @@
                     "description": "The name of the sequence to be processed.",
                     "hidden": true
                 },
+                "hybrid_mode_vcf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Enable hybrid calling mode that combines the de novo calling results and genotyping results at the positions in the VCF file given.",
+                    "hidden": true
+                },
+                "genotyping_mode_vcf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "VCF file input containing candidate sites to be genotyped. Variants will only be called at the sites in the VCF file if provided.",
+                    "hidden": true
+                },
                 "normal_vcf": {
                     "title": "Pre-computed normal VCF",
                     "type": "string",
+                    "format": "file-path",
                     "description": "VCF file input containing normal sites for the given sample.",
                     "help_text": "Pointing to a pre-computed normal VCF file will prevent the workflow from calling the germline sites for the normal sample, reducing processing time."
                 },
@@ -225,6 +238,7 @@
                     "type": "boolean",
                     "title": "Call germline sites",
                     "default": true,
+                    "hidden": false,
                     "description": "The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution)."
                 },
                 "phase_normal": {

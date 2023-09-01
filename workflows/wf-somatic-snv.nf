@@ -26,6 +26,10 @@ include {
     clairs_merge_full_indels;
     clairs_merge_final_indels;
     clairs_merge_snv_and_indels;
+    add_missing_vars as add_missing_snvs;
+    add_missing_vars as add_missing_indels;
+    getVariantType as getSNVs;
+    getVariantType as getIndels;
     change_count
 } from "../modules/local/wf-somatic-snv.nf"
 
@@ -62,6 +66,13 @@ workflow snv {
             clair3_mode = [min_snps_af:"0.08", min_indels_af: "0.15", min_cvg: "4"]
         } 
 
+        // Prepare the a channel for hybrid or genotyping mode.
+        typing_ch = Channel.of("$projectDir/data/OPTIONAL_FILE").map {
+            vcf = params.hybrid_mode_vcf ?: params.genotyping_mode_vcf ?: it
+            mode = params.hybrid_mode_vcf ? "--hybrid_mode_vcf_fn" : params.genotyping_mode_vcf ? "--genotyping_mode_vcf_fn": null
+            [file(vcf, checkifExists: true), mode]
+        }.collect()  // Use collect to create a value channel
+
         // Branch tumor and normal for downstream works
         bam_channel.branch{
             tumor: it[2].type == 'tumor'
@@ -79,7 +90,7 @@ workflow snv {
                 } 
             .map{ it -> it.flatten() }
             .set{paired_samples}
-        wf_build_regions( paired_samples, ref.collect(), clairs_model, bed )
+        wf_build_regions( paired_samples, ref.collect(), clairs_model, bed, typing_ch )
         
         // Define default and placeholder channels for downstream processes.
         bam_for_germline = params.germline ? bam_channel : Channel.empty()
@@ -278,6 +289,13 @@ workflow snv {
             .map{ it -> it.flatten() }
             .set{paired_vcfs}
 
+        // If skip phasing, set channel for downstream compatibility.
+        if (!params.germline){
+            paired_vcfs = Channel.empty()
+            aggregated_vcfs = bam_channel.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
+        } else{
+            aggregated_vcfs = aggregate_all_variants.out.final_vcf
+        }
         /* ============================================ */
         /* Run ClairS functions from here on.           */
         /* The workflow will run partly in parallel     */
@@ -290,7 +308,7 @@ workflow snv {
         */
         // Combine the channels of each chunk, with the pair of
         // bams and the all the bed for each sample
-         wf_build_regions.out.chunks_file
+        wf_build_regions.out.chunks_file
                 .splitText(){
                         cols = (it[1] =~ /(.+)\s(.+)\s(.+)/)[0]
                         region_map = ["contig": cols[1], "chunk_id":cols[2], "total_chunks":cols[3]]
@@ -308,8 +326,36 @@ workflow snv {
                 .set{chunks}
         clairs_contigs = wf_build_regions.out.contigs_file.splitText() { it -> [it[0], it[1].trim()] }
 
-        // Extract candidates for the tensor generation.
-        clairs_extract_candidates(chunks)
+        // Extract candidates for the tensor generation. Now with support of hybrid/genotyping mode
+        clairs_extract_candidates(chunks, typing_ch)
+
+        // Create all candidates channel for downstream analyses.
+        // CW-1949: consider also the candidate for hybrid genotyping.
+        // First extract the candidates for SNVs, Indels and hybrid typing.
+        candidate_regions = clairs_extract_candidates.out.candidates_snvs.transpose().map{
+            meta, region, list, target -> [meta, target]
+            }.mix(
+                clairs_extract_candidates.out.candidates_indels.transpose().map{
+                    meta, region, list, target -> [meta, target]
+                    }
+            ).mix(
+                clairs_extract_candidates.out.candidates_hybrids.transpose().map{
+                    meta, region, target -> [meta, target]
+                    }
+        // Then, the add the lists of candidate files.
+            ).mix(
+                clairs_extract_candidates.out.candidates_snvs.transpose().map{
+                    meta, region, list, target -> [meta, list]
+                    }
+            ).mix(
+                clairs_extract_candidates.out.candidates_indels.transpose().map{
+                    meta, region, list, target -> [meta, list]
+                    }
+            ).unique().groupTuple(by: 0)
+        // Collect the bed separately as they need to be in "candidates/bed/" subdir 
+        candidates_beds = clairs_extract_candidates.out.candidates_bed.map{
+            meta, region, bed -> [meta, bed]
+            }.groupTuple(by: 0)
 
         // Prepare the paired tensors for each tumor/normal pair.
         clairs_create_paired_tensors(chunks.combine(clairs_extract_candidates.out.candidates_snvs.transpose(), by: [0,1]))
@@ -427,7 +473,7 @@ workflow snv {
                 )
                 .combine( ref )
                 .set{ clair_all_variants }
-            clair_all_variants | clairs_merge_final
+            snv_calling = clair_all_variants | clairs_merge_final
         } else {
             // Create channel with the tumor bam, all the VCFs
             // (germline, pileup and full-alignment) and the 
@@ -447,12 +493,28 @@ workflow snv {
                 .combine( ref )
                 .set{ clair_all_variants }
             // Apply the filtering and create the final VCF.
-            clair_all_variants | clairs_full_hap_filter | clairs_merge_final
+            snv_calling = clair_all_variants | clairs_full_hap_filter | clairs_merge_final
         }
 
-        // Create channels for downstream analyses
-        pileup_vcf = clairs_merge_final.out.pileup_vcf
-        pileup_tbi = clairs_merge_final.out.pileup_tbi
+        // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
+        if (params.hybrid_mode_vcf || params.genotyping_mode_vcf){
+            snv_calling.pileup_vcf
+                .combine(snv_calling.pileup_tbi, by: 0)
+                .combine(candidate_regions, by: 0)
+                .combine(candidates_beds, by: 0)
+                .set{pretyping_snvs}
+            snv_typed = add_missing_snvs(pretyping_snvs, typing_ch)
+        } 
+
+        // Multiple output channels are created here for convenience
+        // in downstream analyses. pileup_vcf refers to a VCF file
+        // that can undergo changes downstream, like combination with
+        // the indels, whereas snv_vcf is emitted as raw output.
+        pileup_vcf = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? snv_typed.pileup_vcf : snv_calling.pileup_vcf
+        pileup_tbi = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? snv_typed.pileup_tbi : snv_calling.pileup_tbi
+        snv_vcf = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? snv_typed.pileup_vcf : snv_calling.pileup_vcf
+        snv_tbi = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? snv_typed.pileup_tbi : snv_calling.pileup_tbi
+        
         // Perform indel calling if the model is appropriate
         if (params.basecaller_cfg.startsWith('dna_r10')){
             // Create paired tensors for the indels candidates
@@ -468,6 +530,9 @@ workflow snv {
                 .set{collected_indels}
             clairs_merge_pileup_indels(collected_indels, ref.collect())
 
+            // Create the full alignment indel paired tensors
+            // If skip phasing requested, then use the original bam files 
+            // with the contig info...
             // Create default channel in case germline is deactivated
             forked_channel.tumor
                 .map{bam, bai, meta -> [meta, bam, bai]}
@@ -505,6 +570,7 @@ workflow snv {
                     .set{ paired_phased_indels_channel }
             }
 
+            // Run full alignment stage
             clairs_create_fullalignment_paired_tensors_indels( paired_phased_indels_channel )
 
             // Predict full alignment indels
@@ -523,30 +589,62 @@ workflow snv {
                 .combine( clairs_merge_full_indels.out.full_vcf, by: 0 )
                 .combine(ref)
                 .set { merged_indels_vcf }
-            clairs_merge_final_indels(merged_indels_vcf)
+            called_indels = clairs_merge_final_indels(merged_indels_vcf)
 
-            // Create the final VCF channel
-            // First create a tuple of snv+indels VCFs, group them by metadata,
-            // remove all null values, and set them as VCF file
-            clairs_merge_final.out.pileup_vcf
-                .join(clairs_merge_final_indels.out.indel_vcf, by: 0, remainder: true )
-                .map { it - null }
-                .map { [it[0], it[1..-1]] }
-                .set{ all_vcfs }
-            // Repeat with the TBIs
-            clairs_merge_final.out.pileup_tbi
-                .join(clairs_merge_final_indels.out.indel_tbi, by: 0, remainder: true )
-                .map { it - null }
-                .map { [it[0], it[1..-1]] }
-                .set{ all_tbis }
+            // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
+            if (params.hybrid_mode_vcf || params.genotyping_mode_vcf){
+                called_indels.indel_vcf 
+                    .combine(called_indels.indel_tbi, by: 0)
+                    .combine(candidate_regions, by: 0)
+                    .combine(candidates_beds, by: 0)
+                    .set{pretyping_indels}
+                typed_indels = add_missing_indels(pretyping_indels, typing_ch)
 
+                // First, extract the correct variation types to avoid duplicated sites
+                // in the joint VCF.
+                getSNVs(pileup_vcf.combine(pileup_tbi, by: 0), 'snps')
+                getIndels(typed_indels.pileup_vcf.combine(typed_indels.pileup_tbi, by: 0), 'indels')
+
+                // Then, create the correct channel structure for the next process
+                getSNVs.out.vcf
+                    .join(getIndels.out.vcf, by: 0, remainder: true )
+                    .map { it - null }
+                    .map { [it[0], it[1..-1]] }
+                    .set{ all_vcfs }
+                // Repeat with the TBIs
+                getSNVs.out.tbi
+                    .join(getIndels.out.tbi, by: 0, remainder: true )
+                    .map { it - null }
+                    .map { [it[0], it[1..-1]] }
+                    .set{ all_tbis }
+
+            // If not required, use the base InDels VCF.
+            } else {
+                // First create a tuple of snv+indels VCFs, group them by metadata,
+                // remove all null values, and set them as VCF file
+                pileup_vcf
+                    .join(called_indels.indel_vcf, by: 0, remainder: true )
+                    .map { it - null }
+                    .map { [it[0], it[1..-1]] }
+                    .set{ all_vcfs }
+                // Repeat with the TBIs
+                pileup_tbi
+                    .join(called_indels.indel_tbi, by: 0, remainder: true )
+                    .map { it - null }
+                    .map { [it[0], it[1..-1]] }
+                    .set{ all_tbis }
+            }
             // Create a combined channel of VCFs and TBIs.
             // If only one VCF is passed, then the concatenated vcf will match
-            // the SNV VCF.
+            // the SNV VCF. Then, merge them.
             all_vcfs.combine(all_tbis, by: 0).set{snv_and_indels}
 
             // Add check for empty snv and indels channel.
             clairs_merge_snv_and_indels( snv_and_indels )
+
+            // Prepare the new output VCF files
+            indels_vcf = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? typed_indels.pileup_vcf : called_indels.indel_vcf
+            indels_tbi = params.hybrid_mode_vcf || params.genotyping_mode_vcf ? typed_indels.pileup_tbi : called_indels.indel_tbi
             pileup_vcf = clairs_merge_snv_and_indels.out.pileup_vcf
             pileup_tbi = clairs_merge_snv_and_indels.out.pileup_tbi
         }
@@ -587,6 +685,7 @@ workflow snv {
             .combine(clinvar_vcf, by: 0)
             .combine(software_versions)
             .combine(workflow_params)
+            .combine(typing_ch)
             .set{ reporting }
         makeReport(reporting)
 
@@ -622,10 +721,10 @@ workflow snv {
                     it -> [it, null]
                 })
             .concat(
-                clairs_merge_final.out.pileup_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
+                snv_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
                 )
             .concat(
-                clairs_merge_final.out.pileup_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
+                snv_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
                 )
             .set{outputs}
         if (params.germline && !params.fast_mode){
@@ -663,14 +762,12 @@ workflow snv {
         if (params.basecaller_cfg.startsWith('dna_r10')){
             outputs
                 .concat(
-                    clairs_merge_final_indels.out.indel_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
+                    indels_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
                     )
                 .concat(
-                    clairs_merge_final_indels.out.indel_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
+                    indels_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
                     )
                 .set { outputs }
-        } else {
-            outputs.set { outputs }
         }
 
     emit:
