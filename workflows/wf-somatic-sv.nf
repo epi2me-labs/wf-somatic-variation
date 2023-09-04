@@ -7,6 +7,7 @@ include {
     nanomonsv_get;
     annotate_classify;
     annotate_filter;
+    postprocess_nanomon_vcf;
     sortVCF;
     getVersions;
     getParams;
@@ -14,7 +15,7 @@ include {
     output_sv;
     bwa_index;
 } from "../modules/local/wf-somatic-sv.nf"
-include {bgzipper; tabixer} from "../modules/local/common.nf"
+include {bgzipper; tabixer; annotate_vcf as annotate_sv} from "../modules/local/common.nf"
 
 
 workflow somatic_sv {
@@ -119,12 +120,29 @@ workflow somatic_sv {
             // Define the right outputs
             post_annot_vcf = annotate_classify.out.annotated.mix(branched_svs.improper)
 
-            ch_txt = post_annot_vcf.map{meta, txt, vcf -> [meta, txt]}
             ch_vcf = post_annot_vcf.map{meta, txt, vcf -> [meta, vcf]}
+            ch_txt = post_annot_vcf.map{meta, txt, vcf -> [meta, txt]}
         }
 
+        // Post-process VCF file
+        proc_vcf = postprocess_nanomon_vcf(ch_vcf)
+
         // Sort and index each SV
-        sortVCF(ch_vcf)
+        sortVCF(proc_vcf)
+
+        // Add snpEff annotation if requested
+        if (params.annotation){
+            annotate_sv(sortVCF.out.vcf_gz.combine(sortVCF.out.vcf_tbi, by:0), 'somatic-sv')
+            proc_vcf = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
+            proc_tbi = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
+            clinvar_vcf = annotate_sv.out.annot_vcf_clinvar
+            gene_txt = annotate_sv.out.gene_txt
+        // Otherwise, create optional file from the vcf channel to preserve the structure
+        } else {
+            proc_vcf = sortVCF.out.vcf_gz
+            proc_tbi = sortVCF.out.vcf_tbi
+            clinvar_vcf = ch_vcf.map{meta, vcf -> [meta, file("$projectDir/data/OPTIONAL_FILE")]}
+        }
 
         // Prepare reports and outputs
         software_versions = getVersions()
@@ -132,6 +150,7 @@ workflow somatic_sv {
         report(
             sortVCF.out.vcf_gz.collect(),
             sortVCF.out.vcf_tbi.collect(),
+            clinvar_vcf,
             optional_file,
             software_versions, 
             workflow_params)
@@ -139,12 +158,19 @@ workflow somatic_sv {
         // Output everything
         // The report gets saved in the main outut directory (null out subfolder)
         // whereas the rest goes in the sv subdir.
-        sortVCF.out.vcf_gz
+        // This saves the final VCF+TBI after post-processing (single-sample, sorted and annotated)
+        proc_vcf
             .map{ meta, vcf -> [ vcf, null ] }
             .concat(
-                sortVCF.out.vcf_tbi.map{
+                proc_tbi.map{
                     meta, tbi -> [tbi, null]
                     })
+            // This saves the raw VCF files from nanomonsv
+            .concat(
+                ch_vcf.map{
+                    meta, txt -> [txt, "${meta.sample}/sv/vcf"]
+                    })
+            // This saves the tables from nanomonsv for dual and single-breakend SVs
             .concat(
                 ch_txt.map{
                     meta, txt -> [txt, "${meta.sample}/sv/txt"]
@@ -153,6 +179,7 @@ workflow somatic_sv {
                 ch_sbd.map{
                     meta, sbd -> [sbd, "${meta.sample}/sv/single_breakend"]
                 })
+            // Add information
             .concat(
                 workflow_params.map{
                     params -> [params, "info/sv/"]
@@ -166,6 +193,19 @@ workflow somatic_sv {
                     it -> [it, null]
                 })
             .set{outputs}
+        
+        if (params.annotation){
+            outputs
+                .concat(
+                    gene_txt.map{
+                        meta, gene -> [gene, "${meta.sample}/sv/annot/"]
+                        })
+                .concat(
+                    clinvar_vcf.map{
+                        meta, vcf -> [vcf, "${meta.sample}/sv/annot/"]
+                        })
+                .set{outputs}
+        }
         outputs | output_sv
     emit:
         soma_sv = report.out.html.concat(

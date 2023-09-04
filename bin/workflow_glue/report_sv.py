@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """Create workflow report."""
+import os
 
-from dominate.tags import p
+from dominate.tags import a, h6, p
+from ezcharts.components.clinvar import load_clinvar_vcf
 from ezcharts.components.common import CATEGORICAL
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
@@ -18,16 +20,13 @@ from .report_utils.visualizations import hist_plot  # noqa: ABS101
 from .report_utils.visualizations import scatter_plot  # noqa: ABS101
 from .util import wf_parser  # noqa: ABS101
 
-vcf_cols = [
-    'CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',
-    'INFO', 'FORMAT', 'TUMOR', 'NORMAL'
-    ]
 chroms_37 = [str(x) for x in range(1, 23)] + ['X', 'Y']
 
 
 def read_vcf(fname):
     """Read input VCF as pandas dataframe."""
     vcf = pysam.VariantFile(fname)
+    sample_name = vcf.header.samples[0]
     cols = {
         'CHROM': CATEGORICAL,
         'POS': int,
@@ -44,6 +43,7 @@ def read_vcf(fname):
     try:
         dropped = 0
         idx = 0
+
         # Process one entry at time using pysam
         for n, rec in enumerate(vcf):
             # Ignore non-chromosomal SVs
@@ -54,10 +54,8 @@ def read_vcf(fname):
             if rec.filter.keys()[0] != 'PASS':
                 dropped += 1
                 continue
-            vaf = float(rec.samples['TUMOR']['VR']) / \
-                float(rec.samples['TUMOR']['TR'])
-            nvaf = float(rec.samples['CONTROL']['VR']) / \
-                float(rec.samples['CONTROL']['TR'])
+            vaf = float(rec.samples[sample_name]['AF'])
+            nvaf = float(rec.samples[sample_name]['NAF'])
             sv_len = rec.info.get('SVLEN')
             if not sv_len:
                 sv_len = rec.info.get('SVINSLEN')
@@ -271,6 +269,39 @@ def main(args):
                         s.symbolSize = 3
                     EZChart(plt, 'epi2melabs')
 
+    # ClinVar variants
+    if args.clinvar_vcf is not None:
+        if os.path.exists(args.clinvar_vcf):
+            with report.add_section('ClinVar variant annotations', 'ClinVar'):
+                clinvar_docs_url = "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/"
+                p(
+                    "The ",
+                    a("SnpEff", href="https://pcingola.github.io/SnpEff/"),
+                    " annotation tool has been used to annotate with",
+                    a("ClinVar", href="https://www.ncbi.nlm.nih.gov/clinvar/"), '.'
+                    " If any variants have ClinVar annotations, they will appear in a ",
+                    "table below. Please note, this table excludes variants with",
+                    " 'Benign' or 'Likely benign' significance, however these ",
+                    "variants will appear in the VCF output by the workflow. For ",
+                    "further details on the terms in the 'Significance' column,",
+                    "  please visit ",
+                    a("this page", href=clinvar_docs_url),
+                    '.')
+
+                # check if there are any ClinVar sites to report
+                clinvar_for_report = load_clinvar_vcf(args.clinvar_vcf)
+                if clinvar_for_report.empty:
+                    h6('No ClinVar sites to report.')
+                else:
+                    DataTable.from_pandas(
+                        clinvar_for_report, export=True, use_index=False)
+    else:
+        # Annotations were skipped
+        with report.add_section('ClinVar variant annotations', 'ClinVar'):
+            p(
+                "This report was generated without annotations. To see"
+                " them, re-run the workflow with --annotation true.")
+
     #
     # write report
     #
@@ -291,6 +322,9 @@ def argparser():
         "--genome",
         default='hg38',
         required=False)
+    parser.add_argument(
+        "--clinvar_vcf", required=False,
+        help="VCF file of variants annotated in ClinVar")
     parser.add_argument(
         "--eval_results",
         nargs='+',
