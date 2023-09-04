@@ -174,6 +174,21 @@ process sortVCF {
     """
 }
 
+// NOTE This is the last touch the VCF has as part of the workflow,
+//  we'll rename it with its desired output name here
+process postprocess_nanomon_vcf {
+    label "wf_somatic_sv"
+    cpus 1
+    input:
+        tuple val(meta), path(vcf, stageAs: "input.vcf")
+    output:
+        tuple val(meta), path("${params.sample_name}.wf_somatic-sv.vcf")
+    script:
+    """
+    vcf_nanomon2clairs.py --vcf input.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf_somatic-sv.vcf"
+    """
+}
+
 
 process getVersions {
     label "wf_somatic_sv"
@@ -211,6 +226,7 @@ process report {
     input:
         tuple val(meta), file(vcf)
         tuple val(meta), file(tbi)
+        tuple val(meta), file(clinvar_vcf)
         file eval_json
         file versions
         path "params.json"
@@ -219,6 +235,7 @@ process report {
     script:
         def report_name = "${meta.sample}.wf_somatic_sv-report.html"
         def evalResults = eval_json.name != 'OPTIONAL_FILE' ? "--eval_results ${eval_json}" : ""
+        def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
     """
     workflow-glue report_sv \
         $report_name \
@@ -228,7 +245,7 @@ process report {
         --versions $versions \
         --revision ${workflow.revision} \
         --commit ${workflow.commitId} \
-        $evalResults
+        $evalResults $clinvar
     """
 }
 

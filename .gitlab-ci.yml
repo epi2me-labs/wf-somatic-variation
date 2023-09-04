@@ -53,7 +53,7 @@ docker-run:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
               NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf modules/local/wf-somatic-sv.nf workflows/mod.nf"
               NF_WORKFLOW_OPTS: "--sv --snv --mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 19 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
@@ -106,7 +106,7 @@ docker-run:
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 19 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
@@ -117,7 +117,7 @@ docker-run:
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --qv 20 --min_sv_length 19 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --qv 20 --min_sv_length 20 \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
