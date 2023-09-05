@@ -224,7 +224,19 @@ workflow snv {
         // merge and sort all files for all chunks for all contigs
         // gvcf is optional, stuff an empty file in, so we have at least one
         // item to flatten/collect and tthis stage can run.
-        evaluate_candidates.out.full_alignment.groupTuple(by: 0)
+        evaluate_candidates.out.full_alignment
+            .groupTuple(by: 0)
+            .join(
+                pileup_variants.out.pileup_gvcf_chunks.groupTuple(by: 0),
+                remainder: true,
+                by:0
+            )
+            // If no GVCF was requested, it will be null and replaced with OPTIONAL_FILE
+            .map{
+                meta, fa_vcfs, gvcfs ->
+                n_gvcfs = gvcfs == null ? [file("${projectDir}/data/OPTIONAL_FILE")] : gvcfs
+                [meta, fa_vcfs, n_gvcfs]
+            }
             .combine(ref)
             .combine(make_chunks.out.contigs_file, by:0)
             .set{to_aggregate}
@@ -242,6 +254,12 @@ workflow snv {
         // > Step 7
         aggregate_pileup_variants.out.pileup_vcf
             .combine(aggregate_full_align_variants.out.full_aln_vcf, by: 0)
+            .join(aggregate_full_align_variants.out.non_var_gvcf, by: 0, remainder: true)
+            // If no GVCF was requested, it will be null and replaced with OPTIONAL_FILE
+            .map{meta, p_vcf, p_tbi, f_vcf, f_tbi, gvcf -> 
+                n_gvcf = gvcf == null ? file("${projectDir}/data/OPTIONAL_FILE") : gvcf
+                [meta, p_vcf, p_tbi, f_vcf, f_tbi, n_gvcf]
+                }
             .combine(ref)
             .combine( candidate_beds
                         .map { it->[it[0][0], it[1]] }
@@ -250,10 +268,23 @@ workflow snv {
             .set{to_aggregate_pileup_and_full}
         merge_pileup_and_full_vars(to_aggregate_pileup_and_full)
 
+        // Prepare a GVCF channel for the final combination
+        if (params.GVCF){
+            merged_gvcfs = merge_pileup_and_full_vars.out.merged_gvcf
+                .map{meta, contig, gvcf -> [meta, gvcf]}
+                .groupTuple(by: 0)
+        // If no GVCF requested, then use metadata from vcf and OPTIONAL_FILE
+        } else {
+            merged_gvcfs = merge_pileup_and_full_vars.out.merged_vcf
+                .groupTuple(by: 0)
+                .map{[it[0], file("$projectDir/data/OPTIONAL_FILE")]}
+
+        }
+
         // Finally, aggregate full variants for each sample
         merge_pileup_and_full_vars.out.merged_vcf
             .groupTuple(by:0)
-            .combine(Channel.fromPath("$projectDir/data/OPTIONAL_FILE"))
+            .combine(merged_gvcfs, by: 0)
             .combine(ref)
             .combine(make_chunks.out.contigs_file, by: 0)
             .set{final_vcfs}
@@ -766,6 +797,17 @@ workflow snv {
                     )
                 .concat(
                     indels_tbi.map{meta, tbi -> [tbi, "${meta.sample}/snv/vcf/"]}
+                    )
+                .set { outputs }
+        }
+        // Emit GVCF if requested
+        if (params.GVCF){
+            outputs
+                .concat(
+                    aggregate_all_variants.out.final_gvcf.map{meta, gvcf, tbi -> [gvcf, "${meta.sample}/snv/gvcf/"]}
+                    )
+                .concat(
+                    aggregate_all_variants.out.final_gvcf.map{meta, gvcf, tbi -> [tbi, "${meta.sample}/snv/gvcf/"]}
                     )
                 .set { outputs }
         }

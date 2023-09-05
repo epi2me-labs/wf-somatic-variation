@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Automated annotation of SNVs, small indels and SVs.
 - Option to skip germline calling and variant phasing with `--germline false`.
+- Workflow can now emit germline GVCFs for tumor/normal samples with `--GVCF`.
 - Option `--normal_vcf` to provide a pre-computed normal VCF file.
 - Add genotyping and hybrid mode.
 
