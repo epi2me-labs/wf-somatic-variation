@@ -333,6 +333,7 @@ process aggregate_full_align_variants {
     input:
         tuple val(meta), 
             path(vcfs, stageAs: "full_alignment/*"), 
+            path(gvcfs, stageAs: "gvcf_tmp_path/*"), 
             path(ref), 
             path(fai), 
             path(ref_cache), 
@@ -378,6 +379,7 @@ process merge_pileup_and_full_vars{
             path(pile_up_vcf_tbi), 
             path(full_aln_vcf), 
             path(full_aln_vcf_tbi), 
+            path("non_var.gvcf"),
             path(ref), 
             path(fai), 
             path(ref_cache),
@@ -387,6 +389,8 @@ process merge_pileup_and_full_vars{
         
     output:
         tuple val(meta), val(contig), path("output/merge_${meta.sample}_${meta.type}_${contig}.vcf.gz"), path("output/merge_${meta.sample}_${meta.type}_${contig}.vcf.gz.tbi"), emit: merged_vcf
+        tuple val(meta), val(contig), path("output/merge_${meta.sample}_${meta.type}_${contig}.gvcf"), optional: true, emit: merged_gvcf
+
     shell:
         '''
         mkdir output
@@ -401,6 +405,7 @@ process merge_pileup_and_full_vars{
             --gvcf !{params.GVCF} \
             --haploid_precise False \
             --haploid_sensitive False \
+            --gvcf_fn "output/merge_!{meta.sample}_!{meta.type}_!{contig}.gvcf" \
             --non_var_gvcf_fn non_var.gvcf \
             --ref_fn !{ref} \
             --ctgName !{contig}
@@ -426,13 +431,10 @@ process aggregate_all_variants{
             path(contigs)
     output:
         tuple val(meta), path("${meta.sample}_${meta.type}_germline.vcf.gz"), path("${meta.sample}_${meta.type}_germline.vcf.gz.tbi"), emit: final_vcf
+        tuple val(meta), path("${meta.sample}_${meta.type}_germline.gvcf.gz"), path("${meta.sample}_${meta.type}_germline.gvcf.gz.tbi"), emit: final_gvcf, optional: true
     shell:
         '''
         prefix="merge"
-        phase_vcf=!{params.clair3_phase_vcf}
-        if [[ $phase_vcf == "true" ]]; then
-            prefix="phased"
-        fi
         ls merge_output/*.vcf.gz | parallel --jobs !{task.cpus} "bgzip -d {}"
 
         pypy $(which clair3.py) SortVcf \
@@ -446,6 +448,23 @@ process aggregate_all_variants{
         if [ "$( bcftools index -n !{meta.sample}_!{meta.type}_germline.vcf.gz )" -eq 0 ]; then
             echo "[INFO] Exit in all contigs variant merging"
             exit 0
+        fi
+
+        # Also combine GVCFs
+        if [ "!{params.GVCF}" == "true" ]; then
+            pypy $(which clair3.py) SortVcf \
+                --input_dir merge_outputs_gvcf \
+                --vcf_fn_prefix $prefix \
+                --vcf_fn_suffix .gvcf \
+                --output_fn tmp.gvcf \
+                --sampleName !{params.sample_name} \
+                --ref_fn !{ref} \
+                --contigs_fn !{contigs}
+
+                # Reheading samples named "SAMPLE" to params.sample_name, fixing Clair3 mislabelling of the GVCF output.
+                echo "SAMPLE" "!{params.sample_name}" > rename.txt
+                bcftools reheader -s rename.txt tmp.gvcf.gz > !{meta.sample}_!{meta.type}_germline.gvcf.gz
+                bcftools index -t "!{meta.sample}_!{meta.type}_germline.gvcf.gz" #&& rm tmp.gvcf.gz rename.txt
         fi
 
         echo "[INFO] Finish calling, output file: !{meta.sample}_!{meta.type}_germline.vcf.gz"

@@ -169,6 +169,7 @@
                 "include_all_ctgs": {
                     "title": "Include all contigs",
                     "type": "boolean",
+                    "default": false,
                     "description": "Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y}.",
                     "help_text": "Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
                 },
@@ -460,12 +461,14 @@
                     "type": "boolean",
                     "description": "Display help text.",
                     "fa_icon": "fas fa-question-circle",
+                    "default": false,
                     "hidden": true
                 },
                 "version": {
                     "type": "boolean",
                     "description": "Display version and exit.",
                     "fa_icon": "fas fa-question-circle",
+                    "default": false,
                     "hidden": true
                 }
             }
