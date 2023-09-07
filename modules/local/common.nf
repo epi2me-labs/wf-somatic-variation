@@ -128,7 +128,7 @@ process annotate_vcf {
     // variants - if any variants are present in this file, it is used to populate a table in 
     // the report.
     label "snpeff_annotation"
-    memory 4.GB
+    memory 6.GB
     cpus {params.annotation_threads}
     input:
         tuple val(meta), path("input.vcf.gz"), path("input.vcf.gz.tbi")
@@ -160,7 +160,7 @@ process annotate_vcf {
         fi
 
         # Specify 4G of memory otherwise SnpEff will crash with the default 1G
-        snpEff -Xmx!{task.memory.giga}g ann $snpeff_db input.vcf.gz > !{params.sample_name}.snpeff_annotated.vcf
+        snpEff -Xmx!{task.memory.giga - 2}g ann $snpeff_db input.vcf.gz > !{params.sample_name}.snpeff_annotated.vcf
         # Add ClinVar annotations
         SnpSift annotate $clinvar_vcf !{params.sample_name}.snpeff_annotated.vcf > !{params.sample_name}.wf_!{output_label}.vcf
         # Get the ClinVar-annotated variants into a separate VCF
