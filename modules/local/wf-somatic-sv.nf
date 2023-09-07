@@ -176,6 +176,7 @@ process sortVCF {
 
 // NOTE This is the last touch the VCF has as part of the workflow,
 //  we'll rename it with its desired output name here
+// CW-2702: remove sites with END < POS, as in nanomonsv GitHub [issue](https://github.com/friend1ws/nanomonsv/issues/31)
 process postprocess_nanomon_vcf {
     label "wf_somatic_sv"
     cpus 1
@@ -185,7 +186,9 @@ process postprocess_nanomon_vcf {
         tuple val(meta), path("${params.sample_name}.wf_somatic-sv.vcf")
     script:
     """
-    vcf_nanomon2clairs.py --vcf input.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf_somatic-sv.vcf"
+    # Filter out sites with END < POS
+    bcftools filter -e "INFO/END < POS" input.vcf > filtered.vcf
+    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf_somatic-sv.vcf"
     """
 }
 
