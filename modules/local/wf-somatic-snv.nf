@@ -333,8 +333,8 @@ process clairs_extract_candidates {
     script:
         def bedfile = params.bed ? "" : ""
         // Call indels when r10 model is provided.
-        def indel_min_af = model == 'ont_r10' ? "--indel_min_af ${params.indel_min_af}" : "--indel_min_af 1.00"
-        def select_indels = model == 'ont_r10' ? "--select_indel_candidates True" : "--select_indel_candidates False"
+        def indel_min_af = model.startsWith('ont_r10') ? "--indel_min_af ${params.indel_min_af}" : "--indel_min_af 1.00"
+        def select_indels = model.startsWith('ont_r10') ? "--select_indel_candidates True" : "--select_indel_candidates False"
         // Enable hybrid/genotyping mode if passed
         def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """
@@ -634,16 +634,18 @@ process clairs_full_hap_filter {
         tuple val(meta),
             path(tumor_bams, stageAs: "bams/*"),
             path(tumor_bai, stageAs: "bams/*"),
-            path(germline_vcf),
-            path(pileup_vcf),
-            path(full_alignment_vcf),
+            path("germline.vcf.gz"),
+            path("germline.vcf.gz.tbi"),
+            path("pileup.vcf"),
+            path("full_alignment.vcf"),
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache),
+            val(variant_type)
     output:
         tuple val(meta), 
-            path("vcf_output/pileup_filter.vcf"),
-            path("vcf_output/full_alignment_filter.vcf"),
+            path("vcf_output/*pileup_filter.vcf"),
+            path("vcf_output/*full_alignment_filter.vcf"),
             path(ref), 
             path(fai), 
             path(ref_cache),
@@ -652,9 +654,11 @@ process clairs_full_hap_filter {
     script:
         def debug = params.clairs_debug ? "--debug" : ""
         // If a germline VCF file has been computed, then use it; otherwise set it to None.
-        def germline = germline_vcf.baseName != 'OPTIONAL_FILE' ? "--germline_vcf_fn ${germline_vcf}" : "--germline_vcf_fn None"
+        def germline = params.germline ? "--germline_vcf_fn germline.vcf.gz" : ""
         // If reference calls are requested, or it is a hybrid/genotyping mode, then add --show_ref option.
         def show_ref = params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf ? "--show_ref" : ""
+        // CW_2359: Define if it is indels.
+        def is_indels = variant_type == 'indels' ? "--is_indel" : ""
         """
         mkdir vcf_output/
         export REF_PATH=${ref_cache}/%2s/%2s/%s
@@ -662,12 +666,13 @@ process clairs_full_hap_filter {
             --tumor_bam_fn bams/${meta.sample}_${meta.type}_ \\
             --ref_fn ${ref} \\
             ${germline} \\
-            --pileup_vcf_fn ${pileup_vcf} \\
-            --full_alignment_vcf_fn ${full_alignment_vcf} \\
+            --pileup_vcf_fn pileup.vcf \\
+            --full_alignment_vcf_fn full_alignment.vcf \\
             --output_dir vcf_output/ \\
             --samtools samtools \\
             --threads ${task.cpus} \\
             ${show_ref} \\
+            ${is_indels} \\
             ${debug}
         """
 }

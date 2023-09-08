@@ -16,7 +16,8 @@ include {
     clairs_create_fullalignment_paired_tensors;
     clairs_predict_full;
     clairs_merge_full;
-    clairs_full_hap_filter;  
+    clairs_full_hap_filter as clairs_hap_filter_snv;  
+    clairs_full_hap_filter as clairs_hap_filter_indels;  
     clairs_merge_final;
     clairs_create_paired_tensors_indels;
     clairs_predict_pileup_indel;
@@ -125,6 +126,7 @@ workflow snv {
             }
             .combine(ref)
             .combine(bed)
+            .combine(clair3_model)
             .set{bams}
 
         // Prepare the chunks for each bam file.
@@ -135,6 +137,7 @@ workflow snv {
                 [it[0], ["contig": cols[1], "chunk_id":cols[2], "total_chunks":cols[3]]]
                 } 
         contigs = make_chunks.out.contigs_file.splitText() { it -> [it[0], it[1].trim()] }
+        cmd_file = make_chunks.out.cmd_file
 
         // Run the "pileup" caller on all chunks and collate results
         // > Step 1 
@@ -146,6 +149,7 @@ workflow snv {
             }
             .combine(chunks, by:0)
             .combine(clair3_model)
+            .combine(cmd_file, by:0)
             .set{fragments}
         pileup_variants(fragments, clair3_mode)
 
@@ -155,12 +159,10 @@ workflow snv {
         pileup_variants.out.pileup_vcf_chunks
             .groupTuple(by: 0)
             .combine(ref)
-            .combine(
-                make_chunks.out.contigs_file, by: 0
-            )
-            .combine(
-                clair3_model
-            ) .set{pileup_vcfs}
+            .combine(make_chunks.out.contigs_file, by: 0)
+            .combine(clair3_model) 
+            .combine(cmd_file, by: 0)
+            .set{pileup_vcfs}
         aggregate_pileup_variants(pileup_vcfs)
 
         // Filter collated results to produce per-contig SNPs for phasing.
@@ -206,7 +208,8 @@ workflow snv {
                 .set{candidate_beds}
         // produce something emitting: [[chr, bam, bai, vcf], [chr20, bed], [ref, fai, cache], model]
         bams_beds_and_stuff = phased_bam_and_vcf
-            .map{meta, ctg, bam, bai, vcf, tbi -> [ [meta, ctg], bam, bai, vcf, tbi ]}
+            .combine(cmd_file, by: 0)
+            .map{meta, ctg, bam, bai, vcf, tbi, cmd -> [ [meta, ctg], bam, bai, vcf, tbi, cmd ]}
             .cross(candidate_beds)
             .combine(ref.map {it->[it]})
             .combine(clair3_model)
@@ -239,6 +242,7 @@ workflow snv {
             }
             .combine(ref)
             .combine(make_chunks.out.contigs_file, by:0)
+            .combine(cmd_file, by:0)
             .set{to_aggregate}
         aggregate_full_align_variants(to_aggregate)
 
@@ -287,6 +291,7 @@ workflow snv {
             .combine(merged_gvcfs, by: 0)
             .combine(ref)
             .combine(make_chunks.out.contigs_file, by: 0)
+            .combine(cmd_file, by: 0)
             .set{final_vcfs}
         aggregate_all_variants( final_vcfs )
 
@@ -488,15 +493,7 @@ workflow snv {
             .set{collected_full_vcfs}
         clairs_merge_full(collected_full_vcfs)
 
-        // Almost there!!!
-        //
-        // Perform the haplotype-based filtering. This step can either be:
-        //  1. By contig: very fast and resource efficient, but does not provide 
-        //     the same results as ClairS.
-        //  2. Full vcf: very slow and less resource efficient, but provide 
-        //     results identical to ClairS.
-        //
-        // If split haplotype filter is specified, run by contig:
+        // Perform the haplotype-based filtering for the SNVs, unless skip requested.
         if (params.skip_haplotype_filter){
             clairs_merge_pileup.out.pileup_vcf
                 .combine(
@@ -513,7 +510,7 @@ workflow snv {
                 .map{ samp, ctg, bam, bai, meta -> [meta, bam, bai] }
                 .groupTuple(by: 0)
                 .combine(
-                    aggregated_vcfs.map{it -> [it[0], it[1]]}, by: 0
+                    aggregated_vcfs, by: 0
                 )
                 .combine(
                     clairs_merge_pileup.out.pileup_vcf, by: 0
@@ -522,9 +519,11 @@ workflow snv {
                     clairs_merge_full.out.full_vcf, by:0
                 )
                 .combine( ref )
+                .combine(['snv'])
                 .set{ clair_all_variants }
+
             // Apply the filtering and create the final VCF.
-            snv_calling = clair_all_variants | clairs_full_hap_filter | clairs_merge_final
+            snv_calling = clair_all_variants | clairs_hap_filter_snv | clairs_merge_final
         }
 
         // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
@@ -615,12 +614,36 @@ workflow snv {
                 .set{collected_full_vcfs}
             clairs_merge_full_indels( collected_full_vcfs )
 
-            // Merge final indel file
-            clairs_merge_pileup_indels.out.pileup_vcf
-                .combine( clairs_merge_full_indels.out.full_vcf, by: 0 )
-                .combine(ref)
-                .set { merged_indels_vcf }
-            called_indels = clairs_merge_final_indels(merged_indels_vcf)
+            // Perform the haplotype-based filtering for the indels, unless skip requested.
+            if (params.skip_haplotype_filter){
+                // Merge final indel file
+                clairs_merge_pileup_indels.out.pileup_vcf
+                    .combine( clairs_merge_full_indels.out.full_vcf, by: 0 )
+                    .combine(ref)
+                    .set { merged_indels_vcf }
+                called_indels = clairs_merge_final_indels(merged_indels_vcf)
+            } else {
+                // Create channel with the tumor bam, all the VCFs
+                // (germline, pileup and full-alignment) and the 
+                // reference genome.
+                tagged
+                    .map{ samp, ctg, bam, bai, meta -> [meta, bam, bai] }
+                    .groupTuple(by: 0)
+                    .combine(
+                        aggregated_vcfs, by: 0
+                    )
+                    .combine(
+                        clairs_merge_pileup_indels.out.pileup_vcf, by: 0
+                    )
+                    .combine(
+                        clairs_merge_full_indels.out.full_vcf, by:0
+                    )
+                    .combine( ref )
+                    .combine(['indels'])
+                    .set{ clair_all_indels }
+                // Apply the filtering and create the final VCF.
+                called_indels = clair_all_indels | clairs_hap_filter_indels | clairs_merge_final_indels
+            }
 
             // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
             if (params.hybrid_mode_vcf || params.genotyping_mode_vcf){

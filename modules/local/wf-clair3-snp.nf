@@ -7,18 +7,26 @@ process make_chunks {
     label "wf_somatic_snv"
     cpus 1
     input:
-        tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), path(bed)
+        tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), path(bed), val(model)
         val clair3_mode
     output:
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/CONTIGS"), emit: contigs_file
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/CHUNK_LIST"), emit: chunks_file
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/split_beds/"), emit: split_beds, optional: true
+        tuple val(meta), path("clair_output/tmp/CMD"), emit: cmd_file
+
     script:
         def bedargs = params.bed ? "--bed_fn ${bed}" : ""
+        def bedprnt = bed.name != 'OPTIONAL_FILE' ? "--bed_fn=${bed}" : ''
         def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
         // Define calling parameters to reflect ClairS behaviour
         // Default is Clair3 fast mode
         """
+        # CW-2456: save command line to add to VCF file (very long command...)
+        mkdir -p clair_output/tmp
+        echo "run_clair3.sh --bam_fn=${bam} ${bedprnt} --ref_fn=${ref} --output=clair_output --platform=ont --sample_name=${params.sample_name} --model_path=\${CLAIR_MODELS_PATH}/clair3_models/${model}/ --ctg_name=${params.ctg_name} --include_all_ctgs=${params.include_all_ctgs} --chunk_num=0 --chunk_size=5000000 --qual=2 --var_pct_full=${params.clair3_var_pct_full} --ref_pct_full=${params.clair3_ref_pct_full} --snp_min_af=${clair3_mode.min_snps_af} --indel_min_af=${clair3_mode.min_indels_af} --min_contig_size=${params.min_contig_size}" > clair_output/tmp/CMD
+
+        # CW-2456: prepare other inputs normally
         mkdir -p clair_output
         CTG_LIST=\$( tr '\\n' ',' < ${contigs} )
         echo "Running on contigs: \$CTG_LIST"
@@ -37,7 +45,8 @@ process make_chunks {
             --ref_pct_full ${params.clair3_ref_pct_full} \\
             --snp_min_af ${clair3_mode.min_snps_af} \\
             --indel_min_af ${clair3_mode.min_indels_af} \\
-            --min_contig_size ${params.min_contig_size} 
+            --min_contig_size ${params.min_contig_size} \\
+            --cmd_fn clair_output/tmp/CMD
         """
 }
 
@@ -56,7 +65,8 @@ process pileup_variants {
             path(ref_cache), 
             path(bed),
             val(region),
-            val(model)
+            val(model),
+            path(command)
         val clair3_mode
     output:
         // TODO: make this explicit, why is pileup VCF optional?
@@ -93,7 +103,8 @@ process pileup_variants {
             --samtools samtools \\
             --gvcf ${params.GVCF} \\
             --temp_file_dir gvcf_tmp_path \\
-            --pileup 
+            --pileup \\
+            --cmd_fn ${command}
         """
 }
 
@@ -111,7 +122,8 @@ process aggregate_pileup_variants {
             path(fai), 
             path(ref_cache),
             path(contigs_file),
-            val(model)
+            val(model),
+            path(command)
     output:
         tuple val(meta), path("pileup_${meta.sample}_${meta.type}.vcf.gz"), path("pileup_${meta.sample}_${meta.type}.vcf.gz.tbi"), emit: pileup_vcf
         tuple val(meta), path("phase_qual"), emit: phase_qual
@@ -127,7 +139,8 @@ process aggregate_pileup_variants {
             --output_fn pileup_${meta.sample}_${meta.type}.vcf \
             --sampleName ${params.sample_name} \
             --ref_fn ${ref} \
-            --contigs_fn ${contigs_file}
+            --contigs_fn ${contigs_file} \
+            --cmd_fn ${command}
 
         # Replaced bgzip with the faster bcftools index -n
         if [ "\$( bcftools index -n pileup_${meta.sample}_${meta.type}.vcf.gz )" -eq 0 ]; \
@@ -288,7 +301,7 @@ process evaluate_candidates {
     cpus 1
     errorStrategy 'retry'
     input:
-        tuple val(meta), val(contig), path(phased_bam), path(phased_bam_index), path(phased_vcf), path(phased_tbi)
+        tuple val(meta), val(contig), path(phased_bam), path(phased_bam_index), path(phased_vcf), path(phased_tbi), path(command)
         tuple val(meta_2), val(contig_2), path(candidate_bed)
         tuple path(ref), path(fai), path(ref_cache)
         val model
@@ -321,7 +334,8 @@ process evaluate_candidates {
             --phased_vcf_fn ${phased_vcf} \
             --no_phasing_for_fa False \
             --vcf_fn ${params.vcf_fn} \
-            --gvcf ${params.GVCF}
+            --gvcf ${params.GVCF} \
+            --cmd_fn ${command}
         """
 }
 
@@ -337,7 +351,8 @@ process aggregate_full_align_variants {
             path(ref), 
             path(fai), 
             path(ref_cache), 
-            path(contigs)
+            path(contigs),
+            path(command)
     output:
         tuple val(meta), path("full_alignment_${meta.sample}_${meta.type}.vcf.gz"), path("full_alignment_${meta.sample}_${meta.type}.vcf.gz.tbi"), emit: full_aln_vcf
         tuple val(meta), path("non_var.gvcf"), optional: true, emit: non_var_gvcf
@@ -348,7 +363,9 @@ process aggregate_full_align_variants {
             --output_fn full_alignment_!{meta.sample}_!{meta.type}.vcf \
             --sampleName !{meta.sample} \
             --ref_fn !{ref} \
+            --cmd_fn !{command} \
             --contigs_fn !{contigs}
+
 
         if [ "$( bcftools index -n full_alignment_!{meta.sample}_!{meta.type}.vcf.gz )" -eq 0 ]; then
             echo "[INFO] Exit in full-alignment variant calling"
@@ -363,6 +380,7 @@ process aggregate_full_align_variants {
                 --output_fn non_var.gvcf \
                 --sampleName !{meta.sample} \
                 --ref_fn !{ref} \
+                --cmd_fn !{command} \
                 --contigs_fn !{contigs}
         fi
         '''
@@ -428,7 +446,8 @@ process aggregate_all_variants{
             path(ref), 
             path(fai), 
             path(ref_cache), 
-            path(contigs)
+            path(contigs),
+            path(command)
     output:
         tuple val(meta), path("${meta.sample}_${meta.type}_germline.vcf.gz"), path("${meta.sample}_${meta.type}_germline.vcf.gz.tbi"), emit: final_vcf
         tuple val(meta), path("${meta.sample}_${meta.type}_germline.gvcf.gz"), path("${meta.sample}_${meta.type}_germline.gvcf.gz.tbi"), emit: final_gvcf, optional: true
@@ -443,6 +462,7 @@ process aggregate_all_variants{
             --output_fn !{meta.sample}_!{meta.type}_germline.vcf \
             --sampleName !{meta.sample} \
             --ref_fn !{ref} \
+            --cmd_fn !{command} \
             --contigs_fn !{contigs}
 
         if [ "$( bcftools index -n !{meta.sample}_!{meta.type}_germline.vcf.gz )" -eq 0 ]; then
@@ -459,6 +479,7 @@ process aggregate_all_variants{
                 --output_fn tmp.gvcf \
                 --sampleName !{params.sample_name} \
                 --ref_fn !{ref} \
+                --cmd_fn !{command} \
                 --contigs_fn !{contigs}
 
                 # Reheading samples named "SAMPLE" to params.sample_name, fixing Clair3 mislabelling of the GVCF output.
