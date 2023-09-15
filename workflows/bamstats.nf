@@ -2,16 +2,14 @@ process bamstats {
     cpus 4
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
-        tuple path(ref), path(ref_idx), path(ref_cache)
+        tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
 
     output:
         tuple val(xam_meta), path("*.readstats.tsv.gz"), emit: read_stats
         tuple val(xam_meta), path("*.flagstat.tsv"), emit: flagstat
     script:
-    def ref_path = "${ref_cache}/%2s/%2s/%s:" + System.getenv("REF_PATH")
     def cores = task.cpus > 1 ? task.cpus - 1 : 1
     """
-    export REF_PATH="${ref_path}"
     bamstats ${xam} -s ${xam_meta.sample} --threads ${cores} -u -f ${xam_meta.sample}_${xam_meta.type}.flagstat.tsv | gzip > ${xam_meta.sample}_${xam_meta.type}.readstats.tsv.gz
     """
 }
@@ -21,7 +19,7 @@ process mosdepth {
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
         file target_bed
-        tuple path(ref), path(ref_idx), path(ref_cache)
+        tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
         tuple val(xam_meta), \
             path("${xam_meta.sample}_${xam_meta.type}.regions.bed.gz"),

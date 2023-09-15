@@ -50,19 +50,20 @@ process validate_modbam {
             val(meta), 
             path(reference), 
             path(reference_index), 
-            path(reference_cache)
+            path(reference_cache), 
+            env(REF_PATH)
     output:
         tuple path(alignment), 
             path(alignment_index), 
             val(meta), 
             path(reference), 
             path(reference_index), 
-            path(reference_cache),
+            path(reference_cache), 
+            env(REF_PATH),
             env(valid)
 
     script:
     """
-    export REF_PATH="${reference_cache}/%2s/%2s/%s:"
     valid=0
     workflow-glue check_valid_modbam ${alignment} || valid=\$?
 
@@ -83,7 +84,8 @@ process modkit {
             val(meta), 
             path(reference), 
             path(reference_index), 
-            path(reference_cache),
+            path(reference_cache), 
+            env(REF_PATH),
             path(bed)
     output:
         tuple val(meta), 
@@ -92,13 +94,11 @@ process modkit {
             emit: full_output
 
     script:
-    def ref_path = "${reference_cache}/%2s/%2s/%s:" + System.getenv("REF_PATH")
     def options = params.force_strand ? '':'--combine-strands --cpg'
     if (params.modkit_args){
         options = "${params.modkit_args}"
     }
     """
-    export REF_PATH=${ref_path}
     modkit pileup \\
         ${alignment} \\
         ${meta.sample}_${meta.type}.bed \\
@@ -140,17 +140,16 @@ process summary {
             val(meta),
             path(reference), 
             path(reference_index), 
-            path(reference_cache)
+            path(reference_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), 
             path("${meta.sample}.${meta.type}.mod_summary.tsv"), 
             emit: mod_summary
 
     script:
-    def ref_path = "${reference_cache}/%2s/%2s/%s:" + System.getenv("REF_PATH")
     // Modkit summary prints out a progress bar that cannot be avoided
     """    
-    export REF_PATH=${ref_path}
     modkit summary -t ${task.cpus} ${alignment} | \
         awk 'BEGIN{OFS="\t"}; {print \$1,\$2,\$3,\$4,\$5,\$6}' > ${meta.sample}.${meta.type}.mod_summary.tsv
     """
@@ -377,7 +376,7 @@ workflow mod {
             .combine(combined_summaries, by: 0)
             .combine(reference)
             .map{
-                meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache -> 
+                meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
                 [meta, sum_n, sum_t, dms, dmr, fai]
             }
             .combine(software_versions)

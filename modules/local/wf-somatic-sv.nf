@@ -4,9 +4,9 @@ import groovy.json.JsonBuilder
 process bwa_index {
     label "wf_somatic_sv"
     input:
-        tuple path(ref), path(fai), path(cram_cache)
+        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH)
     output:
-        tuple path(ref), path(fai), path(cram_cache), path("${ref}.amb"), path("${ref}.ann"), path("${ref}.bwt"), path("${ref}.pac"), path("${ref}.sa"), emit: bwa_ref
+        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH), path("${ref}.amb"), path("${ref}.ann"), path("${ref}.bwt"), path("${ref}.pac"), path("${ref}.sa"), emit: bwa_ref
     script:
     """
     bwa index -a bwtsw ${ref}
@@ -21,13 +21,12 @@ process nanomonsv_parse {
     cpus 1
     input:
         tuple path(bam), path(bai), val(meta)
-        tuple path(ref), path(fai), path(ref_cache)
+        tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         
     output:
         tuple path(bam), path(bai), path("${meta.sample}_${meta.type}/"), val(meta)
     script:
     """
-    export REF_PATH=${ref_cache}/%2s/%2s/%s
     mkdir ${meta.sample}_${meta.type}/
     nanomonsv parse ${bam} ${meta.sample}_${meta.type}/parsed
     """
@@ -50,7 +49,8 @@ process nanomonsv_get {
             path(parsed_tumor)            
         tuple path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), path("${meta.sample}.nanomonsv.result.txt"), emit: txt
         tuple val(meta), path("${meta.sample}.nanomonsv.result.vcf"), emit: vcf
@@ -59,7 +59,6 @@ process nanomonsv_get {
     def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
     def qv = params.qv ? "--qv${params.qv}" : ""
     """
-    export REF_PATH=${ref_cache}/%2s/%2s/%s
     nanomonsv get \\
         ${parsed_tumor}/parsed \\
         ${bam_tumor} \\
@@ -125,7 +124,7 @@ process nanomonsv_classify {
     label "wf_somatic_sv"
     input:
         tuple val(meta), path(txt), path(vcf)
-        tuple path(ref), path(fai), path(cram_cache), path(amb), path(ann), path(bwt), path(pac), path(sa)
+        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH), path(amb), path(ann), path(bwt), path(pac), path(sa)
         val n_valid_inserts
     output:
         tuple val(meta), path(txt), path(vcf), path("${txt.baseName}.annot.txt"), emit: txt
