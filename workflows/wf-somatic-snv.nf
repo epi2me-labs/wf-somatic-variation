@@ -144,8 +144,8 @@ workflow snv {
         bam_for_germline
             .combine(ref)
             .combine(bed)
-            .map{bam, bai, meta, ref, fai, ref_cache, bed ->
-                [meta, bam, bai, ref, fai, ref_cache, bed]
+            .map{bam, bai, meta, ref, fai, ref_cache, ref_path, bed ->
+                [meta, bam, bai, ref, fai, ref_cache, ref_path, bed]
             }
             .combine(chunks, by:0)
             .combine(clair3_model)
@@ -206,7 +206,7 @@ workflow snv {
                 // effectively duplicate chr for all beds - [chr, bed]
                 y.collect { [[x[0], x[1]], it] } }
                 .set{candidate_beds}
-        // produce something emitting: [[chr, bam, bai, vcf], [chr20, bed], [ref, fai, cache], model]
+        // produce something emitting: [[chr, bam, bai, vcf], [chr20, bed], [ref, fai, cache, ref_path], model]
         bams_beds_and_stuff = phased_bam_and_vcf
             .combine(cmd_file, by: 0)
             .map{meta, ctg, bam, bai, vcf, tbi, cmd -> [ [meta, ctg], bam, bai, vcf, tbi, cmd ]}

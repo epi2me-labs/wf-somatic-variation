@@ -96,7 +96,8 @@ workflow somatic_sv {
                 indexed = bwa_index.out.bwa_ref
             } else {
                 reference.map{
-                    it -> [it[0], it[1], it[2], file(params.ref + ".amb"), file(params.ref + ".ann"), file(params.ref + ".bwt"), file(params.ref + ".pac"), file(params.ref + ".sa")]
+                    fasta, fai, cache, ref_path -> 
+                    [fasta, fai, cache, ref_path, file(params.ref + ".amb"), file(params.ref + ".ann"), file(params.ref + ".bwt"), file(params.ref + ".pac"), file(params.ref + ".sa")]
                 }.set{indexed}
             }
             // Check if the results have insert size of at least 100bp in size. If not, skip.

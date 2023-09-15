@@ -129,7 +129,7 @@ process wf_build_regions {
             path(tumor_bam, stageAs: "tumor/*"), 
             path(tumor_bai, stageAs: "tumor/*"), 
             val(meta) 
-        tuple path(ref), path(fai), path(ref_cache)
+        tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         val model
         path bed
         tuple path(typing_vcf), val(typing_opt)
@@ -179,7 +179,6 @@ process clairs_select_het_snps {
             val(meta_normal),
             path(normal_vcf, stageAs: "normal.vcf.gz"),
             path(normal_tbi, stageAs: "normal.vcf.gz.tbi"),
-            
             val(contig)
             
     output:
@@ -211,7 +210,8 @@ process clairs_phase {
             path(bai), 
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
             
     output:
         tuple val(meta), 
@@ -222,12 +222,12 @@ process clairs_phase {
             path(bai), 
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             emit: phased_data
     script:
         if (params.use_longphase)
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         echo "Using longphase for phasing"
         # longphase needs decompressed 
         gzip -dc ${vcf} > variants.vcf
@@ -238,7 +238,6 @@ process clairs_phase {
         """
         else
         """
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         echo "Using whatshap for phasing"
         whatshap phase \\
             --output phased_${meta.sample}_${meta.type}_${contig}.vcf.gz \\
@@ -265,7 +264,8 @@ process clairs_haplotag {
             path(bai), 
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
             
     output:
         tuple val(meta.sample), 
@@ -276,7 +276,6 @@ process clairs_haplotag {
             emit: phased_data
     shell:
         '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         whatshap haplotag \\
             --output !{meta.sample}_!{meta.type}_!{contig}.bam \\
             --reference !{ref} \\
@@ -303,7 +302,8 @@ process clairs_extract_candidates {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model)
         tuple path(typing_vcf), val(typing_opt)
     output:
@@ -338,7 +338,6 @@ process clairs_extract_candidates {
         // Enable hybrid/genotyping mode if passed
         def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s        
         # Create output folder structure
         mkdir candidates indels hybrid
         # Create candidates
@@ -388,7 +387,8 @@ process clairs_create_paired_tensors {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals)
@@ -402,7 +402,8 @@ process clairs_create_paired_tensors {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals),
@@ -410,7 +411,6 @@ process clairs_create_paired_tensors {
             
     script:
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir -p tmp/pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
             --normal_bam_fn ${normal_bam.getName()} \\
@@ -440,7 +440,8 @@ process clairs_predict_pileup {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals),
@@ -460,7 +461,6 @@ process clairs_predict_pileup {
         }
         def run_gpu = "--use_gpu False"
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
@@ -485,13 +485,13 @@ process clairs_merge_pileup {
             path(contig_file)
         tuple path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), path("pileup.vcf"), emit: pileup_vcf
             
     shell:
         '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
             --ref_fn !{ref} \\
             --contigs_fn !{contig_file} \\
@@ -517,7 +517,8 @@ process clairs_create_fullalignment_paired_tensors {
             path(intervals),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model)
     output:
         tuple val(meta),
@@ -528,7 +529,8 @@ process clairs_create_fullalignment_paired_tensors {
             path(tumor_bai),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             path(intervals),
             path("fa_tensor_can/"),
             val(model),
@@ -537,7 +539,6 @@ process clairs_create_fullalignment_paired_tensors {
     script:
         """
         mkdir fa_tensor_can
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
             --samtools samtools \\
             --normal_bam_fn ${normal_bam.getName()} \\
@@ -566,7 +567,8 @@ process clairs_predict_full {
             path(tumor_bai, stageAs: "tumor/*"),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             path(intervals),
             path(tensor),
             val(model)
@@ -585,7 +587,6 @@ process clairs_predict_full {
         }
         def run_gpu = "--use_gpu False"
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
@@ -609,13 +610,13 @@ process clairs_merge_full {
             path(contig_file), 
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), path("full_alignment.vcf"), emit: full_vcf
             
     shell:
         '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
             --ref_fn !{ref} \\
             --contigs_fn !{contig_file} \\
@@ -640,7 +641,8 @@ process clairs_full_hap_filter {
             path("full_alignment.vcf"),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(variant_type)
     output:
         tuple val(meta), 
@@ -648,7 +650,8 @@ process clairs_full_hap_filter {
             path("vcf_output/*full_alignment_filter.vcf"),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             emit: filtered_vcfs
             
     script:
@@ -661,7 +664,6 @@ process clairs_full_hap_filter {
         def is_indels = variant_type == 'indels' ? "--is_indel" : ""
         """
         mkdir vcf_output/
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py haplotype_filtering \\
             --tumor_bam_fn bams/${meta.sample}_${meta.type}_ \\
             --ref_fn ${ref} \\
@@ -687,14 +689,14 @@ process clairs_merge_final {
             path(full_alignment_filter),
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:    
         tuple val(meta), path("${meta.sample}_somatic_snv.vcf.gz"), emit: pileup_vcf
         tuple val(meta), path("${meta.sample}_somatic_snv.vcf.gz.tbi"), emit: pileup_tbi
             
     script:
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py merge_vcf \\
             --ref_fn ${ref} \\
             --pileup_vcf_fn ${pileup_filter} \\
@@ -728,7 +730,8 @@ process clairs_create_paired_tensors_indels {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals)
@@ -742,7 +745,8 @@ process clairs_create_paired_tensors_indels {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals),
@@ -750,7 +754,6 @@ process clairs_create_paired_tensors_indels {
             
     script:
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir -p tmp/indel_pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
             --normal_bam_fn ${normal_bam.getName()} \\
@@ -779,7 +782,8 @@ process clairs_predict_pileup_indel {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model),
             path(candidate),
             path(intervals),
@@ -799,7 +803,6 @@ process clairs_predict_pileup_indel {
         }
         def run_gpu = "--use_gpu False"
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
@@ -825,13 +828,13 @@ process clairs_merge_pileup_indels {
             path(contig_file)
         tuple path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), path("indels_pileup.vcf"), emit: pileup_vcf
             
     shell:
         '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
             --ref_fn !{ref} \\
             --contigs_fn !{contig_file} \\
@@ -856,7 +859,8 @@ process clairs_create_fullalignment_paired_tensors_indels {
             path(intervals),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             val(model)
     output:
         tuple val(meta),
@@ -867,7 +871,8 @@ process clairs_create_fullalignment_paired_tensors_indels {
             path(tumor_bai),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             path(intervals),
             path("fa_tensor_can_indels/"),
             val(model),
@@ -876,7 +881,6 @@ process clairs_create_fullalignment_paired_tensors_indels {
     script:
         """
         mkdir fa_tensor_can_indels
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
             --samtools samtools \\
             --normal_bam_fn ${normal_bam.getName()} \\
@@ -903,7 +907,8 @@ process clairs_predict_full_indels {
             path(tumor_bai, stageAs: "tumor/*"),
             path(ref), 
             path(fai), 
-            path(ref_cache),
+            path(ref_cache), 
+            env(REF_PATH),
             path(intervals),
             path(tensor),
             val(model)
@@ -922,7 +927,6 @@ process clairs_predict_full_indels {
         }
         def run_gpu = "--use_gpu False"
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
@@ -946,13 +950,13 @@ process clairs_merge_full_indels {
             path(contig_file), 
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:
         tuple val(meta), path("indels_full_alignment.vcf"), emit: full_vcf
             
     shell:
         '''
-        export REF_PATH=!{ref_cache}/%2s/%2s/%s
         pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
             --ref_fn !{ref} \\
             --contigs_fn !{contig_file} \\
@@ -972,14 +976,14 @@ process clairs_merge_final_indels {
             path(full_alignment_indels),
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:    
         tuple val(meta), path("${meta.sample}_somatic_indels.vcf.gz"), emit: indel_vcf
         tuple val(meta), path("${meta.sample}_somatic_indels.vcf.gz.tbi"), emit: indel_tbi
             
     script:
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         pypy3 \$CLAIRS_PATH/clairs.py merge_vcf \\
             --ref_fn ${ref} \\
             --pileup_vcf_fn ${pileup_indels} \\
@@ -1057,7 +1061,8 @@ process change_count {
             path("input.vcf.gz.tbi"),
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache), 
+            env(REF_PATH)
     output:    
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_vcf
         tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: mutype_tbi

@@ -4,20 +4,14 @@ process cram_cache {
     input:
         path reference
     output:
-        path("ref_cache/"), emit: cram_cache
-    script:
-    def is_conda = workflow.profile.toLowerCase().contains("conda")
-    """
-    if [[ "${is_conda}" == "true" ]]; then
-        wget https://raw.githubusercontent.com/samtools/samtools/master/misc/seq_cache_populate.pl;
-        # Invoke without messing with PATH and +x
-        INVOCATION='perl seq_cache_populate.pl'
-    else
-        # Invoke from binary installed to container PATH
-        INVOCATION='seq_cache_populate.pl'
-    fi
-    \$INVOCATION -root ref_cache/ ${reference}
-    """
+        path("ref_cache/"), emit: ref_cache
+        env(REF_PATH), emit: ref_path
+    shell:
+    '''
+    # Invoke from binary installed to container PATH
+    seq_cache_populate.pl -root ref_cache/ !{reference}
+    REF_PATH="ref_cache/%2s/%2s/%s"
+    '''
 }
 
 process index_ref_fai {
@@ -112,7 +106,7 @@ process tabixer {
 process getAllChromosomesBed {
     cpus 1
     input:
-        tuple path(reference), path(ref_idx), path(ref_cache)
+        tuple path(reference), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
         path "allChromosomes.bed", emit: all_chromosomes_bed
     """

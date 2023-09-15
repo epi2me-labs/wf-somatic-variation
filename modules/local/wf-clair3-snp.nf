@@ -7,7 +7,7 @@ process make_chunks {
     label "wf_somatic_snv"
     cpus 1
     input:
-        tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), path(bed), val(model)
+        tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), env(REF_PATH), path(bed), val(model)
         val clair3_mode
     output:
         tuple val(meta), path("clair_output_${meta.sample}_${meta.type}/tmp/CONTIGS"), emit: contigs_file
@@ -63,6 +63,7 @@ process pileup_variants {
             path(ref), 
             path(fai), 
             path(ref_cache), 
+            env(REF_PATH), 
             path(bed),
             val(region),
             val(model),
@@ -80,7 +81,6 @@ process pileup_variants {
         //       name since that's parsed in the SortVcf step
         // note: snp_min_af and indel_min_af have an impact on performance
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         python \$(which clair3.py) CallVariantsFromCffi \\
             --chkpnt_fn \${CLAIR_MODELS_PATH}/clair3_models/${model}/pileup \\
             --bam_fn ${bam} \\
@@ -121,6 +121,7 @@ process aggregate_pileup_variants {
             path(ref), 
             path(fai), 
             path(ref_cache),
+            env(REF_PATH),
             path(contigs_file),
             val(model),
             path(command)
@@ -195,13 +196,13 @@ process phase_contig {
             path(bai), 
             path(ref), 
             path(fai), 
-            path(ref_cache)
+            path(ref_cache),
+            env(REF_PATH)
     output:
         tuple val(meta), val(contig), path(bam), path(bai), path("phased_${meta.sample}_${meta.type}_${contig}.vcf.gz"), path("phased_${meta.sample}_${meta.type}_${contig}.vcf.gz.tbi"), emit: phased_bam_and_vcf
     script:
         if (params.use_longphase_intermediate)
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         echo "Using longphase for phasing"
         # longphase needs decompressed 
         bgzip -@ ${task.cpus} -dc ${het_snps} > snps.vcf
@@ -212,7 +213,6 @@ process phase_contig {
         """
         else
         """
-        export REF_PATH=${ref_cache}/%2s/%2s/%s
         echo "Using whatshap for phasing"
         whatshap phase \
             --output phased_${meta.sample}_${meta.type}_${contig}.vcf.gz \
@@ -264,6 +264,7 @@ process create_candidates {
             path(ref), 
             path(fai), 
             path(ref_cache), 
+            env(REF_PATH),
             path("qual"), 
             val(contig)
         // this is used implicitely by the program
@@ -303,17 +304,15 @@ process evaluate_candidates {
     input:
         tuple val(meta), val(contig), path(phased_bam), path(phased_bam_index), path(phased_vcf), path(phased_tbi), path(command)
         tuple val(meta_2), val(contig_2), path(candidate_bed)
-        tuple path(ref), path(fai), path(ref_cache)
+        tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         val model
         val clair3_mode
     output:
         tuple val(meta), path("output_${meta.sample}_${meta.type}/full_alignment_*.vcf"), emit: full_alignment, optional: true
     script:
         filename = candidate_bed.name
-        def ref_path = "${ref_cache}/%2s/%2s/%s:" + System.getenv("REF_PATH")
         // Define calling parameters to reflect ClairS behaviour
         """
-        export REF_PATH=${ref_path}
         mkdir output_${meta.sample}_${meta.type}
         echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
         python \$(which clair3.py) CallVariantsFromCffi \
@@ -351,6 +350,7 @@ process aggregate_full_align_variants {
             path(ref), 
             path(fai), 
             path(ref_cache), 
+            env(REF_PATH), 
             path(contigs),
             path(command)
     output:
@@ -401,6 +401,7 @@ process merge_pileup_and_full_vars{
             path(ref), 
             path(fai), 
             path(ref_cache),
+            env(REF_PATH),
             path(beds, stageAs: "candidate_beds/*"),
             val(contig)
         
@@ -446,6 +447,7 @@ process aggregate_all_variants{
             path(ref), 
             path(fai), 
             path(ref_cache), 
+            env(REF_PATH), 
             path(contigs),
             path(command)
     output:

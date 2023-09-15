@@ -123,9 +123,10 @@ workflow {
 
     // Build ref cache for CRAM steps that do not take a reference
     ref_cache = cram_cache(ref)
-
+    ref_cache = cram_cache.out.ref_cache
+    ref_path = cram_cache.out.ref_path
     // canonical ref and BAM channels to pass around to all processes
-    ref_channel = ref.concat(ref_index).concat(ref_cache).buffer(size: 3)
+    ref_channel = ref.concat(ref_index).concat(ref_cache).concat(ref_path).buffer(size: 4)
 
     // Get software versions
     versions = getVersions()
@@ -297,7 +298,7 @@ workflow {
     }
 
     // Emit reference and its index
-    output(ref_channel.concat(versions).concat(parameters))
+    output(ref_channel.map{it[0..2]}.concat(versions).concat(parameters))
 
 
 }
