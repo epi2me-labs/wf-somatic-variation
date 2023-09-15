@@ -23,6 +23,11 @@ nextflow run epi2me-labs/wf-somatic-variation --help
 
 to see the options for the workflow.
 
+
+**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. please, ensure that 
+your system support it before running it.
+
+
 **Input and Data preparation**
 
 The workflow relies on three primary input files:
@@ -55,11 +60,17 @@ The workflow currently implements a deconstructed version of [ClairS](https://gi
 This workflow allows to take advantage of the parallel nature of Nextflow, providing the best performance in high-performance, distributed systems.
 
 Currently, ClairS supports the following basecalling models:
- - dna_r10.4.1_e8.2_400bps_sup@v3.5.2
- - dna_r9.4.1_e8_hac@v3.3
- - dna_r9.4.1_e8_sup@v3.3
- - dna_r9.4.1_450bps_hac_prom
- - dna_r9.4.1_450bps_hac
+
+| Workflow basecalling model | ClairS model |
+|----------------------------|--------------|
+| dna_r10.4.1_e8.2_400bps_sup@v4.2.0 | ont_r10_dorado_5khz |
+| dna_r10.4.1_e8.2_400bps_sup@v4.1.0 | ont_r10_dorado_4khz |
+| dna_r10.4.1_e8.2_400bps_sup@v3.5.2 | ont_r10_guppy |
+| dna_r9.4.1_e8_hac@v3.3 | ont_r9_guppy |
+| dna_r9.4.1_e8_sup@v3.3 | ont_r9_guppy |
+| dna_r9.4.1_450bps_hac_prom | ont_r9_guppy |
+| dna_r9.4.1_450bps_hac | ont_r9_guppy |
+
 Any other model provided will prevent the workflow to start. 
 
 **Indel calling**
@@ -102,6 +113,7 @@ To provide the correct qc value, simply use `--qv 20`.
 │   │       ├── SAMPLE.results.nanomonsv.vcf
 
 ```
+See below for the full updated output directory structure.
 
 **Modified base calling**
 
@@ -113,7 +125,38 @@ The modkit run can be fully customized by providing `--modkit_args`. This will o
 
 **Output folder**
 
-The output directory has the following structure:
+The primary outputs are:
+1. `output/SAMPLE.wf_somatic_snv.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
+2. `output/SAMPLE.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
+3. `output/SAMPLE.normal.mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
+4. `output/*.html`: the reports of the different stages
+
+Additional outputs include:
+1. QC subfiles are saved in `output/SAMPLE/qc/`, and include:
+    * `coverage/`: additional statistic files created by `mosdepth`
+    * `readstats/`: additional statistic files created by `bamstats`
+2. SNV specific subfiles are saved in `output/SAMPLE/snv/`, and include: 
+    * `change_counts/`: the change counts for the sample
+    * `annot/`: additional annotation files, such as the gene table and ClinVar vcf file
+    * `varstats/`: variant statistics computed by `bcftools stats`
+    * `gvcf/`: germline GVCF files
+    * `vcf/`: more VCF files, such as germline, raw SNV and Indels calls 
+3. SV specific subfiles are saved in `output/SAMPLE/sv/`, and include: 
+    * `vcf/`: the raw somatic SVs called with nanomonsv in VCF format
+    * `annot/`: additional annotation files, such as the gene table and ClinVar vcf file
+    * `single_breakend/`: the single break-end SVs called with nanomonsv
+    * `txt/`: the somatic SVs called with nanomonsv in tabular format
+4. Modified-bases specific subfiles are saved in `output/SAMPLE/mod/`, and include:
+    * `raw/`: the raw bedMethyl files from `modkit`
+    * `[CHANGE]/bedMethyl`: bedMethyl files for change type `CHANGE`
+    * `[CHANGE]/DSS`: DSS inputs for change type `CHANGE`
+    * `[CHANGE]/DML`: DSS differentially modified loci output for change type `CHANGE`
+    * `[CHANGE]/DMR`: DSS differentially modified regions output for change type `CHANGE`
+
+`CHANGE` refers to the change type analysed (e.g. modC, 5mC, 5hmC, etc) and is automatically detected by `modkit` from the input
+`modbam`.
+
+A full-analysis output directory should present a folder structure like the following one:
 ```
 output/
 ├── execution # Execution reports
@@ -141,10 +184,18 @@ output/
 │   │       └── SAMPLE_tumor.readstats.tsv.gz
 │   │
 │   ├── snv  # ClairS outputs
+│   │   ├── annot  # Annotion files
+│   │   │   ├── SAMPLE.wf_snp.snpEff_genes.txt
+│   │   │   └── SAMPLE.wf_snp_clinvar.vcf
 │   │   ├── change_counts  # Mutational change counts for the sample; for now, it only works for the SNVs
 │   │   │   └── SAMPLE_changes.csv
 │   │   ├── varstats  # Bcftools stats output
 │   │   │   └── SAMPLE.stats
+│   │   ├── gvcf  # GVCF outputs
+│   │   │   ├── SAMPLE_tumor_germline.gvcf.gz
+│   │   │   ├── SAMPLE_tumor_germline.gvcf.gz.tbi
+│   │   │   ├── SAMPLE_normal_germline.gvcf.gz
+│   │   │   └── SAMPLE_normal_germline.gvcf.gz.tbi
 │   │   └── vcf  # VCF outputs
 │   │       ├── SAMPLE_tumor_germline.vcf.gz
 │   │       ├── SAMPLE_tumor_germline.vcf.gz.tbi
@@ -156,6 +207,9 @@ output/
 │   │       └── SAMPLE_somatic_snv.vcf.gz.tbi
 │   │
 │   ├── sv
+│   │   ├── annot  # Annotion files
+│   │   │   ├── SAMPLE.wf_sv.snpEff_genes.txt
+│   │   │   └── SAMPLE.wf_sv_clinvar.vcf
 │   │   ├── vcf  # Raw nanomonsv VCF
 │   │   │   └── SAMPLE.nanomonsv.result.vcf
 │   │   ├── single_breakend
@@ -164,17 +218,17 @@ output/
 │   │       └── SAMPLE.nanomonsv.result.annot.txt
 │   │
 │   └── mod
-│       ├── modC   # Modified bases code
+│       ├── 5mC   # Modified bases code
+│       │   ├── bedMethyl   # bedMethyl output files
+│       │   │   ├── 5mC.SAMPLE_normal.bed.gz
+│       │   │   └── 5mC.SAMPLE_tumor.bed.gz
 │       │   ├── DML   # Differentially methylated loci
-│       │   │   └── SAMPLE.modC.dml.tsv
+│       │   │   └── SAMPLE.5mC.dml.tsv
 │       │   ├── DMR   # Differentially methylated regions
-│       │   │   └── SAMPLE.modC.dmr.tsv
-│       │   ├── DSS   # DSS input files
-│       │   │   ├── modC.SAMPLE_normal.dss.tsv
-│       │   │   └── modC.SAMPLE_tumor.dss.tsv
-│       │   └── bedMethyl   # bedMethyl output files
-│       │       ├── modC.SAMPLE_normal.bed.gz
-│       │       └── modC.SAMPLE_tumor.bed.gz
+│       │   │   └── SAMPLE.5mC.dmr.tsv
+│       │   └── DSS   # DSS input files
+│       │       ├── 5mC.SAMPLE_normal.dss.tsv
+│       │       └── 5mC.SAMPLE_tumor.dss.tsv
 │       └── raw   # Raw outputs from modkit
 │           ├── SAMPLE_normal.bed
 │           └── SAMPLE_tumor.bed
@@ -190,36 +244,16 @@ output/
 │       ├── params.json
 │       └── versions.txt
 │
-├── SAMPLE_somatic_mutype.vcf.gz
-├── SAMPLE_somatic_mutype.vcf.gz.tbi
-├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz
-├── SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz.tbi
+├── SAMPLE.wf_somatic_snv.vcf.gz
+├── SAMPLE.wf_somatic_snv.vcf.gz.tbi
+├── SAMPLE.wf_somatic_sv.vcf.gz
+├── SAMPLE.wf_somatic_sv.vcf.gz.tbi
 ├── SAMPLE.normal.mod_summary.tsv
 ├── SAMPLE.tumor.mod_summary.tsv
 ├── SAMPLE.wf-somatic-snp-report.html
 ├── SAMPLE.wf-somatic-sv-report.html
+├── SAMPLE.wf-somatic-mod-report.html
 ├── SAMPLE.wf-somatic-variation-readQC-report.html
 ├── params.json
 └── versions.txt
 ```
-The primary outputs are:
-1. `output/SAMPLE_somatic_mutype.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
-2. `output/SAMPLE.nanomonsv.result.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
-3. `output/*.html`: the reports of the different stages
-4. `output/SAMPLE/snp/spectra/SAMPLE_changes.csv`: the mutation changes for the sample
-5. `output/SAMPLE/snp/vcf/germline/[tumor/normal]`: the germline calls for both the tumor and normal bam files
-6. `output/SAMPLE/sv/txt/SAMPLE.nanomonsv.result.annot.txt`: the somatic SVs called with nanomonsv in tabular format
-7. `output/SAMPLE/sv/single_breakend/SAMPLE.nanomonsv.sbnd.result.txt`: the single break-end SVs called with nanomonsv
-8. `output/SAMPLE/mod/`: the results from modkit and DSS
-
-**Somatic structural variant (SV) calling with Nanomonsv**
-
-The workflow allows for the call of somatic SVs using long-read sequencing data.
-Starting from the paired cancer/control samples, the workflow will:
-1. Parse the SV signatures in the reads using `nanomonsv parse`
-2. Call the somatic SVs using a custom version of `nanomonsv get`
-3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
-4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
-
-**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. please, ensure that 
-your system support it before running it.
