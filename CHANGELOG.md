@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workflow can now emit germline GVCFs for tumor/normal samples with `--GVCF`.
 - Option `--normal_vcf` to provide a pre-computed normal VCF file.
 - Add genotyping and hybrid mode.
+- The workflow saves the haplotagged cram files if `--germline true`.
 
 ### Changed
 - Updated `ClairS` to v0.1.5, `Clair3` to v1.0.4, and added support for 4KHz and 5KHz dorado models.
