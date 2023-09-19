@@ -1052,6 +1052,27 @@ process clairs_merge_snv_and_indels {
     """
 }
 
+// Concatenate the single-chromosome haplotagged bam files
+process concat_bams {
+    label "wf_somatic_snv"
+    cpus 4
+    input:
+        tuple val(meta), 
+            path("bams/*"), 
+            path("bams/*"),
+            val(align_ext),
+            val(index_ext)
+    output:    
+        tuple val(meta),
+            path("${meta.sample}_${meta.type}.ht.${align_ext}"),
+            path("${meta.sample}_${meta.type}.ht.${align_ext}.${index_ext}"), emit: tagged_bams
+            
+    script:
+        """
+        samtools merge "${meta.sample}_${meta.type}.ht.${align_ext}##idx##${meta.sample}_${meta.type}.ht.${align_ext}.${index_ext}" ./bams/*.bam -O ${align_ext} --write-index --threads ${task.cpus}
+        """
+}
+
 // Annotate the change type counts (e.g. mutation_type=AAA>ATA)
 process change_count {
     cpus 1

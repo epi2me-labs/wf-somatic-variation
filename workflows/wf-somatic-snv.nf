@@ -31,7 +31,8 @@ include {
     add_missing_vars as add_missing_indels;
     getVariantType as getSNVs;
     getVariantType as getIndels;
-    change_count
+    change_count;
+    concat_bams
 } from "../modules/local/wf-somatic-snv.nf"
 
 include {
@@ -703,6 +704,16 @@ workflow snv {
             pileup_tbi = clairs_merge_snv_and_indels.out.pileup_tbi
         }
 
+        // Concatenate haplotagged bams, if phasing requested
+              if (params.germline){
+            extensions = Channel.of(['cram', 'crai'])
+            tagged_bams = concat_bams(
+                clairs_haplotag.out.phased_data
+                    .map{samp, ctg, bam, bai, meta -> [meta, bam, bai]}
+                    .groupTuple(by:0).combine(extensions)
+            )
+        }
+
         // Annotate the mutation type in the format XX[N>N]XX
         // where XX are the flanking regions of a given size 
         // For now, only K = 3 is provided.
@@ -799,6 +810,12 @@ workflow snv {
                     forked_vcfs.normal.map{
                         meta, vcf, tbi -> [tbi, "${meta.sample}/snv/vcf/"]
                         })
+                .concat(
+                    tagged_bams.map{meta, bam, bai -> [bam, null]}
+                    )
+                .concat(
+                    tagged_bams.map{meta, bam, bai -> [bai, null]}
+                    )
                 .set{ outputs }
         }
         if (params.annotation){

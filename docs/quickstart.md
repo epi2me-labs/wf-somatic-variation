@@ -130,6 +130,7 @@ The primary outputs are:
 2. `output/SAMPLE.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
 3. `output/SAMPLE.normal.mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
 4. `output/*.html`: the reports of the different stages
+5. `output/*.ht.cram`: haplotagged CRAM files for the tumor (and normal when `--phase_normal` is provided) samples
 
 Additional outputs include:
 1. QC subfiles are saved in `output/SAMPLE/qc/`, and include:
@@ -254,6 +255,10 @@ output/
 ├── SAMPLE.wf-somatic-sv-report.html
 ├── SAMPLE.wf-somatic-mod-report.html
 ├── SAMPLE.wf-somatic-variation-readQC-report.html
+├── SAMPLE_normal.ht.cram
+├── SAMPLE_normal.ht.cram.crai
+├── SAMPLE_tumor.ht.cram
+├── SAMPLE_tumor.ht.cram.crai
 ├── params.json
 └── versions.txt
 ```
