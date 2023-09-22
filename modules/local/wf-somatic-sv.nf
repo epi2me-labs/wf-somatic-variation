@@ -164,12 +164,12 @@ process sortVCF {
     input:
         tuple val(meta), path(vcf)
     output:
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz"), emit: vcf_gz
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz.tbi"), emit: vcf_tbi
+        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz"), emit: vcf_gz
+        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz.tbi"), emit: vcf_tbi
     script:
     """
-    bcftools sort -m 2G -O z -o ${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz -T ./ $vcf 
-    bcftools index -t ${meta.sample}.nanomonsv.result.wf_somatic_sv.vcf.gz
+    bcftools sort -m 2G -O z -o ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz -T ./ $vcf 
+    bcftools index -t ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz
     """
 }
 
@@ -182,12 +182,12 @@ process postprocess_nanomon_vcf {
     input:
         tuple val(meta), path(vcf, stageAs: "input.vcf")
     output:
-        tuple val(meta), path("${params.sample_name}.wf_somatic-sv.vcf")
+        tuple val(meta), path("${params.sample_name}.wf-somatic-sv.vcf")
     script:
     """
     # Filter out sites with END < POS
     bcftools filter -e "INFO/END < POS" input.vcf > filtered.vcf
-    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf_somatic-sv.vcf"
+    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf-somatic-sv.vcf"
     """
 }
 
@@ -235,7 +235,7 @@ process report {
     output:
         path "*report.html", emit: html
     script:
-        def report_name = "${meta.sample}.wf_somatic_sv-report.html"
+        def report_name = "${meta.sample}.wf-somatic-sv-report.html"
         def evalResults = eval_json.name != 'OPTIONAL_FILE' ? "--eval_results ${eval_json}" : ""
         def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
     """

@@ -126,9 +126,9 @@ The modkit run can be fully customized by providing `--modkit_args`. This will o
 **Output folder**
 
 The primary outputs are:
-1. `output/SAMPLE.wf_somatic_snv.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
-2. `output/SAMPLE.wf_somatic_sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
-3. `output/SAMPLE.normal.mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
+1. `output/SAMPLE.wf-somatic-snv.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
+2. `output/SAMPLE.wf-somatic-sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
+3. `output/SAMPLE_[normal/tumor].mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
 4. `output/*.html`: the reports of the different stages
 5. `output/*.ht.cram`: haplotagged CRAM files for the tumor (and normal when `--phase_normal` is provided) samples
 
@@ -186,8 +186,8 @@ output/
 │   │
 │   ├── snv  # ClairS outputs
 │   │   ├── annot  # Annotion files
-│   │   │   ├── SAMPLE.wf_snp.snpEff_genes.txt
-│   │   │   └── SAMPLE.wf_snp_clinvar.vcf
+│   │   │   ├── SAMPLE.wf-snp-snpEff-genes.txt
+│   │   │   └── SAMPLE.wf-snp-clinvar.vcf
 │   │   ├── change_counts  # Mutational change counts for the sample; for now, it only works for the SNVs
 │   │   │   └── SAMPLE_changes.csv
 │   │   ├── varstats  # Bcftools stats output
@@ -209,8 +209,8 @@ output/
 │   │
 │   ├── sv
 │   │   ├── annot  # Annotion files
-│   │   │   ├── SAMPLE.wf_sv.snpEff_genes.txt
-│   │   │   └── SAMPLE.wf_sv_clinvar.vcf
+│   │   │   ├── SAMPLE.wf-sv-snpEff-genes.txt
+│   │   │   └── SAMPLE.wf-sv-clinvar.vcf
 │   │   ├── vcf  # Raw nanomonsv VCF
 │   │   │   └── SAMPLE.nanomonsv.result.vcf
 │   │   ├── single_breakend
@@ -245,12 +245,12 @@ output/
 │       ├── params.json
 │       └── versions.txt
 │
-├── SAMPLE.wf_somatic_snv.vcf.gz
-├── SAMPLE.wf_somatic_snv.vcf.gz.tbi
-├── SAMPLE.wf_somatic_sv.vcf.gz
-├── SAMPLE.wf_somatic_sv.vcf.gz.tbi
-├── SAMPLE.normal.mod_summary.tsv
-├── SAMPLE.tumor.mod_summary.tsv
+├── SAMPLE.wf-somatic-snv.vcf.gz
+├── SAMPLE.wf-somatic-snv.vcf.gz.tbi
+├── SAMPLE.wf-somatic-sv.vcf.gz
+├── SAMPLE.wf-somatic-sv.vcf.gz.tbi
+├── SAMPLE_normal.mod_summary.tsv
+├── SAMPLE_tumor.mod_summary.tsv
 ├── SAMPLE.wf-somatic-snp-report.html
 ├── SAMPLE.wf-somatic-sv-report.html
 ├── SAMPLE.wf-somatic-mod-report.html
