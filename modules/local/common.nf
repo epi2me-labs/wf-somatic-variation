@@ -128,20 +128,20 @@ process annotate_vcf {
         tuple val(meta), path("input.vcf.gz"), path("input.vcf.gz.tbi")
         val(output_label)
     output:
-        tuple val(meta), path("${meta.sample}.wf_${output_label}.vcf.gz"), path("${meta.sample}.wf_${output_label}.vcf.gz.tbi"), emit: annot_vcf
-        tuple val(meta), path("${meta.sample}.wf_${output_label}.snpEff_genes.txt"), emit: gene_txt
-        tuple val(meta), path("${meta.sample}.wf_${output_label}_clinvar.vcf"), emit: annot_vcf_clinvar
+        tuple val(meta), path("${meta.sample}.wf-${output_label}.vcf.gz"), path("${meta.sample}.wf-${output_label}.vcf.gz.tbi"), emit: annot_vcf
+        tuple val(meta), path("${meta.sample}.wf-${output_label}-snpEff-genes.txt"), emit: gene_txt
+        tuple val(meta), path("${meta.sample}.wf-${output_label}-clinvar.vcf"), emit: annot_vcf_clinvar
     shell:
     '''
     # deal with samples which aren't hg19 or hg38
     if [[ "!{meta.genome_build}" != "hg38" ]] && [[ "!{meta.genome_build}" != "hg19" ]]; then
         # return the original VCF and index as the outputs
-        cp input.vcf.gz !{params.sample_name}.wf_!{output_label}.vcf.gz
-        cp input.vcf.gz.tbi !{params.sample_name}.wf_!{output_label}.vcf.gz.tbi
+        cp input.vcf.gz !{params.sample_name}.wf-!{output_label}.vcf.gz
+        cp input.vcf.gz.tbi !{params.sample_name}.wf-!{output_label}.vcf.gz.tbi
         # create an empty snpEff_genes file
-        touch !{params.sample_name}.wf_!{output_label}.snpEff_genes.txt
+        touch !{params.sample_name}.wf-!{output_label}-snpEff-genes.txt
         # create an empty ClinVar VCF
-        touch !{params.sample_name}.wf_!{output_label}_clinvar.vcf
+        touch !{params.sample_name}.wf-!{output_label}-clinvar.vcf
     else
         # do some annotation
         if [[ "!{meta.genome_build}" == "hg38" ]]; then
@@ -156,17 +156,17 @@ process annotate_vcf {
         # Specify 4G of memory otherwise SnpEff will crash with the default 1G
         snpEff -Xmx!{task.memory.giga - 2}g ann $snpeff_db input.vcf.gz > !{params.sample_name}.snpeff_annotated.vcf
         # Add ClinVar annotations
-        SnpSift annotate $clinvar_vcf !{params.sample_name}.snpeff_annotated.vcf > !{params.sample_name}.wf_!{output_label}.vcf
+        SnpSift annotate $clinvar_vcf !{params.sample_name}.snpeff_annotated.vcf > !{params.sample_name}.wf-!{output_label}.vcf
         # Get the ClinVar-annotated variants into a separate VCF
-        cat !{params.sample_name}.wf_!{output_label}.vcf | SnpSift filter "( exists CLNSIG )" > !{params.sample_name}.wf_!{output_label}_clinvar.vcf
+        cat !{params.sample_name}.wf-!{output_label}.vcf | SnpSift filter "( exists CLNSIG )" > !{params.sample_name}.wf-!{output_label}-clinvar.vcf
     
-        bgzip -c !{params.sample_name}.wf_!{output_label}.vcf > !{params.sample_name}.wf_!{output_label}.vcf.gz
-        tabix !{params.sample_name}.wf_!{output_label}.vcf.gz
+        bgzip -c !{params.sample_name}.wf-!{output_label}.vcf > !{params.sample_name}.wf-!{output_label}.vcf.gz
+        tabix !{params.sample_name}.wf-!{output_label}.vcf.gz
     
         # tidy up
         rm !{params.sample_name}.snpeff_annotated.vcf
-        rm !{params.sample_name}.wf_!{output_label}.vcf
-        mv snpEff_genes.txt !{params.sample_name}.wf_!{output_label}.snpEff_genes.txt
+        rm !{params.sample_name}.wf-!{output_label}.vcf
+        mv snpEff_genes.txt !{params.sample_name}.wf-!{output_label}-snpEff-genes.txt
     fi
     '''
 }
