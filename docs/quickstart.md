@@ -24,26 +24,30 @@ nextflow run epi2me-labs/wf-somatic-variation --help
 to see the options for the workflow.
 
 
-**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. please, ensure that 
-your system support it before running it.
+**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. Please, ensure that 
+your system supports these before running it.
 
 
-**Input and Data preparation**
+**Input and data preparation**
 
 The workflow relies on three primary input files:
 1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
-2. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample
-3. An [aligned BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample
+2. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample (either aligned or unaligned)
+3. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample (either aligned or unaligned)
 
-The workflow is designed to work with human samples, and the reference genome should be either hg19 (GRCh37) or hg38 (GRCh38).
-Despite this, the majority of tasks within the workflow are species agnostic. The following options will require the workflow to check for the genome build, and will require hg19 or hg38:
-1. Insert classification in nanomonSV (enabled with `--classify_insert`)
-
-The aligned bam files can be generated starting from:
+The BAM files can be generated from:
 1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
-
 Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
+
+
+**Working with non-human samples**
+The workflow is designed to work with human samples, and in particular with either the hg19 (GRCh37) or hg38 (GRCh38) reference genomes.
+Nevertheless, almost all tasks carried out by the workflow are species agnostic, and will work with non-human and non-model species just as well. 
+To run the workflow with a non-human organism, the user will need to disable some options as follows:
+1. For EPI2ME users: ensure that the `Classify insertion sequence` and `Annotation` options are de-selected. 
+2. For CLI users: add the `--classify_insert false --annotation false` options to your command line.
+
 
 **Demo data**
 
@@ -56,7 +60,7 @@ This demo is derived from a Tumor/Normal pair of samples, that we have made publ
 
 **Somatic short variant calling**
 
-The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.0) to identify somatic variants in a paired tumor/normal sample.
+The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.5) to identify somatic variants in a paired tumor/normal sample.
 This workflow allows to take advantage of the parallel nature of Nextflow, providing the best performance in high-performance, distributed systems.
 
 Currently, ClairS supports the following basecalling models:
@@ -75,7 +79,7 @@ Any other model provided will prevent the workflow to start.
 
 **Indel calling**
 
-Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specify an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
+Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specifies an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
 
 **Tweaking the variant calling**
 
@@ -88,14 +92,14 @@ This mode is computationally demanding, and it's behaviour can be changed with a
 
 **Somatic structural variant (SV) calling with Nanomonsv**
 
-The workflow allows for the call of somatic SVs using long-read sequencing data.
+The workflow allows for the calling of somatic SVs using long-read sequencing data.
 Starting from the paired cancer/control samples, the workflow will:
 1. Parse the SV signatures in the reads using `nanomonsv parse`
 2. Call the somatic SVs using `nanomonsv get`
 3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
 4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
 
-As of `nanomonsv` v0.7.1, users can provide the approximate single base quality value (QV) for their dataset. To decide which is the most appropriate value for your dataset visit `nanomonsv get` [web page](https://github.com/friend1ws/nanomonsv#get), but it can be summarized as follow:
+As of `nanomonsv` v0.7.1 (and v0.4.0 of the workflow), users can provide the approximate single base quality value (QV) for their dataset. To decide which is the most appropriate value for your dataset, visit the `nanomonsv get` [web page](https://github.com/friend1ws/nanomonsv#get), but it can be summarized as follow:
 
 |     Basecaller     |  Quality value  |
 |--------------------|-----------------|
@@ -103,7 +107,7 @@ As of `nanomonsv` v0.7.1, users can provide the approximate single base quality 
 |  guppy (v5 or v6)  |       15        |
 |       dorado       |       20        |
 
-To provide the correct qc value, simply use `--qv 20`.
+To provide the correct qv value, simply use `--qv 20`.
 
 **08/08/2023**: the vcf produced by nanomonSV is now processed to have one sample with the name specified with `--sample_name` (rather than the two-sample `TUMOR`/`CONTROL`). The original VCFs generated by nanomonSV are now saved in:
 ```
@@ -150,7 +154,7 @@ Additional outputs include:
 4. Modified-bases specific subfiles are saved in `output/SAMPLE/mod/`, and include:
     * `raw/`: the raw bedMethyl files from `modkit`
     * `[CHANGE]/bedMethyl`: bedMethyl files for change type `CHANGE`
-    * `[CHANGE]/DSS`: DSS inputs for change type `CHANGE`
+    * `[CHANGE]/DSS/`: DSS inputs for change type `CHANGE`
     * `[CHANGE]/DML`: DSS differentially modified loci output for change type `CHANGE`
     * `[CHANGE]/DMR`: DSS differentially modified regions output for change type `CHANGE`
 
@@ -168,10 +172,12 @@ output/
 ├── SAMPLE
 │   ├── qc
 │   │   ├── coverage
+│   │   │   ├── filtered.bed
 │   │   │   ├── SAMPLE_normal.mosdepth.global.dist.txt
 │   │   │   ├── SAMPLE_normal.mosdepth.summary.txt
 │   │   │   ├── SAMPLE_normal.per-base.bed.gz
 │   │   │   ├── SAMPLE_normal.regions.bed.gz
+│   │   │   ├── SAMPLE_normal.regions.filt.bed.gz
 │   │   │   ├── SAMPLE_normal.thresholds.bed.gz
 │   │   │   ├── SAMPLE_tumor.mosdepth.global.dist.txt
 │   │   │   ├── SAMPLE_tumor.mosdepth.summary.txt

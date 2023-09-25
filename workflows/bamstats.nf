@@ -69,19 +69,66 @@ process get_coverage {
         '''
 }
 
-// Get coverage to a channel
-process discarded_sample {
+// Process to get the regions with genome coverage above given thresholds.
+process get_region_coverage {
     cpus 1
     input:
-        tuple val(sample), val(meta), val(passing), val(coverage)
+        tuple val(meta),
+            path(regions),
+            path(dists),
+            path(thresholds),
+            path(bed)
 
     output:
-        tuple val(sample), val(meta), val(coverage), env(threshold), emit: failed
-
+        tuple val(meta.sample), val(meta), env(passes), env(value), emit: pass
+        tuple val(meta), path("${bed.baseName}_${meta.sample}_${meta.type}.filt.bed"), emit: filt_bed
+        tuple val(meta),
+            path("${meta.sample}_${meta.type}.regions.filt.bed.gz"),
+            path(dists),
+            path(thresholds), emit: mosdepth_tuple
     shell:
-        '''
-        threshold=!{meta.type =='tumor' ? params.tumor_min_coverage : params.normal_min_coverage}
-        '''
+    '''
+    # Get intervals with average coverage above minimum
+    zcat !{regions} | \
+        awk '$NF>=!{meta.type == "tumor" ? params.tumor_min_coverage : params.normal_min_coverage}' | \
+        bgzip -c > !{meta.sample}_!{meta.type}.regions.filt.bed.gz
+    
+    # Extract original regions with reasonable coverage. We first intersect, sort the kept intervals,
+    # merge the adjacent and then sort again.
+    sort -k1,1 -k2,2n !{bed} > a.bed
+    zcat !{meta.sample}_!{meta.type}.regions.filt.bed.gz | sort -k1,1 -k2,2n > b.bed
+    bedtools intersect -sorted -a a.bed -b b.bed | \
+            bedtools merge -i - > !{bed.baseName}_!{meta.sample}_!{meta.type}.filt.bed && \
+            rm a.bed b.bed
+
+    # Return true if there are filtered intervals, otherwise false
+    passes="false"
+    if [[ $(zcat !{meta.sample}_!{meta.type}.regions.filt.bed.gz | wc -l) -gt 0 ]]; then
+        passes="true"
+    fi
+    # If there are intervals, return average coverage, otherwise return 0
+    value=$( zcat !{meta.sample}_!{meta.type}.regions.filt.bed.gz | awk 'BEGIN{v=0; n=0}; {v+=$4; n+=1}; END {if(n > 0) print v / n; else print 0}' )
+    '''
+}
+
+// Define shared regions in Tumor and/or Normal passing the thresholds.
+process get_shared_region {
+    cpus 1
+    input:
+        tuple val(sample),
+            path("tumor.bed"),
+            path("normal.bed")
+
+    output:
+        path "filtered.bed", emit: bed_file
+        tuple val(sample), path("filtered.bed"), emit: bed_tuple
+
+    script:
+    """
+    # We sort and merge the all the regions passing the filters in at least one dataset.
+    sort -k1,1 -k2,2n -m tumor.bed normal.bed | \
+        bedtools merge -d 0 > filtered.bed
+    """
 }
 
 // Make report
@@ -219,5 +266,6 @@ workflow alignment_stats {
         emit:
             outputs = outputs
             coverages = depths.summary
+            mosdepth_tuple = depths.mosdepth_tuple
             paired_qc = paired_samples
 }

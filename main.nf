@@ -18,7 +18,10 @@ include {
     getGenome
     } from './modules/local/common'
 include {lookup_clair3_model; output_snv} from './modules/local/wf-somatic-snv'
-include {alignment_stats; get_coverage; output_qc; discarded_sample} from './workflows/bamstats.nf'
+include {
+    alignment_stats; get_coverage; get_region_coverage; 
+    output_qc; get_shared_region
+} from './workflows/bamstats.nf'
 include {snv} from './workflows/wf-somatic-snv'
 include {mod} from './workflows/mod.nf'
 
@@ -175,7 +178,7 @@ workflow {
 
     //Compute QC metrics and output QC statistics
     qcdata = alignment_stats(all_bams, ref_channel, bed, versions, parameters)
-    output_qc( qcdata.outputs )
+    qc_outputs = qcdata.outputs
 
     // Apply bam coverage hard threshold to the pair
     // The dataset will fail if at least one of the bam has
@@ -184,10 +187,50 @@ workflow {
     // independently. 
     if (params.tumor_min_coverage > 0 || params.normal_min_coverage > 0){
         // Define if a dataset passes or not the filtering
-        get_coverage(qcdata.coverages)
-        
+        if (params.bed){
+            // Filter out the data based on the individual region's coverage
+            coverage_check = qcdata.mosdepth_tuple.combine(bed) | get_region_coverage
+            // Unlike humvar, the paired nature of the wf requires to branch and 
+            // match the input bed files to detect the shared regions between T/N
+            // first we separate tumor and normal
+            coverage_check.filt_bed.branch{
+                tumor: it[0].type == 'tumor'
+                normal: it[0].type == 'normal'
+            }.set{branched_filtered_beds}
+
+            // Then, we cross T/N based on the sample name
+            filt_bed = branched_filtered_beds.tumor
+                .map{
+                    meta, bed -> [meta.sample, bed]
+                }.combine(
+                    branched_filtered_beds.normal.map{
+                        meta, bed -> [meta.sample, bed]
+                    }, by: 0
+                ) | get_shared_region // and then process them to intersect the retained regions
+
+            qc_outputs
+                .mix(
+                    filt_bed.bed_tuple.map{
+                        sample, fname -> [fname, "${sample}/qc/coverage"]
+                    }
+                )
+                .mix(
+                    coverage_check.mosdepth_tuple.map{
+                        meta, filt_cvg, dist, threshold -> [filt_cvg, "${meta.sample}/qc/coverage"]
+                    }
+                )
+                .set{ qc_outputs }
+            
+            // Replace the bed with the filtered bed
+            bed = filt_bed.bed_file
+        } else {
+            // Define if a dataset passes or not the filtering
+            coverage_check = get_coverage(qcdata.coverages)
+        }
+
+
         // Branch filters on T/N class
-        get_coverage.out.branch{
+        coverage_check.pass.branch{
             tumor: it[1].type == 'tumor'
             normal: it[1].type == 'normal'
         } .set { branched_checks }
@@ -216,16 +259,26 @@ workflow {
         // Log out an error of failed coverage.
         // The method is much more convoluted to print only the type that is 
         // failing, whether it is normal or tumor, and their respective thresholds.
-        depth_filtered.not_pass.map{normal, tumor -> normal}
-            .mix(depth_filtered.not_pass.map{normal, tumor -> tumor}) |
-            discarded_sample |
-            subscribe {
-                log.error "ERROR: Sample ${it[0]} (${it[1]}) will not be processed by the workflow as the detected coverage of ${it[2]}x is below the minimum coverage threshold of ${it[3]}x required for analysis."
+        depth_filtered.not_pass
+            .flatMap()
+            .map{
+                sample, meta, passing, coverage ->
+                def threshold = meta.type =='tumor' ? params.tumor_min_coverage as float : params.normal_min_coverage as float
+                def logged = coverage as float < threshold ? 
+                "will not be processed by the workflow as the detected coverage of ${coverage}x is below the minimum coverage threshold of ${threshold}x required for analysis" : 
+                "will not be processed as the matching bam is below the minimum coverage threshold required for analysis"
+                [sample, meta, coverage, threshold, logged]
+            }
+            .subscribe {
+                log.error "ERROR: Sample ${it[0]} (${it[1].type}) ${it[4]}."
             }
     } else {
         // If the bam_min_depth is 0, then run regardless.
         all_bams.set{ pass_bam_channel }
     }
+    // Output QC data
+    output_qc( qc_outputs )
+
 
     // Add genome build information
     // CW-2491: make this optional, allowing any genome to be processed
@@ -245,7 +298,7 @@ workflow {
             }
             .set{pass_bam_channel}
     }
-    
+
     // Run snv workflow if requested
     if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
