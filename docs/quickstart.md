@@ -132,7 +132,7 @@ The modkit run can be fully customized by providing `--modkit_args`. This will o
 The primary outputs are:
 1. `output/SAMPLE.wf-somatic-snv.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
 2. `output/SAMPLE.wf-somatic-sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
-3. `output/SAMPLE_[normal/tumor].mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
+3. `output/SAMPLE.[normal/tumor].mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
 4. `output/*.html`: the reports of the different stages
 5. `output/*.ht.cram`: haplotagged CRAM files for the tumor (and normal when `--phase_normal` is provided) samples
 
@@ -255,8 +255,8 @@ output/
 ├── SAMPLE.wf-somatic-snv.vcf.gz.tbi
 ├── SAMPLE.wf-somatic-sv.vcf.gz
 ├── SAMPLE.wf-somatic-sv.vcf.gz.tbi
-├── SAMPLE_normal.mod_summary.tsv
-├── SAMPLE_tumor.mod_summary.tsv
+├── SAMPLE.normal.mod_summary.tsv
+├── SAMPLE.tumor.mod_summary.tsv
 ├── SAMPLE.wf-somatic-snp-report.html
 ├── SAMPLE.wf-somatic-sv-report.html
 ├── SAMPLE.wf-somatic-mod-report.html
