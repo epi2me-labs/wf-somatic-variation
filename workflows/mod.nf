@@ -144,14 +144,14 @@ process summary {
             env(REF_PATH)
     output:
         tuple val(meta), 
-            path("${meta.sample}_${meta.type}.mod_summary.tsv"), 
+            path("${meta.sample}.${meta.type}.mod_summary.tsv"), 
             emit: mod_summary
 
     script:
     // Modkit summary prints out a progress bar that cannot be avoided
     """    
     modkit summary -t ${task.cpus} ${alignment} | \
-        awk 'BEGIN{OFS="\t"}; {print \$1,\$2,\$3,\$4,\$5,\$6}' > ${meta.sample}_${meta.type}.mod_summary.tsv
+        awk 'BEGIN{OFS="\t"}; {print \$1,\$2,\$3,\$4,\$5,\$6}' > ${meta.sample}.${meta.type}.mod_summary.tsv
     """
 }
 

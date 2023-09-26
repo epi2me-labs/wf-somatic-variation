@@ -146,12 +146,10 @@ def main(args):
     logger.info(f'Load: {args.tumor_summary}')
     t_df = load_modkit_summary(args.tumor_summary)
     t_df[['sample', 'type']] = t_df.filename.str.split('.', expand=True)[[0, 1]]
-    t_df = t_df.replace('modC', '-')
 
     logger.info(f'Load: {args.normal_summary}')
     n_df = load_modkit_summary(args.normal_summary)
     n_df[['sample', 'type']] = n_df.filename.str.split('.', expand=True)[[0, 1]]
-    n_df = n_df.replace('modC', '-')
 
     logger.info(f'Load: {args.dml}')
     if os.path.isfile(args.dml):
@@ -185,10 +183,10 @@ def main(args):
         tabs = Tabs()
         with tabs.add_tab(f'{args.sample_name}'):
             t_mod_rate = t_df[
-                (t_df['sample'] == args.sample_name) & (t_df['mod'] != '-')
+                (t_df['sample'] == args.sample_name) & (t_df['mod'] != 'C')
                 ].all_frac.sum()
             n_mod_rate = n_df[
-                (n_df['sample'] == args.sample_name) & (n_df['mod'] != '-')
+                (n_df['sample'] == args.sample_name) & (n_df['mod'] != 'C')
                 ].all_frac.sum()
             n_dml = pd.concat(dmls)[['chrom', 'pos']]\
                 .drop_duplicates().shape[0]
