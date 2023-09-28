@@ -172,7 +172,7 @@ Additional outputs include:
     * `vcf/`: the raw somatic SVs called with nanomonsv in VCF format
     * `annot/`: additional annotation files, such as the gene table and ClinVar vcf file
     * `single_breakend/`: the single break-end SVs called with nanomonsv
-    * `txt/`: the somatic SVs called with nanomonsv in tabular format
+    * `txt/`: the somatic SVs called with nanomonsv and the list supporting their call, both in tabular format
 4. Modified-bases specific subfiles are saved in `output/SAMPLE/mod/`, and include:
     * `raw/`: the raw bedMethyl files from `modkit`
     * `[CHANGE]/bedMethyl`: bedMethyl files for change type `CHANGE`
@@ -244,7 +244,8 @@ output/
 │   │   ├── single_breakend
 │   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
 │   │   └── txt
-│   │       └── SAMPLE.nanomonsv.result.annot.txt
+│   │       ├── SAMPLE.nanomonsv.result.annot.txt
+│   │       └── SAMPLE.nanomonsv.supporting_read.txt
 │   │
 │   └── mod
 │       ├── 5mC   # Modified bases code

@@ -57,6 +57,7 @@ workflow somatic_sv {
         ch_vcf = nanomonsv_get.out.vcf
         ch_txt = nanomonsv_get.out.txt
         ch_sbd = nanomonsv_get.out.single_breakend
+        read_lists = nanomonsv_get.out.read_lists
 
         // Filter SV calls, removing everything in tandem repeat
         // if an appropriate BED file is provided.
@@ -171,9 +172,14 @@ workflow somatic_sv {
                 ch_vcf.map{
                     meta, txt -> [txt, "${meta.sample}/sv/vcf"]
                     })
-            // This saves the tables from nanomonsv for dual and single-breakend SVs
+            // This saves the tables from nanomonsv for dual-breakend SVs, single-breakend SVs
+            // and also the reads supporting each SV event
             .concat(
                 ch_txt.map{
+                    meta, txt -> [txt, "${meta.sample}/sv/txt"]
+                    })
+            .concat(
+                read_lists.map{
                     meta, txt -> [txt, "${meta.sample}/sv/txt"]
                     })
             .concat(
