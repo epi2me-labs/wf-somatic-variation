@@ -24,11 +24,11 @@ process nanomonsv_parse {
         tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         
     output:
-        tuple path(bam), path(bai), path("${meta.sample}_${meta.type}/"), val(meta)
+        tuple path(bam), path(bai), path("${meta.sample}_${meta.type}/*"), val(meta)
     script:
     """
     mkdir ${meta.sample}_${meta.type}/
-    nanomonsv parse ${bam} ${meta.sample}_${meta.type}/parsed
+    nanomonsv parse ${bam} "${meta.sample}_${meta.type}/${meta.sample}"
     """
 }
 
@@ -43,37 +43,35 @@ process nanomonsv_get {
         tuple val(meta),
             path(bam_normal, stageAs: "norm/*"), 
             path(bai_normal, stageAs: "norm/*"), 
-            path(parsed_normal), 
+            path(parsed_normal, stageAs: "parsed_normal/*"), 
             path(bam_tumor, stageAs: "tum/*"), 
             path(bai_tumor, stageAs: "tum/*"), 
-            path(parsed_tumor)            
+            path(parsed_tumor, stageAs: "parsed_tumor/*")            
         tuple path(ref), 
             path(fai), 
             path(ref_cache), 
             env(REF_PATH)
     output:
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.txt"), emit: txt
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.vcf"), emit: vcf
-        tuple val(meta), path("${meta.sample}.nanomonsv.sbnd.result.txt"), emit: single_breakend
+        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.txt"), emit: txt
+        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.vcf"), emit: vcf
+        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.sbnd.result.txt"), emit: single_breakend
+        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.supporting_read.txt"), emit: read_lists
+
     script:
     def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
     def qv = params.qv ? "--qv${params.qv}" : ""
     """
     nanomonsv get \\
-        ${parsed_tumor}/parsed \\
+        "parsed_tumor/${meta.sample}" \\
         ${bam_tumor} \\
         ${ref} \\
         --min_indel_size ${params.min_sv_length} \\
-        --control_prefix ${parsed_normal}/parsed \\
+        --control_prefix "parsed_normal/${meta.sample}" \\
         --control_bam ${bam_normal} \\
         --processes ${ncores} \\
         --single_bnd \\
         --use_racon \\
         --max_memory_minimap2 2 ${qv}
-
-    mv ${parsed_tumor}/parsed.nanomonsv.result.txt ${meta.sample}.nanomonsv.result.txt
-    mv ${parsed_tumor}/parsed.nanomonsv.result.vcf ${meta.sample}.nanomonsv.result.vcf
-    mv ${parsed_tumor}/parsed.nanomonsv.sbnd.result.txt ${meta.sample}.nanomonsv.sbnd.result.txt
     """
 }
 

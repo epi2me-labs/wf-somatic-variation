@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+### Added
+- List of reads supporting the SV events is now emitted in `{params.output}/{params.sample_name}/sv/txt`
+
+### Fixed
+- Running in `--sv` mode does not resume properly.
+
 ## [v0.5.0]
 ### Added
 - Automated annotation of SNVs, small indels and SVs.
