@@ -226,16 +226,19 @@ process report {
     input:
         tuple val(meta), file(vcf)
         tuple val(meta), file(tbi)
-        tuple val(meta), file(clinvar_vcf)
-        file eval_json
+        tuple val(meta), path(clinvar_vcf, stageAs: "clinvar/*")
+        path eval_json, stageAs: "eval_json/*"
         file versions
         path "params.json"
     output:
         path "*report.html", emit: html
     script:
         def report_name = "${meta.sample}.wf-somatic-sv-report.html"
-        def evalResults = eval_json.name != 'OPTIONAL_FILE' ? "--eval_results ${eval_json}" : ""
-        def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
+        // can't use `path.name` here
+        // (https://github.com/nextflow-io/nextflow/issues/3574); needs to be
+        // `path.fileName.name` instead
+        def evalResults = eval_json.fileName.name == 'OPTIONAL_FILE' ? "" : "--eval_results ${eval_json}"
+        def clinvar = clinvar_vcf.fileName.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
     """
     workflow-glue report_sv \
         $report_name \

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Running in `--sv` mode does not resume properly.
+- `somatic_sv:report` process failing due to name collisions when running with `--annotation false`.
 
 ## [v0.5.0]
 ### Added
