@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The workflow saves the haplotagged cram files if `--germline true`.
 
 ### Changed
-- Updated `ClairS` to v0.1.5, `Clair3` to v1.0.4, and added support for 4KHz and 5KHz dorado models.
+- Updated `modkit` to v0.1.13, `ClairS` to v0.1.5, `Clair3` to v1.0.4, and added support for 4KHz and 5KHz dorado models.
 - Runs `ClairS` `haplotype_filter` on the indels in addition to the SNVs.
 - SV VCF now report a single sample with Tumor/Normal formats collected, rather than two distinct samples
     - This facilitates merging multiple samples thanks to unambiguous sample labelling
