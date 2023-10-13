@@ -1,7 +1,7 @@
 import groovy.json.JsonBuilder
 
 process getVersions {
-    label "wf_somatic_methyl"
+    label "wf_somatic_mod"
     cpus 1
     output:
         path "versions.txt"
@@ -43,7 +43,6 @@ process getParams {
 
 
 process validate_modbam {
-    label "wf_somatic_methyl"
     input:
         tuple path(alignment), 
             path(alignment_index), 
@@ -76,7 +75,7 @@ process validate_modbam {
 
 
 process modkit {
-    label "wf_somatic_methyl"
+    label "wf_somatic_mod"
     cpus params.modkit_threads
     input:
         tuple path(alignment), 
@@ -110,7 +109,6 @@ process modkit {
 
 
 process bedmethyl_split {
-    label "wf_somatic_methyl"
     cpus 1
     input:
         tuple val(meta), 
@@ -132,7 +130,7 @@ process bedmethyl_split {
 
 
 process summary {
-    label "wf_somatic_methyl"
+    label "wf_somatic_mod"
     cpus 4
     input:
         tuple path(alignment), 
@@ -157,7 +155,7 @@ process summary {
 
 // Convert to DSS
 process bed2dss {
-    label "wf_somatic_methyl"
+    label "wf_somatic_mod"
     cpus 1
     input:
         tuple val(meta), 
@@ -271,7 +269,6 @@ process makeModReport {
 
 process output_modbase {
     // publish inputs to output directory
-    label "wf_somatic_methyl"
     publishDir (
         params.out_dir,
         mode: "copy",
