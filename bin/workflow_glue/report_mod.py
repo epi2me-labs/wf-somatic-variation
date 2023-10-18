@@ -126,7 +126,7 @@ def main(args):
             .eval("chr_id = chrom.map(@CHROMOSOMES)") \
             .sort_values(["chr_id", "start"]) \
             .drop(columns=['chr_id']) \
-            .groupby('chrom', observed=True, sort=False)["start"] \
+            .groupby('chrom', observed=True, sort=False)["end"] \
             .last()
     # Otherwise, use faidx
     else:
