@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated ClairS to v0.1.6
 
+### Fixed
+- rVersion retried also upon success
+
+### Removed
+- Default local executor CPU and RAM limits
 ## [v0.5.1]
 ### Added
 - List of reads supporting the SV events is now emitted in `{params.output}/{params.sample_name}/sv/txt`

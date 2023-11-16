@@ -4,12 +4,12 @@ process getVersions {
     label "wf_somatic_mod"
     cpus 1
     output:
-        path "versions.txt"
+        path "versions_tmp.txt"
     script:
     """
-    python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions.txt
-    modkit --version | tr -s ' ' ',' >> versions.txt
-    bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions.txt
+    python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions_tmp.txt
+    modkit --version | tr -s ' ' ',' >> versions_tmp.txt
+    bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions_tmp.txt
     """
 }
 
@@ -18,11 +18,12 @@ process rVersions {
     label "dss"
     cpus 1
     input:
-        path "versions.txt"
+        path "versions_tmp.txt"
     output:
         path "versions.txt"
     script:
     """
+    cat versions_tmp.txt > versions.txt
     R --version | awk 'NR==1 {print "R,"\$3}' >> versions.txt
     R -e "packageVersion('DSS')" | awk '\$1=="[1]" {print "DSS,"\$2}' >> versions.txt
     """
