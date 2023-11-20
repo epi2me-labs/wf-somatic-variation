@@ -137,13 +137,11 @@ workflow somatic_sv {
             annotate_sv(sortVCF.out.vcf_gz.combine(sortVCF.out.vcf_tbi, by:0), 'somatic-sv')
             proc_vcf = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
             proc_tbi = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
-            clinvar_vcf = annotate_sv.out.annot_vcf_clinvar
             gene_txt = annotate_sv.out.gene_txt
         // Otherwise, create optional file from the vcf channel to preserve the structure
         } else {
             proc_vcf = sortVCF.out.vcf_gz
             proc_tbi = sortVCF.out.vcf_tbi
-            clinvar_vcf = ch_vcf.map{meta, vcf -> [meta, file("$projectDir/data/OPTIONAL_FILE")]}
         }
 
         // Prepare reports and outputs
@@ -152,7 +150,6 @@ workflow somatic_sv {
         report(
             sortVCF.out.vcf_gz.collect(),
             sortVCF.out.vcf_tbi.collect(),
-            clinvar_vcf,
             optional_file,
             software_versions, 
             workflow_params)
@@ -206,10 +203,6 @@ workflow somatic_sv {
                 .concat(
                     gene_txt.map{
                         meta, gene -> [gene, "${meta.sample}/sv/annot/"]
-                        })
-                .concat(
-                    clinvar_vcf.map{
-                        meta, vcf -> [vcf, "${meta.sample}/sv/annot/"]
                         })
                 .set{outputs}
         }

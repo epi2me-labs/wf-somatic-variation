@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 """Create workflow report."""
-import os
-
-from dominate.tags import a, h6, p
-from ezcharts.components.clinvar import load_clinvar_vcf
+from dominate.tags import p
 from ezcharts.components.common import CATEGORICAL
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
@@ -269,39 +266,6 @@ def main(args):
                         s.symbolSize = 3
                     EZChart(plt, 'epi2melabs')
 
-    # ClinVar variants
-    if args.clinvar_vcf is not None:
-        if os.path.exists(args.clinvar_vcf):
-            with report.add_section('ClinVar variant annotations', 'ClinVar'):
-                clinvar_docs_url = "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/"
-                p(
-                    "The ",
-                    a("SnpEff", href="https://pcingola.github.io/SnpEff/"),
-                    " annotation tool has been used to annotate with",
-                    a("ClinVar", href="https://www.ncbi.nlm.nih.gov/clinvar/"), '.'
-                    " If any variants have ClinVar annotations, they will appear in a ",
-                    "table below. Please note, this table excludes variants with",
-                    " 'Benign' or 'Likely benign' significance, however these ",
-                    "variants will appear in the VCF output by the workflow. For ",
-                    "further details on the terms in the 'Significance' column,",
-                    "  please visit ",
-                    a("this page", href=clinvar_docs_url),
-                    '.')
-
-                # check if there are any ClinVar sites to report
-                clinvar_for_report = load_clinvar_vcf(args.clinvar_vcf)
-                if clinvar_for_report.empty:
-                    h6('No ClinVar sites to report.')
-                else:
-                    DataTable.from_pandas(
-                        clinvar_for_report, export=True, use_index=False)
-    else:
-        # Annotations were skipped
-        with report.add_section('ClinVar variant annotations', 'ClinVar'):
-            p(
-                "This report was generated without annotations. To see"
-                " them, re-run the workflow with --annotation true.")
-
     #
     # write report
     #
@@ -322,9 +286,6 @@ def argparser():
         "--genome",
         default='hg38',
         required=False)
-    parser.add_argument(
-        "--clinvar_vcf", required=False,
-        help="VCF file of variants annotated in ClinVar")
     parser.add_argument(
         "--eval_results",
         nargs='+',

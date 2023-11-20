@@ -170,7 +170,7 @@ Additional outputs include:
     * `vcf/`: more VCF files, such as germline, raw SNV and Indels calls 
 3. SV specific subfiles are saved in `output/SAMPLE/sv/`, and include: 
     * `vcf/`: the raw somatic SVs called with nanomonsv in VCF format
-    * `annot/`: additional annotation files, such as the gene table and ClinVar vcf file
+    * `annot/`: additional annotation files (gene table)
     * `single_breakend/`: the single break-end SVs called with nanomonsv
     * `txt/`: the somatic SVs called with nanomonsv and the list supporting their call, both in tabular format
 4. Modified-bases specific subfiles are saved in `output/SAMPLE/mod/`, and include:
@@ -237,8 +237,7 @@ output/
 │   │
 │   ├── sv
 │   │   ├── annot  # Annotion files
-│   │   │   ├── SAMPLE.wf-sv-snpEff-genes.txt
-│   │   │   └── SAMPLE.wf-sv-clinvar.vcf
+│   │   │   └── SAMPLE.wf-sv-snpEff-genes.txt
 │   │   ├── vcf  # Raw nanomonsv VCF
 │   │   │   └── SAMPLE.nanomonsv.result.vcf
 │   │   ├── single_breakend

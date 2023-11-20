@@ -226,7 +226,6 @@ process report {
     input:
         tuple val(meta), file(vcf)
         tuple val(meta), file(tbi)
-        tuple val(meta), path(clinvar_vcf, stageAs: "clinvar/*")
         path eval_json, stageAs: "eval_json/*"
         file versions
         path "params.json"
@@ -238,7 +237,6 @@ process report {
         // (https://github.com/nextflow-io/nextflow/issues/3574); needs to be
         // `path.fileName.name` instead
         def evalResults = eval_json.fileName.name == 'OPTIONAL_FILE' ? "" : "--eval_results ${eval_json}"
-        def clinvar = clinvar_vcf.fileName.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
     """
     workflow-glue report_sv \
         $report_name \
@@ -248,7 +246,7 @@ process report {
         --versions $versions \
         --revision ${workflow.revision} \
         --commit ${workflow.commitId} \
-        $evalResults $clinvar
+        $evalResults
     """
 }
 
