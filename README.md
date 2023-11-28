@@ -1,56 +1,210 @@
 # Somatic variation workflow
-This repository contains a [nextflow](https://www.nextflow.io/) workflow
-to identify somatic variation in a paired normal/tumor sample.
-This workflow currently perform:
- - Alignment QC and statistics.
- - Somatic short variant calling (SNV and Indels).
- - Somatic structural variants calling (SV).
- - Modified sites calling (mod).
 
+Nextflow workflow to identify somatic variation.
 
 
 
 ## Introduction
 
-This workflow enables analysis of somatic variation using the following tools:
-1. [ClairS](https://github.com/HKU-BAL/ClairS)
-2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)
-3. [modkit](https://github.com/nanoporetech/modkit)
+This workflow calls variants from the alignment files of a paired tumor/normal sample.
+
+This workflow can be used for the following: 
+
++ Alignment QC and statistics.
++ Somatic short variant calling (SNV and Indels).
++ Somatic structural variants calling (SV).
++ Modified sites calling (mod).
 
 
 
 
-## Quickstart
-The workflow uses [nextflow](https://www.nextflow.io/) to manage compute and 
-software resources, as such nextflow will need to be installed before attempting
-to run the workflow.
+## Compute requirements
 
-The workflow can currently be run using either
-[Docker](https://www.docker.com/products/docker-desktop) or
-[Singularity](https://docs.sylabs.io/guides/latest/user-guide/) to provide isolation of
-the required software. Both methods are automated out-of-the-box provided
-either Docker or Singularity is installed.
+Recommended requirements:
 
-It is not required to clone or download the git repository in order to run the workflow.
-For more information on running EPI2ME Labs workflows [visit our website](https://labs.epi2me.io/wfindex).
++ CPUs = 64
++ memory = 256GB
+
+Minimum requirement:
+
++ CPUs = 12
++ memory = 32GB
+
+Approximate run time: Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 cores machine with 256Gb of memory.
+
+ARM processor support: False
 
 
-**Workflow options**
 
-To obtain the workflow, having installed `nextflow`, users can run:
+
+## Install and run
+
+These are instructions to install and run the workflow on command line. You can also access the workflow via the [EPI2ME application](https://labs.epi2me.io/downloads/).  
+
+The workflow uses [nextflow](https://www.nextflow.io/) to manage compute and software resources, therefore nextflow will need to be installed before attempting to run the workflow. 
+
+The workflow can currently be run using either [Docker](https://www.docker.com/products/docker-desktop) or
+[singularity](https://docs.sylabs.io/guides/3.0/user-guide/index.html) to provide isolation of 
+the required software. Both methods are automated out-of-the-box provided 
+either docker or singularity is installed. This is controlled by the [`-profile`](https://www.nextflow.io/docs/latest/config.html#config-profiles) parameter as exemplified in the example below. 
+
+It is not required to clone or download the git repository in order to run the workflow. 
+More information on running EPI2ME workflows can be found on our [website](https://labs.epi2me.io/wfindex).
+
+The following command can be used to obtain the workflow. This  will pull the repository in to the assets folder of nextflow and provide a list of all parameters available for the workflow as well as an example command:
 
 ```
-nextflow run epi2me-labs/wf-somatic-variation --help
+nextflow run epi2me-labs/wf-somatic-variation –help 
 ```
+A demo dataset is provided for testing of the workflow. It can be downloaded using: 
+```
+wget https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz 
+tar -xzvf wf-somatic-variation-demo.tar.gz 
+```
+The workflow can be run with the demo data using: 
+```
+nextflow run epi2me-labs/wf-somatic-variation \ 
+--bam_normal wf-somatic-variation-demo/demo_normal.bam \
+--bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+--ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+--sv --snv --mod \
+--sample_name SAMPLE \
+--normal_min_coverage 0 \
+--tumor_min_coverage 0 \
+-profile standard 
+```
+For further information about running a workflow on the cmd line see https://labs.epi2me.io/wfquickstart/  
 
-to see the options for the workflow.
 
 
-**Hardware limitations**: the SV calling workflow requires to run on a system supporting AVX2 instructions. Please, ensure that 
-your system supports these before running it.
+## Related protocols
+
+This workflow is designed to take input sequences that have been produced from [Oxford Nanopore Technologies](https://nanoporetech.com/) devices.
+
+Find related protocols in the [Nanopore community](https://community.nanoporetech.com/docs/).
 
 
-**Input and data preparation**
+
+## Inputs
+
+### Workflow Options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| snv | boolean | Call for somatic small variants. | If this option is selected, small variant calling will be carried out using ClairS. | False |
+| sv | boolean | Call for somatic structural variants. | If this option is selected, the workflow will call somatic structural variants using nanomonsv. | False |
+| mod | boolean | Enable output of differentially modified sites and differentially modified regions [requires input BAMs with ML and MM tags]. | If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS. | False |
+
+
+### Main options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| sample_name | string | Sample name to be displayed in workflow outputs. | The sample name will be used from the workflow to correctly name output files. | SAMPLE |
+| bam_normal | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample. | You may choose to provide a BAM/CRAM, but not both. |  |
+| bam_tumor | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample. | You may choose to provide a BAM/CRAM, but not both. |  |
+| ref | string | Path to a reference FASTA file. | Reference against which to compare reads for variant calling. |  |
+| bed | string | An optional BED file enumerating regions to process for variant calling. |  |  |
+| tr_bed | string | An optional BED file enumerating simple repeat regions. | This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1). |  |
+| out_dir | string | Directory for output of all workflow results. |  | output |
+| annotation | boolean | Perform SnpEff annotation. | If this option is deselected, VCFs will not be annotated with [SnpEff](https://pcingola.github.io/SnpEff/). | True |
+
+
+### Quality Control Options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| depth_intervals | boolean | Output a bedGraph file with entries for each genomic interval featuring homogeneous depth. | The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications. | False |
+
+
+### Small variant calling options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| basecaller_cfg | string | Name of the model to use for converting signal and selecting a small variant calling model. | Required for basecalling and small variant calling. The basecaller configuration is used to automatically select the appropriate small variant calling model. Refer to the [model table on the Dorado repository for selecting a simplex basecalling model](https://github.com/nanoporetech/dorado#available-basecalling-models). | dna_r10.4.1_e8.2_400bps_sup@v3.5.2 |
+| hybrid_mode_vcf | string | Enable hybrid calling mode that combines the *de novo* calling results and genotyping results at the positions in the VCF file given. |  |  |
+| genotyping_mode_vcf | string | VCF file input containing candidate sites to be genotyped. Variants will only be called at the sites in the VCF file if provided. |  |  |
+| normal_vcf | string | VCF file input containing normal sites for the given sample. | Pointing to a pre-computed normal VCF file will prevent the workflow from calling the germline sites for the normal sample, reducing processing time. |  |
+| include_all_ctgs | boolean | Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y}. | Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases. | False |
+| skip_haplotype_filter | boolean | Skip haplotype filtering of variants. | Setting this will skip haplotype filtering of variants. | False |
+| fast_mode | boolean | Fast germline variants calling in Clair3 (does not emit germline calls). | Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs. | False |
+
+
+### Somatic structural variant calling options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| min_sv_length | integer | Minimum SV size to call. | Provide the minimum size of the structural variants to call with nanomonsv. | 50 |
+| classify_insert | boolean | Perform SV insert classification. | Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences. | False |
+| qv | integer | Approximate single base quality value (QV), one of 10, 15, 20 or 25. | Expected single base quality as described in the [nanomonsv web page](https://github.com/friend1ws/nanomonsv#get). |  |
+
+
+### Methylation calling options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| force_strand | boolean | Require modkit to call strand-aware modifications. |  | False |
+
+
+### Multiprocessing Options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| ubam_map_threads | integer | Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus). |  | 8 |
+| ubam_sort_threads | integer | Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus). |  | 3 |
+| ubam_bam2fq_threads | integer | Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus). |  | 1 |
+| annotation_threads | integer | Total number of threads to use in SnpEff annotation (limited by config executor cpus). |  | 4 |
+| nanomonsv_get_threads | integer | Total number of threads to use in `nanomonsv get` (minimum of 2 and limited by config executor cpus). |  | 4 |
+| dss_threads | integer | Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus). |  | 1 |
+| modkit_threads | integer | Total number of threads to use in modkit modified base calling (limited by config executor cpus). |  | 4 |
+| haplotype_filter_threads | integer | Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus). |  | 4 |
+
+
+### Miscellaneous Options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| disable_ping | boolean | Enable to prevent sending a workflow ping. |  | False |
+
+
+
+
+
+
+## Outputs
+
+Outputs files may be aggregated including information for all             samples or provided per sample. Per sample files             will be prefixed with respective aliases and represented             below as {{ alias }}.
+
+| Title | File path | Description | Per sample or aggregated |
+|-------|-----------|-------------|--------------------------|
+| Workflow alignment statistics report | ./{{ alias }}.wf-somatic-variation-readQC-report.html | Report of the alignment statistics for each tumor/normal paired sample. | per-sample |
+| Workflow SNV report | ./{{ alias }}.wf-somatic-snv-report.html | Report of the SNV for each tumor/normal paired sample. | per-sample |
+| Workflow SV report | ./{{ alias }}.wf-somatic-sv-report.html | Report of the SV for each tumor/normal paired sample. | per-sample |
+| Workflow MOD report | ./{{ alias }}.wf-somatic-mod-report.html | Report of the modified bases for each tumor/normal paired sample. | per-sample |
+| Somatic short variant VCF | ./{{ alias }}.wf-somatic-snv.vcf.gz | VCF file with the somatic SNVs for the sample. | per-sample |
+| Somatic short variant VCF index | ./{{ alias }}.wf-somatic-snv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SNVs for the sample. | per-sample |
+| Somatic structural variant VCF | ./{{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. | per-sample |
+| Somatic structural variant VCF index | ./{{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
+| Modified bases BEDMethyl | ./{{ alias }}_{{ type }}.wf_mod.bedmethyl.gz | BED file with the aggregated modification counts for the tumor or normal sample. | per-sample |
+| Haplotagged alignment file | ./{{ alias }}_{{ type }}.ht.{{ format }} | BAM or CRAM file with the haplotagged reads for the tumor or normal sample. | per-sample |
+| Haplotagged alignment file index | ./{{ alias }}_{{ type }}.ht.{{ format }}.{{ format_index }} | The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor or normal sample. | per-sample |
+
+
+
+
+## Pipeline overview
+
+This workflow is designed to perform variant calling of small variants, structural
+variants and modified bases aggregation from paired tumor/normal BAM files
+for a single sample.
+
+Per-sample files will be prefixed with respective aliases and represented
+below as {{ alias }}. Outputs per tumor or normal are represented
+below as {{ type }}. Outputs for different changes (e.g. 5mC or 5hmC)
+are represented below as {{ change }}. {{ format }} may refer to either BAM
+or CRAM, and {{ format_index }} may refer to either BAI or CRAI.
+
+### 1. Input and data preparation.
 
 The workflow relies on three primary input files:
 1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
@@ -62,28 +216,23 @@ The BAM files can be generated from:
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
 Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
 
+### 2. Data QC and pre-processing.
+The workflow starts by performing multiple checks of the input BAM files, as well as computing:
+1. The depth of sequencing of each BAM file with [mosdepth](https://github.com/brentp/mosdepth).
+2. The read alignment statistics for each BAM file with [fastcat](https://github.com/epi2me-labs/fastcat).
 
-**Working with non-human samples**
-The workflow is designed to work with human samples, and in particular with either the hg19 (GRCh37) or hg38 (GRCh38) reference genomes.
-Nevertheless, almost all tasks carried out by the workflow are species agnostic, and will work with non-human and non-model species just as well. 
-To run the workflow with a non-human organism, the user will need to disable some options as follows:
-1. For EPI2ME users: ensure that the `Classify insertion sequence` and `Annotation` options are de-selected. 
-2. For CLI users: add the `--classify_insert false --annotation false` options to your command line.
+After computing the coverage, the workflow will check that the input BAM files have a depth greater than
+`--tumor_min_coverage` and `--normal_min_coverage` for the tumor and normal BAM files, respectively.
+It is necessary that **both** BAM files have passed the respective thresholds. In cases where the user
+sets the minimum coverage to `0`, the check will be skipped and the workflow will proceed directly to the
+downstream analyses.
 
+### 3. Somatic short variants calling with ClairS.
 
-**Demo data**
-
-The workflow comes with matched demo data accessible [here](https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz):
-```
-wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz
-```
-This demo is derived from a Tumor/Normal pair of samples, that we have made publicly accessible. Check out our [blog post](https://labs.epi2me.io/colo-2023.05/) for more details.
-
-
-**Somatic short variant calling**
-
-The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS) (v0.1.5) to identify somatic variants in a paired tumor/normal sample.
-This workflow allows to take advantage of the parallel nature of Nextflow, providing the best performance in high-performance, distributed systems.
+The workflow currently implements a deconstructed version of [ClairS](https://github.com/HKU-BAL/ClairS)
+(v0.1.6) to identify somatic variants in a paired tumor/normal sample. 
+This workflow takes advantage of the parallel nature of Nextflow, providing optimal efficiency in
+high-performance, distributed systems.
 
 Currently, ClairS supports the following basecalling models:
 
@@ -99,20 +248,24 @@ Currently, ClairS supports the following basecalling models:
 
 Any other model provided will prevent the workflow to start. 
 
-**Indel calling**
+Currently, indel calling is supported only for `dna_r10` basecalling models.
+When the user specifies an r9 model the workflow will automatically skip
+the indel processes and perform only the SNV calling. 
 
-Currently, indel calling is supported only for `dna_r10` basecalling models. When the user specifies an r9 model the workflow will automatically skip the indel processes and perform only the SNV calling. 
-
-**Tweaking the variant calling**
-
-By default, the workflow uses `Clair3` to call germline sites on both the normal and tumor sample, that are then used internally to refine the somatic variant calling.
-This mode is computationally demanding, and it's behaviour can be changed with a few options:
-* Reduce the accuracy of the variant calling with `--fast_mode`; 
-* Provide a pre-computed VCF file reporting the germline calls for the normal sample with `--normal_vcf`;
+The workflow uses `Clair3` to call germline sites on both the normal and tumor
+sample, which are then used internally to refine the somatic variant calling.
+This mode is computationally demanding, and it's behaviour can be changed with
+a few options:
+* Reduce the accuracy of the variant calling with `--fast_mode`.
+* Provide a pre-computed VCF file reporting the germline calls for the normal sample with `--normal_vcf`.
 * Disable the germline calling altogether with `--germline false`.
 
+SNVs can be annotated using [SnpEff](https://pcingola.github.io/SnpEff/) by
+setting `--annotation true`. Furthermore, the workflow will add annotations from
+the [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) database.
 
-**Somatic structural variant (SV) calling with Nanomonsv**
+
+### 4. Somatic structural variant (SV) calling with Nanomonsv.
 
 The workflow allows for the calling of somatic SVs using long-read sequencing data.
 Starting from the paired cancer/control samples, the workflow will:
@@ -121,7 +274,11 @@ Starting from the paired cancer/control samples, the workflow will:
 3. Filter out the SVs in simple repeats using `add_simple_repeat.py` (*optional*)
 4. Annotate transposable and repetitive elements using `nanomonsv insert_classify` (*optional*)
 
-As of `nanomonsv` v0.7.1 (and v0.4.0 of the workflow), users can provide the approximate single base quality value (QV) for their dataset. To decide which is the most appropriate value for your dataset, visit the `nanomonsv get` [web page](https://github.com/friend1ws/nanomonsv#get), but it can be summarized as follow:
+As of `nanomonsv` v0.7.1 (and v0.4.0 of this workflow), users can provide
+the approximate single base quality value (QV) for their dataset.
+To decide which is the most appropriate value for your dataset, visit the
+`get` section of the `nanomonsv` [web page](https://github.com/friend1ws/nanomonsv#get),
+but it can be summarized as follow:
 
 |     Basecaller     |  Quality value  |
 |--------------------|-----------------|
@@ -131,182 +288,56 @@ As of `nanomonsv` v0.7.1 (and v0.4.0 of the workflow), users can provide the app
 
 To provide the correct qv value, simply use `--qv 20`.
 
-**08/08/2023**: the vcf produced by nanomonSV is now processed to have one sample with the name specified with `--sample_name` (rather than the two-sample `TUMOR`/`CONTROL`). The original VCFs generated by nanomonSV are now saved in:
-```
-├── SAMPLE
-│   ├── sv
-│   │   └── vcf  # VCF outputs
-│   │       ├── SAMPLE.results.nanomonsv.vcf
+The VCF produced by nanomonsv is now processed to have one sample with the
+name specified with `--sample_name` (rather than the two-sample
+`TUMOR`/`CONTROL`). The original VCFs generated by nanomonsv are now
+saved as `{{ alias }}/sv/vcf/{{ alias }}.results.nanomonsv.vcf`.
 
-```
-See below for the full updated output directory structure.
+SVs can be annotated using [SnpEff](https://pcingola.github.io/SnpEff/) by
+setting `--annotation true`.
 
-**Modified base calling**
+### 5. Modified base calling with modkit
 
-Modified base calling can be performed by specifying `--mod`. The workflow will call modified bases using [modkit](https://github.com/nanoporetech/modkit). 
-The default behaviour of the workflow is to run modkit with the `--cpg --combine-strands` options set. It is possible to report strand-aware modifications 
-by providing `--force_strand`, which will trigger modkit to run in default mode.
-The modkit run can be fully customized by providing `--modkit_args`. This will override any preset, and allow full control over the run of modkit.
-
-
-**Output folder**
-
-The primary outputs are:
-1. `output/SAMPLE.wf-somatic-snv.vcf.gz`: the final VCF file with SNVs and, if r10, InDels
-2. `output/SAMPLE.wf-somatic-sv.vcf.gz`: the final VCF with the somatic SVs from nanomonsv
-3. `output/SAMPLE.[normal/tumor].mod_summary.tsv`: the modification summary file for the [tumor/normal] sample
-4. `output/*.html`: the reports of the different stages
-5. `output/*.ht.cram`: haplotagged CRAM files for the tumor (and normal when `--phase_normal` is provided) samples
-
-Additional outputs include:
-1. QC subfiles are saved in `output/SAMPLE/qc/`, and include:
-    * `coverage/`: additional statistic files created by `mosdepth`
-    * `readstats/`: additional statistic files created by `bamstats`
-2. SNV specific subfiles are saved in `output/SAMPLE/snv/`, and include: 
-    * `change_counts/`: the change counts for the sample
-    * `annot/`: additional annotation files, such as the gene table and ClinVar vcf file
-    * `varstats/`: variant statistics computed by `bcftools stats`
-    * `gvcf/`: germline GVCF files
-    * `vcf/`: more VCF files, such as germline, raw SNV and Indels calls 
-3. SV specific subfiles are saved in `output/SAMPLE/sv/`, and include: 
-    * `vcf/`: the raw somatic SVs called with nanomonsv in VCF format
-    * `annot/`: additional annotation files (gene table)
-    * `single_breakend/`: the single break-end SVs called with nanomonsv
-    * `txt/`: the somatic SVs called with nanomonsv and the list supporting their call, both in tabular format
-4. Modified-bases specific subfiles are saved in `output/SAMPLE/mod/`, and include:
-    * `raw/`: the raw bedMethyl files from `modkit`
-    * `[CHANGE]/bedMethyl`: bedMethyl files for change type `CHANGE`
-    * `[CHANGE]/DSS/`: DSS inputs for change type `CHANGE`
-    * `[CHANGE]/DML`: DSS differentially modified loci output for change type `CHANGE`
-    * `[CHANGE]/DMR`: DSS differentially modified regions output for change type `CHANGE`
-
-`CHANGE` refers to the change type analysed (e.g. modC, 5mC, 5hmC, etc) and is automatically detected by `modkit` from the input
-`modbam`.
-
-A full-analysis output directory should present a folder structure like the following one:
-```
-output/
-├── execution # Execution reports
-│   ├── report.html
-│   ├── timeline.html
-│   └── trace.txt
-│
-├── SAMPLE
-│   ├── qc
-│   │   ├── coverage
-│   │   │   ├── filtered.bed
-│   │   │   ├── SAMPLE_normal.mosdepth.global.dist.txt
-│   │   │   ├── SAMPLE_normal.mosdepth.summary.txt
-│   │   │   ├── SAMPLE_normal.per-base.bed.gz
-│   │   │   ├── SAMPLE_normal.regions.bed.gz
-│   │   │   ├── SAMPLE_normal.regions.filt.bed.gz
-│   │   │   ├── SAMPLE_normal.thresholds.bed.gz
-│   │   │   ├── SAMPLE_tumor.mosdepth.global.dist.txt
-│   │   │   ├── SAMPLE_tumor.mosdepth.summary.txt
-│   │   │   ├── SAMPLE_tumor.per-base.bed.gz
-│   │   │   ├── SAMPLE_tumor.regions.bed.gz
-│   │   │   └── SAMPLE_tumor.thresholds.bed.gz
-│   │   └── readstats
-│   │       ├── SAMPLE_normal.flagstat.tsv
-│   │       ├── SAMPLE_normal.readstats.tsv.gz
-│   │       ├── SAMPLE_tumor.flagstat.tsv
-│   │       └── SAMPLE_tumor.readstats.tsv.gz
-│   │
-│   ├── snv  # ClairS outputs
-│   │   ├── annot  # Annotion files
-│   │   │   ├── SAMPLE.wf-snp-snpEff-genes.txt
-│   │   │   └── SAMPLE.wf-snp-clinvar.vcf
-│   │   ├── change_counts  # Mutational change counts for the sample; for now, it only works for the SNVs
-│   │   │   └── SAMPLE_changes.csv
-│   │   ├── varstats  # Bcftools stats output
-│   │   │   └── SAMPLE.stats
-│   │   ├── gvcf  # GVCF outputs
-│   │   │   ├── SAMPLE_tumor_germline.gvcf.gz
-│   │   │   ├── SAMPLE_tumor_germline.gvcf.gz.tbi
-│   │   │   ├── SAMPLE_normal_germline.gvcf.gz
-│   │   │   └── SAMPLE_normal_germline.gvcf.gz.tbi
-│   │   └── vcf  # VCF outputs
-│   │       ├── SAMPLE_tumor_germline.vcf.gz
-│   │       ├── SAMPLE_tumor_germline.vcf.gz.tbi
-│   │       ├── SAMPLE_normal_germline.vcf.gz
-│   │       ├── SAMPLE_normal_germline.vcf.gz.tbi
-│   │       ├── SAMPLE_somatic_indels.vcf.gz
-│   │       ├── SAMPLE_somatic_indels.vcf.gz.tbi
-│   │       ├── SAMPLE_somatic_snv.vcf.gz
-│   │       └── SAMPLE_somatic_snv.vcf.gz.tbi
-│   │
-│   ├── sv
-│   │   ├── annot  # Annotion files
-│   │   │   └── SAMPLE.wf-sv-snpEff-genes.txt
-│   │   ├── vcf  # Raw nanomonsv VCF
-│   │   │   └── SAMPLE.nanomonsv.result.vcf
-│   │   ├── single_breakend
-│   │   │   └── SAMPLE.nanomonsv.sbnd.result.txt
-│   │   └── txt
-│   │       ├── SAMPLE.nanomonsv.result.annot.txt
-│   │       └── SAMPLE.nanomonsv.supporting_read.txt
-│   │
-│   └── mod
-│       ├── 5mC   # Modified bases code
-│       │   ├── bedMethyl   # bedMethyl output files
-│       │   │   ├── 5mC.SAMPLE_normal.bed.gz
-│       │   │   └── 5mC.SAMPLE_tumor.bed.gz
-│       │   ├── DML   # Differentially methylated loci
-│       │   │   └── SAMPLE.5mC.dml.tsv
-│       │   ├── DMR   # Differentially methylated regions
-│       │   │   └── SAMPLE.5mC.dmr.tsv
-│       │   └── DSS   # DSS input files
-│       │       ├── 5mC.SAMPLE_normal.dss.tsv
-│       │       └── 5mC.SAMPLE_tumor.dss.tsv
-│       └── raw   # Raw outputs from modkit
-│           ├── SAMPLE_normal.bed
-│           └── SAMPLE_tumor.bed
-│
-├── info  # single component runtime info
-│   ├── mod
-│   │   ├── params.json
-│   │   └── versions.txt
-│   ├── snv
-│   │   ├── params.json
-│   │   └── versions.txt
-│   └── sv
-│       ├── params.json
-│       └── versions.txt
-│
-├── SAMPLE.wf-somatic-snv.vcf.gz
-├── SAMPLE.wf-somatic-snv.vcf.gz.tbi
-├── SAMPLE.wf-somatic-sv.vcf.gz
-├── SAMPLE.wf-somatic-sv.vcf.gz.tbi
-├── SAMPLE.normal.mod_summary.tsv
-├── SAMPLE.tumor.mod_summary.tsv
-├── SAMPLE.wf-somatic-snp-report.html
-├── SAMPLE.wf-somatic-sv-report.html
-├── SAMPLE.wf-somatic-mod-report.html
-├── SAMPLE.wf-somatic-variation-readQC-report.html
-├── SAMPLE_normal.ht.cram
-├── SAMPLE_normal.ht.cram.crai
-├── SAMPLE_tumor.ht.cram
-├── SAMPLE_tumor.ht.cram.crai
-├── params.json
-└── versions.txt
-```
+Modified base calling can be performed by specifying `--mod`. The workflow
+will aggregate the modified bases using [modkit](https://github.com/nanoporetech/modkit) and
+perform differential modification analyses using [DSS](https://bioconductor.org/packages/DSS/). 
+The default behaviour of the workflow is to run modkit with the 
+`--cpg --combine-strands` options set.
+It is possible to report strand-aware modifications by providing `--force_strand`.
+Users can further change the behaviour of `modkit` by passing options directly
+to modkit via the `--modkit_args` option. This will override any preset,
+and allow full control over the run of modkit. For more details on the usage
+of `modkit pileup`, checkout the software [documentation](https://nanoporetech.github.io/modkit/).
 
 
 
 
-## Useful links
+## Troubleshooting
 
-* [nextflow](https://www.nextflow.io/)
-* [docker](https://www.docker.com/products/docker-desktop)
-* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)
-* [ClairS](https://github.com/HKU-BAL/ClairS)
-* [Clair3](https://github.com/HKU-BAL/Clair3)
-* [mosdepth](https://github.com/brentp/mosdepth)
-* [fastcat](https://github.com/epi2me-labs/fastcat)
-* [minimap2](https://github.com/lh3/minimap2)
-* [samtools](https://github.com/samtools/samtools)
-* [bcftools](https://samtools.github.io/bcftools/bcftools.html)
-* [pysam](https://github.com/pysam-developers/pysam)
-* [tabix](https://github.com/samtools/htslib)
-* [nanomonsv](https://github.com/friend1ws/nanomonsv)
-* [modkit](https://github.com/nanoporetech/modkit)
++ If the workflow fails please run it with the demo data set to ensure the workflow itself is working. This will help us determine if the issue is related to the environment, input parameters or a bug.
++ See how to interpret some common nextflow exit codes [here](https://labs.epi2me.io/trouble-shooting/).
++ To run the workflow with a non-human organism, proceed as follows:
+    * EPI2ME app: disable the `Classify insertion sequence` and `Annotation` options. 
+    * Command line: set `--classify_insert false` and `--annotation false`.
++ The SV calling workflow requires a computing system supporting AVX2 instructions. Please, ensure that your system supports these before running it.
++ Short somatic Indel calling is supported only for `dna_r10` basecalling models.
+
+
+
+## FAQ's
+
++ *Does the workflow calls 5hmC, on top of 5mC?* - Yes, the workflow does call 5hmC, but only if you performed the basecalling with the appropriate module; for more details, check out the [dorado github page](https://github.com/nanoporetech/dorado#dna-models).
+
++ *Can I run the workflow in tumor-only mode?* - Currently, the workflow can run only with matching tumor/normal BAM files for the same sample.
+
+
+
+
+## Related blog posts
+
++ [Importing third-party workflows into EPI2ME Labs](https://labs.epi2me.io/nexflow-for-epi2melabs/)
+
+See the [EPI2ME website](https://labs.epi2me.io/) for lots of other resources and blog posts.
+
+
+
