@@ -2,6 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema",
     "$id": "https://raw.githubusercontent.com/epi2me-labs/wf-somatic-variation/master/nextflow_schema.json",
     "title": "epi2me-labs/wf-somatic-variation",
+    "workflow_title": "Somatic variation workflow",
     "description": "Nextflow workflow to identify somatic variation.",
     "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz",
     "aws_demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/aws.nextflow.config",
@@ -14,6 +15,13 @@
             "fa_icon": "fas fa-arrow-right",
             "description": "Select which sub-workflows of wf-human-variation you wish to run. Parameters for each sub-workflow can be changed using the sections below.",
             "properties": {
+                "snv": {
+                    "title": "SNV: Short variants",
+                    "type": "boolean",
+                    "description": "Call for somatic small variants.",
+                    "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
+                    "default": false
+                },
                 "sv": {
                     "title": "SV: Structural variants",
                     "type": "boolean",
@@ -24,15 +32,8 @@
                 "mod": {
                     "title": "MOD: Differential modifications",
                     "type": "boolean",
-                    "description": "Enable output of differentially modified sites and differentially modified regions [requires input BAMs with Ml and Mm tags]",
+                    "description": "Enable output of differentially modified sites and differentially modified regions [requires input BAMs with ML and MM tags].",
                     "help_text": "If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS.",
-                    "default": false
-                },
-                "snv": {
-                    "title": "SNV: Short variants",
-                    "type": "boolean",
-                    "description": "Call for somatic small variants",
-                    "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
                     "default": false
                 }
             },
@@ -65,7 +66,7 @@
                     "type": "string",
                     "default": "SAMPLE",
                     "description": "Sample name to be displayed in workflow outputs.",
-                    "help_text": "The sample name will be used from the workflow to correctly name output files"
+                    "help_text": "The sample name will be used from the workflow to correctly name output files."
                 },
                 "bam_normal": {
                     "title": "Normal BAM",
@@ -113,7 +114,7 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Perform SnpEff annotation.",
-                    "help_text": "If this option is deselected, VCFs will not be annotated with SnpEff."
+                    "help_text": "If this option is deselected, VCFs will not be annotated with [SnpEff](https://pcingola.github.io/SnpEff/)."
                 }
             },
             "required": [
@@ -121,6 +122,44 @@
                 "bam_normal",
                 "bam_tumor"
             ]
+        },
+        "qc_options": {
+            "title": "Quality Control Options",
+            "type": "object",
+            "fa_icon": "fas fa-vials",
+            "description": "Parameters that relate to the quality control of the reads.",
+            "properties": {
+                "depth_intervals": {
+                    "title": "Depth intervals",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Output a bedGraph file with entries for each genomic interval featuring homogeneous depth.",
+                    "help_text": "The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications."
+                },
+                "depth_window_size": {
+                    "type": "number",
+                    "default": 50000,
+                    "hidden": true,
+                    "description": "Coverage window size in bp.",
+                    "help_text": "This options specify the window size to use when computing the coverage along the genome."
+                },
+                "tumor_min_coverage": {
+                    "title": "Tumor minimum coverage",
+                    "type": "number",
+                    "default": 20,
+                    "hidden": false,
+                    "description": "Minimum read coverage for the tumor sample required to run analysis.",
+                    "help_text": "Tumor bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                },
+                "normal_min_coverage": {
+                    "title": "Normal minimum coverage",
+                    "type": "number",
+                    "default": 20,
+                    "hidden": false,
+                    "description": "Minimum read coverage for the normal sample required to run analysis.",
+                    "help_text": "Normal bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                }
+            }
         },
         "snv_options": {
             "title": "Small variant calling options",
@@ -152,14 +191,12 @@
                 "hybrid_mode_vcf": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Enable hybrid calling mode that combines the de novo calling results and genotyping results at the positions in the VCF file given.",
-                    "hidden": true
+                    "description": "Enable hybrid calling mode that combines the *de novo* calling results and genotyping results at the positions in the VCF file given."
                 },
                 "genotyping_mode_vcf": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "VCF file input containing candidate sites to be genotyped. Variants will only be called at the sites in the VCF file if provided.",
-                    "hidden": true
+                    "description": "VCF file input containing candidate sites to be genotyped. Variants will only be called at the sites in the VCF file if provided."
                 },
                 "normal_vcf": {
                     "title": "Pre-computed normal VCF",
@@ -296,46 +333,8 @@
                 }
             }
         },
-        "qc_options": {
-            "title": "Quality Control Options",
-            "type": "object",
-            "fa_icon": "fas fa-vials",
-            "description": "Parameters that relate to the quality control of the reads.",
-            "properties": {
-                "depth_intervals": {
-                    "title": "Depth intervals",
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Output a bedGraph file with entries for each genomic interval featuring homogeneous depth.",
-                    "help_text": "The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications."
-                },
-                "depth_window_size": {
-                    "type": "number",
-                    "default": 50000,
-                    "hidden": true,
-                    "description": "Coverage window size in bp.",
-                    "help_text": "This options specify the window size to use when computing the coverage along the genome."
-                },
-                "tumor_min_coverage": {
-                    "title": "Tumor minimum coverage",
-                    "type": "number",
-                    "default": 20,
-                    "hidden": false,
-                    "description": "Minimum read coverage for the tumor sample required to run analysis.",
-                    "help_text": "Tumor bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
-                },
-                "normal_min_coverage": {
-                    "title": "Normal minimum coverage",
-                    "type": "number",
-                    "default": 20,
-                    "hidden": false,
-                    "description": "Minimum read coverage for the normal sample required to run analysis.",
-                    "help_text": "Normal bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
-                }
-            }
-        },
         "sv_calling": {
-            "title": "Options for the somatic structural variant calling",
+            "title": "Somatic structural variant calling options",
             "type": "object",
             "fa_icon": "fas fa-arrow-left",
             "description": "Parameters for tweaking the run of the SV module.",
@@ -367,18 +366,19 @@
             "type": "object",
             "description": "Options specific to the methyl calling subworkflow.",
             "properties": {
-                "modkit_args": {
-                    "title": "Modkit additional arguments",
-                    "type": "string",
-                    "description": "The additional options for modkit.",
-                    "help_text": "This is advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow."
-                },
                 "force_strand": {
                     "title": "Force strand",
                     "type": "boolean",
                     "default": false,
                     "description": "Require modkit to call strand-aware modifications.",
                     "help_test": "By default strand calls are collapsed (strand reported as '.'). Enabling this will force stranding to be considered when calling modifications, creating one output per modification per strand and the report will be tabulated by both modification and strand."
+                },
+                "modkit_args": {
+                    "title": "Modkit additional arguments",
+                    "type": "string",
+                    "description": "The additional options for modkit.",
+                    "hidden": true,
+                    "help_text": "This is an advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow. . To provide custom arguments to `modkit` from command line proceed as follow: `--modkit_args=\"--preset traditional\"`"
                 }
             }
         },
@@ -392,43 +392,43 @@
                 "ubam_map_threads": {
                     "type": "integer",
                     "default": 8,
-                    "description": "Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus)"
+                    "description": "Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus)."
                 },
                 "ubam_sort_threads": {
                     "type": "integer",
                     "default": 3,
-                    "description": "Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus)"
+                    "description": "Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus)."
                 },
                 "ubam_bam2fq_threads": {
                     "type": "integer",
                     "default": 1,
-                    "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)"
+                    "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)."
                 },
                 "annotation_threads": {
                     "type": "integer",
                     "default": 4,
-                    "description": "Total number of threads to use in snpEff annotation (limited by config executor cpus)"
+                    "description": "Total number of threads to use in SnpEff annotation (limited by config executor cpus)."
                 },
                 "nanomonsv_get_threads": {
                     "type": "integer",
                     "default": 4,
-                    "description": "Total number of threads to use in nanomonsv get (minimum of 2 and limited by config executor cpus)"
+                    "description": "Total number of threads to use in `nanomonsv get` (minimum of 2 and limited by config executor cpus)."
                 },
                 "dss_threads": {
                     "type": "integer",
                     "default": 1,
-                    "description": "Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus)",
+                    "description": "Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus).",
                     "help_test": "The DSS R Package step identifies differentially modified loci and regions, a computationally intensive step. Increasing this parameter speeds up the analysis, at the cost of increased memory requirements."
                 },
                 "modkit_threads": {
                     "type": "integer",
                     "default": 4,
-                    "description": "Total number of threads to use in modkit modified base calling (limited by config executor cpus)"
+                    "description": "Total number of threads to use in modkit modified base calling (limited by config executor cpus)."
                 },
                 "haplotype_filter_threads": {
                     "type": "integer",
                     "default": 4,
-                    "description": "Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus)"
+                    "description": "Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus)."
                 }
             }
         },
@@ -528,8 +528,16 @@
             "type": "boolean"
         }
     },
-    "docs": {
-        "intro": "## Introduction\n\nThis workflow enables analysis of somatic variation using the following tools:\n1. [ClairS](https://github.com/HKU-BAL/ClairS)\n2. [Nanomonsv](https://github.com/friend1ws/nanomonsv)\n3. [modkit](https://github.com/nanoporetech/modkit)\n",
-        "links": "## Useful links\n\n* [nextflow](https://www.nextflow.io/)\n* [docker](https://www.docker.com/products/docker-desktop)\n* [singularity](https://docs.sylabs.io/guides/latest/user-guide/)\n* [ClairS](https://github.com/HKU-BAL/ClairS)\n* [Clair3](https://github.com/HKU-BAL/Clair3)\n* [mosdepth](https://github.com/brentp/mosdepth)\n* [fastcat](https://github.com/epi2me-labs/fastcat)\n* [minimap2](https://github.com/lh3/minimap2)\n* [samtools](https://github.com/samtools/samtools)\n* [bcftools](https://samtools.github.io/bcftools/bcftools.html)\n* [pysam](https://github.com/pysam-developers/pysam)\n* [tabix](https://github.com/samtools/htslib)\n* [nanomonsv](https://github.com/friend1ws/nanomonsv)\n* [modkit](https://github.com/nanoporetech/modkit)\n"
+    "resources": {
+        "recommended": {
+            "cpus": 64,
+            "memory": "256GB"
+        },
+        "minimum": {
+            "cpus": 12,
+            "memory": "32GB"
+        },
+        "run_time": "Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 cores machine with 256Gb of memory.",
+        "arm_support": false
     }
 }

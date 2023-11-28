@@ -1,0 +1,92 @@
+{
+  "files": {
+    "workflow-alignment-stats-report": {
+      "filepath": "./{{ alias }}.wf-somatic-variation-readQC-report.html",
+      "title": "Workflow alignment statistics report",
+      "description": "Report of the alignment statistics for each tumor/normal paired sample.",
+      "mime-type": "text/html",
+      "optional": false,
+      "type": "per-sample"
+    },
+    "workflow-snv-report": {
+      "filepath": "./{{ alias }}.wf-somatic-snv-report.html",
+      "title": "Workflow SNV report",
+      "description": "Report of the SNV for each tumor/normal paired sample.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "workflow-sv-report": {
+      "filepath": "./{{ alias }}.wf-somatic-sv-report.html",
+      "title": "Workflow SV report",
+      "description": "Report of the SV for each tumor/normal paired sample.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "workflow-mod-report": {
+      "filepath": "./{{ alias }}.wf-somatic-mod-report.html",
+      "title": "Workflow MOD report",
+      "description": "Report of the modified bases for each tumor/normal paired sample.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "snv-vcf": {
+      "filepath": "./{{ alias }}.wf-somatic-snv.vcf.gz",
+      "title": "Somatic short variant VCF",
+      "description": "VCF file with the somatic SNVs for the sample.",
+      "mime-type": "text/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "snv-vcf-index": {
+      "filepath": "./{{ alias }}.wf-somatic-snv.vcf.gz.tbi",
+      "title": "Somatic short variant VCF index",
+      "description": "The index of the resulting VCF file with the somatic SNVs for the sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "sv-vcf": {
+      "filepath": "./{{ alias }}.wf-somatic-sv.vcf.gz",
+      "title": "Somatic structural variant VCF",
+      "description": "VCF file with the somatic SVs for the sample.",
+      "mime-type": "text/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "sv-vcf-index": {
+      "filepath": "./{{ alias }}.wf-somatic-sv.vcf.gz.tbi",
+      "title": "Somatic structural variant VCF index",
+      "description": "The index of the resulting VCF file with the somatic SVs for the sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "mod-bedmethyl": {
+      "filepath": "./{{ alias }}_{{ type }}.wf_mod.bedmethyl.gz",
+      "title": "Modified bases BEDMethyl",
+      "description": "BED file with the aggregated modification counts for the tumor or normal sample.",
+      "mime-type": "text/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment": {
+      "filepath": "./{{ alias }}_{{ type }}.ht.{{ format }}",
+      "title": "Haplotagged alignment file",
+      "description": "BAM or CRAM file with the haplotagged reads for the tumor or normal sample.",
+      "mime-type": "application/x-gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment-index": {
+      "filepath": "./{{ alias }}_{{ type }}.ht.{{ format }}.{{ format_index }}",
+      "title": "Haplotagged alignment file index",
+      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor or normal sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    }
+  }
+}
