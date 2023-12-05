@@ -23,14 +23,14 @@ This workflow can be used for the following:
 Recommended requirements:
 
 + CPUs = 64
-+ memory = 256GB
++ Memory = 256GB
 
-Minimum requirement:
+Minimum requirements:
 
 + CPUs = 12
-+ memory = 32GB
++ Memory = 32GB
 
-Approximate run time: Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 cores machine with 256Gb of memory.
+Approximate run time: Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 core machine with 256Gb of memory.
 
 ARM processor support: False
 
@@ -177,17 +177,20 @@ Outputs files may be aggregated including information for all             sample
 
 | Title | File path | Description | Per sample or aggregated |
 |-------|-----------|-------------|--------------------------|
-| Workflow alignment statistics report | ./{{ alias }}.wf-somatic-variation-readQC-report.html | Report of the alignment statistics for each tumor/normal paired sample. | per-sample |
-| Workflow SNV report | ./{{ alias }}.wf-somatic-snv-report.html | Report of the SNV for each tumor/normal paired sample. | per-sample |
-| Workflow SV report | ./{{ alias }}.wf-somatic-sv-report.html | Report of the SV for each tumor/normal paired sample. | per-sample |
-| Workflow MOD report | ./{{ alias }}.wf-somatic-mod-report.html | Report of the modified bases for each tumor/normal paired sample. | per-sample |
-| Somatic short variant VCF | ./{{ alias }}.wf-somatic-snv.vcf.gz | VCF file with the somatic SNVs for the sample. | per-sample |
-| Somatic short variant VCF index | ./{{ alias }}.wf-somatic-snv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SNVs for the sample. | per-sample |
-| Somatic structural variant VCF | ./{{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. | per-sample |
-| Somatic structural variant VCF index | ./{{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
-| Modified bases BEDMethyl | ./{{ alias }}_{{ type }}.wf_mod.bedmethyl.gz | BED file with the aggregated modification counts for the tumor or normal sample. | per-sample |
-| Haplotagged alignment file | ./{{ alias }}_{{ type }}.ht.{{ format }} | BAM or CRAM file with the haplotagged reads for the tumor or normal sample. | per-sample |
-| Haplotagged alignment file index | ./{{ alias }}_{{ type }}.ht.{{ format }}.{{ format_index }} | The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor or normal sample. | per-sample |
+| Workflow alignment statistics report | {{ alias }}.wf-somatic-variation-readQC-report.html | Report of the alignment statistics for each tumor/normal paired sample. | per-sample |
+| Workflow SNV report | {{ alias }}.wf-somatic-snv-report.html | Report of the SNV for each tumor/normal paired sample. | per-sample |
+| Workflow SV report | {{ alias }}.wf-somatic-sv-report.html | Report of the SV for each tumor/normal paired sample. | per-sample |
+| Workflow MOD report | {{ alias }}.wf-somatic-mod-report.html | Report of the modified bases for each tumor/normal paired sample. | per-sample |
+| Somatic short variant VCF | {{ alias }}.wf-somatic-snv.vcf.gz | VCF file with the somatic SNVs for the sample. | per-sample |
+| Somatic short variant VCF index | {{ alias }}.wf-somatic-snv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SNVs for the sample. | per-sample |
+| Somatic structural variant VCF | {{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. | per-sample |
+| Somatic structural variant VCF index | {{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
+| Modified bases BEDMethyl (normal) | {{ alias }}_normal.wf_mod.bedmethyl.gz | BED file with the aggregated modification counts for the normal sample. | per-sample |
+| Modified bases BEDMethyl (tumor) | {{ alias }}_tumor.wf_mod.bedmethyl.gz | BED file with the aggregated modification counts for the tumor sample. | per-sample |
+| Haplotagged alignment file (normal) | {{ alias }}_normal.ht.bam | BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
+| Haplotagged alignment file index (normal) | {{ alias }}_normal.ht.bam.bai | The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
+| Haplotagged alignment file (tumor) | {{ alias }}_tumor.ht.bam | BAM or CRAM file with the haplotagged reads for the tumor sample. | per-sample |
+| Haplotagged alignment file index (tumor) | {{ alias }}_tumor.ht.bam.bai | The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor sample. | per-sample |
 
 
 
@@ -199,10 +202,7 @@ variants and modified bases aggregation from paired tumor/normal BAM files
 for a single sample.
 
 Per-sample files will be prefixed with respective aliases and represented
-below as {{ alias }}. Outputs per tumor or normal are represented
-below as {{ type }}. Outputs for different changes (e.g. 5mC or 5hmC)
-are represented below as {{ change }}. {{ format }} may refer to either BAM
-or CRAM, and {{ format_index }} may refer to either BAI or CRAI.
+below as {{ alias }}.
 
 ### 1. Input and data preparation.
 
