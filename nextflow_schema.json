@@ -537,7 +537,7 @@
             "cpus": 12,
             "memory": "32GB"
         },
-        "run_time": "Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 cores machine with 256Gb of memory.",
+        "run_time": "Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 core machine with 256Gb of memory.",
         "arm_support": false
     }
 }

@@ -1,7 +1,7 @@
 {
   "files": {
     "workflow-alignment-stats-report": {
-      "filepath": "./{{ alias }}.wf-somatic-variation-readQC-report.html",
+      "filepath": "{{ alias }}.wf-somatic-variation-readQC-report.html",
       "title": "Workflow alignment statistics report",
       "description": "Report of the alignment statistics for each tumor/normal paired sample.",
       "mime-type": "text/html",
@@ -9,7 +9,7 @@
       "type": "per-sample"
     },
     "workflow-snv-report": {
-      "filepath": "./{{ alias }}.wf-somatic-snv-report.html",
+      "filepath": "{{ alias }}.wf-somatic-snv-report.html",
       "title": "Workflow SNV report",
       "description": "Report of the SNV for each tumor/normal paired sample.",
       "mime-type": "text/html",
@@ -17,7 +17,7 @@
       "type": "per-sample"
     },
     "workflow-sv-report": {
-      "filepath": "./{{ alias }}.wf-somatic-sv-report.html",
+      "filepath": "{{ alias }}.wf-somatic-sv-report.html",
       "title": "Workflow SV report",
       "description": "Report of the SV for each tumor/normal paired sample.",
       "mime-type": "text/html",
@@ -25,7 +25,7 @@
       "type": "per-sample"
     },
     "workflow-mod-report": {
-      "filepath": "./{{ alias }}.wf-somatic-mod-report.html",
+      "filepath": "{{ alias }}.wf-somatic-mod-report.html",
       "title": "Workflow MOD report",
       "description": "Report of the modified bases for each tumor/normal paired sample.",
       "mime-type": "text/html",
@@ -33,15 +33,15 @@
       "type": "per-sample"
     },
     "snv-vcf": {
-      "filepath": "./{{ alias }}.wf-somatic-snv.vcf.gz",
+      "filepath": "{{ alias }}.wf-somatic-snv.vcf.gz",
       "title": "Somatic short variant VCF",
       "description": "VCF file with the somatic SNVs for the sample.",
-      "mime-type": "text/gzip",
+      "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
     },
     "snv-vcf-index": {
-      "filepath": "./{{ alias }}.wf-somatic-snv.vcf.gz.tbi",
+      "filepath": "{{ alias }}.wf-somatic-snv.vcf.gz.tbi",
       "title": "Somatic short variant VCF index",
       "description": "The index of the resulting VCF file with the somatic SNVs for the sample.",
       "mime-type": "application/octet-stream",
@@ -49,41 +49,65 @@
       "type": "per-sample"
     },
     "sv-vcf": {
-      "filepath": "./{{ alias }}.wf-somatic-sv.vcf.gz",
+      "filepath": "{{ alias }}.wf-somatic-sv.vcf.gz",
       "title": "Somatic structural variant VCF",
       "description": "VCF file with the somatic SVs for the sample.",
-      "mime-type": "text/gzip",
+      "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
     },
     "sv-vcf-index": {
-      "filepath": "./{{ alias }}.wf-somatic-sv.vcf.gz.tbi",
+      "filepath": "{{ alias }}.wf-somatic-sv.vcf.gz.tbi",
       "title": "Somatic structural variant VCF index",
       "description": "The index of the resulting VCF file with the somatic SVs for the sample.",
       "mime-type": "application/octet-stream",
       "optional": true,
       "type": "per-sample"
     },
-    "mod-bedmethyl": {
-      "filepath": "./{{ alias }}_{{ type }}.wf_mod.bedmethyl.gz",
-      "title": "Modified bases BEDMethyl",
-      "description": "BED file with the aggregated modification counts for the tumor or normal sample.",
-      "mime-type": "text/gzip",
+    "mod-bedmethyl-normal": {
+      "filepath": "{{ alias }}_normal.wf_mod.bedmethyl.gz",
+      "title": "Modified bases BEDMethyl (normal)",
+      "description": "BED file with the aggregated modification counts for the normal sample.",
+      "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
     },
-    "haplotagged-alignment": {
-      "filepath": "./{{ alias }}_{{ type }}.ht.{{ format }}",
-      "title": "Haplotagged alignment file",
-      "description": "BAM or CRAM file with the haplotagged reads for the tumor or normal sample.",
-      "mime-type": "application/x-gzip",
+    "mod-bedmethyl-tumor": {
+      "filepath": "{{ alias }}_tumor.wf_mod.bedmethyl.gz",
+      "title": "Modified bases BEDMethyl (tumor)",
+      "description": "BED file with the aggregated modification counts for the tumor sample.",
+      "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
     },
-    "haplotagged-alignment-index": {
-      "filepath": "./{{ alias }}_{{ type }}.ht.{{ format }}.{{ format_index }}",
-      "title": "Haplotagged alignment file index",
-      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor or normal sample.",
+    "haplotagged-alignment-normal": {
+      "filepath": "{{ alias }}_normal.ht.bam",
+      "title": "Haplotagged alignment file (normal)",
+      "description": "BAM or CRAM file with the haplotagged reads for the normal sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment-index-normal": {
+      "filepath": "{{ alias }}_normal.ht.bam.bai",
+      "title": "Haplotagged alignment file index (normal)",
+      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment-tumor": {
+      "filepath": "{{ alias }}_tumor.ht.bam",
+      "title": "Haplotagged alignment file (tumor)",
+      "description": "BAM or CRAM file with the haplotagged reads for the tumor sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment-index-tumor": {
+      "filepath": "{{ alias }}_tumor.ht.bam.bai",
+      "title": "Haplotagged alignment file index (tumor)",
+      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the tumor sample.",
       "mime-type": "application/octet-stream",
       "optional": true,
       "type": "per-sample"

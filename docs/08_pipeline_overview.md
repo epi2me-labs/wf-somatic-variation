@@ -3,10 +3,7 @@ variants and modified bases aggregation from paired tumor/normal BAM files
 for a single sample.
 
 Per-sample files will be prefixed with respective aliases and represented
-below as {{ alias }}. Outputs per tumor or normal are represented
-below as {{ type }}. Outputs for different changes (e.g. 5mC or 5hmC)
-are represented below as {{ change }}. {{ format }} may refer to either BAM
-or CRAM, and {{ format_index }} may refer to either BAI or CRAI.
+below as {{ alias }}.
 
 ### 1. Input and data preparation.
 
