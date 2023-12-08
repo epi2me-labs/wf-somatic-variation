@@ -10,12 +10,14 @@ below as {{ alias }}.
 The workflow relies on three primary input files:
 1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
 2. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample (either aligned or unaligned)
-3. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample (either aligned or unaligned)
+3. An optional [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample (either aligned or unaligned)
 
 The BAM files can be generated from:
 1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
 Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
+It is possible to run the workflow without the BAM file of the "normal" sample. See [tumor-only mode](#6-tumor-only-mode) for more details.
+
 
 ### 2. Data QC and pre-processing.
 The workflow starts by performing multiple checks of the input BAM files, as well as computing:
@@ -109,3 +111,10 @@ Users can further change the behaviour of `modkit` by passing options directly
 to modkit via the `--modkit_args` option. This will override any preset,
 and allow full control over the run of modkit. For more details on the usage
 of `modkit pileup`, checkout the software [documentation](https://nanoporetech.github.io/modkit/).
+
+### 6. Tumor-only mode
+
+It is possible to run a reduced version of the workflow using only the tumor BAM files.
+Currently, the following components can run in tumor-only mode:
+- base workflow: BAM coverage and QC statistics
+- `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection

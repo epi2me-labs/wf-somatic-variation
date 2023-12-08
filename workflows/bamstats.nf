@@ -131,18 +131,18 @@ process get_shared_region {
     """
 }
 
-// Make report
+// Make report.
 process makeQCreport {
     input: 
         tuple val(meta), 
-            path("readstats_normal.tsv.gz"),
-            path("flagstat_normal.tsv"),
-            path("summary_depth_normal.tsv"),
-            path("depth_normal.tsv.gz"),
-            path("readstats_tumor.tsv.gz"),
-            path("flagstat_tumor.tsv"),
-            path("summary_depth_tumor.tsv"),
-            path("depth_tumor.tsv.gz"),
+            path(readstats_normal, stageAs: "readstats_normal/*"),
+            path(flagstats_normal, stageAs: "flagstat_normal/*"),
+            path(depth_summary_normal, stageAs: "summary_depth_normal/*"),
+            path(depth_regions_normal, stageAs: "depth_normal/*"),
+            path(readstats_tumor, stageAs: "readstats_tumor/*"),
+            path(flagstats_tumor, stageAs: "flagstat_tumor/*"),
+            path(depth_summary_tumor, stageAs: "summary_depth_tumor/*"),
+            path(depth_regions_tumor, stageAs: "depth_tumor/*"),
             path("ref.fa.fai")
         path "versions.txt"
         path "params.json"
@@ -154,6 +154,10 @@ process makeQCreport {
         // If no *_min_coverage provided, or set to null by mistake, set it to 0.
         def tumor_cvg = params.tumor_min_coverage ?: 0
         def normal_cvg = params.normal_min_coverage ?: 0
+        def normal_readstats_arg = params.bam_normal ? "--read_stats_normal ${readstats_normal}" : ""
+        def normal_flagstats_arg = params.bam_normal ? "--flagstat_normal ${flagstats_normal}" : ""
+        def normal_depth_summary_arg = params.bam_normal ? "--mosdepth_summary_normal ${depth_summary_normal}" : ""
+        def normal_depth_region_arg = params.bam_normal ? "--depth_normal ${depth_regions_normal}" : ""
         """
         workflow-glue report_qc \\
             --window_size ${params.depth_window_size} \\
@@ -161,14 +165,14 @@ process makeQCreport {
             --normal_cov_threshold ${normal_cvg} \\
             --sample_id ${meta.sample} \\
             --name ${meta.sample}.wf-somatic-variation-readQC \\
-            --read_stats_normal readstats_normal.tsv.gz \\
-            --read_stats_tumor readstats_tumor.tsv.gz \\
-            --flagstat_tumor flagstat_tumor.tsv \\
-            --flagstat_normal flagstat_normal.tsv \\
-            --mosdepth_summary_tumor summary_depth_tumor.tsv \\
-            --mosdepth_summary_normal summary_depth_normal.tsv \\
-            --depth_tumor depth_tumor.tsv.gz \\
-            --depth_normal depth_normal.tsv.gz \\
+            --read_stats_tumor ${readstats_tumor} \\
+            ${normal_readstats_arg} \\
+            --flagstat_tumor ${flagstats_tumor} \\
+            ${normal_flagstats_arg} \\
+            --mosdepth_summary_tumor ${depth_summary_tumor} \\
+            ${normal_depth_summary_arg} \\
+            --depth_tumor ${depth_regions_tumor} \\
+            ${normal_depth_region_arg} \\
             --reference_fai ref.fa.fai \\
             --versions versions.txt \\
             --params params.json
@@ -206,14 +210,14 @@ workflow alignment_stats {
         depths = mosdepth(bamfiles, bed.collect(), ref.collect())
 
         // Combine the outputs for the different statistics.
-        // Fo the reporting we will need:
+        // For the reporting we will need:
         // 1. Read stats
         // 2. flagstats
         // 3. Per-base depth
         // 4. Depth summary
-        stats.read_stats.map{meta, rstats->[meta, rstats]}
-            .combine(stats.flagstat.map{meta, fstats->[meta, fstats]}, by:0)
-            .combine(depths.summary.map{meta, depth_sum->[meta, depth_sum]}, by:0)
+        stats.read_stats
+            .combine(stats.flagstat, by:0)
+            .combine(depths.summary, by:0)
             .combine(depths.mosdepth_tuple.map{meta, reg, dist, thresh ->[meta, reg]}, by:0)
             .set{ for_report }
 
@@ -224,17 +228,44 @@ workflow alignment_stats {
                 normal: it[0].type == 'normal'
             }
             .set{forked_channel}
-        forked_channel.normal
-            .map{ it -> [ it[0].sample ] + it } 
-            .cross(
-                forked_channel.tumor.map{ it -> [ it[0].sample ] + it } 
-            )
-            .map { normal, tumor ->
-                    [tumor[1]] + normal[2..-1] + tumor[2..-1]
-                } 
-            .combine(ref.map{it[1]})
-            .set{paired_samples}
-        
+
+        // If normal is provided, then create the channel normally
+        // by crossing the normal and the tumor using the sample name.
+        // Then, extract the relevant files reporting the tumor meta, followed
+        // by the normal statistics and then the tumor statistics. Finally,
+        // add the reference channel.
+        if (params.bam_normal){
+            forked_channel.normal
+                .map{ it -> [ it[0].sample ] + it } 
+                .cross(
+                    forked_channel.tumor.map{ it -> [ it[0].sample ] + it } 
+                )
+                .map { normal, tumor ->
+                        [tumor[1]] + normal[2..-1] + tumor[2..-1]
+                    } 
+                .combine(ref.map{it[1]})
+                .set{paired_samples}
+        } else {
+            // If no normal is provided, then pass the optional file as
+            // place-holder for the normal files.
+            forked_channel.tumor
+                .map { meta, readstats, flagstats, depth_summary, depth_regions ->
+                        [
+                            meta,
+                            file("$projectDir/data/OPTIONAL_FILE"), 
+                            file("$projectDir/data/OPTIONAL_FILE"), 
+                            file("$projectDir/data/OPTIONAL_FILE"), 
+                            file("$projectDir/data/OPTIONAL_FILE"), 
+                            readstats, 
+                            flagstats, 
+                            depth_summary, 
+                            depth_regions
+                        ]
+                    } 
+                .combine(ref.map{it[1]})
+                .set{paired_samples}
+        }
+        // Create the report
         makeQCreport(paired_samples, versions, parameters)
 
         // Prepare output channel

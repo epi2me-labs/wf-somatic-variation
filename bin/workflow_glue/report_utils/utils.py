@@ -1,4 +1,5 @@
 """Global variables commonly used in other scripts."""
+from dominate.tags import div, p
 from ezcharts.plots import util
 import numpy as np
 from seaborn._statistics import Histogram
@@ -18,6 +19,12 @@ PRECISION = 4
 
 
 # Utility functions
+def display_alert(*argv):
+    """Display alert in report."""
+    with div(cls="alert alert-warning"):
+        p(argv)
+
+
 def hist_max(variable_data, binwidth=None, bins='auto'):
     """Compute max value to set in a plot."""
     estimate_kws = dict(

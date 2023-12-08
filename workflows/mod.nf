@@ -237,6 +237,7 @@ process dss {
 }
 
 
+// Make report.
 process makeModReport {
     input: 
         tuple val(meta), 
@@ -266,7 +267,6 @@ process makeModReport {
             --params params.json ${genome}
         """
 }
-
 
 process output_modbase {
     // publish inputs to output directory
@@ -360,27 +360,46 @@ workflow mod {
             tumor: it[0].type == 'tumor'
             normal: it[0].type == 'normal'
         }.set{forked_sum}
-        forked_sum.normal
-            .map{meta, summary -> [meta.sample, summary, meta]}
-            .combine(
-                forked_sum.tumor.map{meta, summary -> [meta.sample, summary, meta]}, 
-                by:0
-            )
-            .map{sample, norm_summary, norm_meta, tum_summary, tum_meta -> [tum_meta, norm_summary, tum_summary ] }
-            .set{combined_summaries}
-        dss.out.dml
-            .combine(dss.out.dmr, by: [0,1])
-            .groupTuple(by:0)
-            .combine(combined_summaries, by: 0)
-            .combine(reference)
-            .map{
-                meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
-                [meta, sum_n, sum_t, dms, dmr, fai]
-            }
-            .combine(software_versions)
-            .combine(workflow_params)
-            .set{ for_report }
-        makeModReport(for_report)
+        // If the normal bam is provided, pass the normal output to the reporting process.
+        if (params.bam_normal){
+            // Combine the summaries first.
+            forked_sum.normal
+                .map{meta, summary -> [meta.sample, summary, meta]}
+                .combine(
+                    forked_sum.tumor.map{meta, summary -> [meta.sample, summary, meta]}, 
+                    by:0
+                )
+                .map{sample, norm_summary, norm_meta, tum_summary, tum_meta -> [tum_meta, norm_summary, tum_summary ] }
+                .set{combined_summaries}
+            // Then, combine the DSS outputs (DML and DMR) with the summaries.
+            dss.out.dml
+                .combine(dss.out.dmr, by: [0,1])
+                .groupTuple(by:0)
+                .combine(combined_summaries, by: 0)
+                .combine(reference)
+                // Remove unnecessary inputs (reference sequences/cache and modification names).
+                .map{
+                    meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
+                    [meta, sum_n, sum_t, dms, dmr, fai]
+                }
+                .set{ for_report }
+            makeModReport(
+                    for_report.combine(software_versions).combine(workflow_params)
+                )
+        // Otherwise, pass OPTIONAL_FILE
+        } else {
+            // Use only the one summary, and replace the DSS outputs and normal summary with OPTIONAL_FILE.
+            forked_sum.tumor
+                .combine(reference)
+                .map{
+                    meta, summary, ref, fai, cache, ref_path ->                     
+                    [meta, file("$projectDir/data/OPTIONAL_FILE"), summary, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE"), fai]
+                }
+                .set{ for_report }
+            makeModReport(
+                    for_report.combine(software_versions).combine(workflow_params)
+                )
+        }
 
         // Create output directory
         modbed.map{
