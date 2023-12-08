@@ -56,16 +56,16 @@ workflow {
         log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --mod]" + colors.reset)
         can_start = false
     }
-    if (!params.bam_normal || !params.bam_tumor) {
-        log.error (colors.red + "The workflow cannot run without passing both --bam_normal and --bam_tumor" + colors.reset)
-        can_start = false
-    }
-    if (!file(params.bam_normal).exists()) {
-        log.error (colors.red + "The workflow cannot run without passing a valid bam normal file" + colors.reset)
-        can_start = false
-    }
     if (!file(params.bam_tumor).exists()) {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
+        can_start = false
+    }
+    if (!params.bam_normal && (params.sv || params.snv)) {
+        log.error (colors.red + "The tumor-only mode is available only with --mod" + colors.reset)
+        can_start = false
+    }
+    if (params.bam_normal && !file(params.bam_normal).exists()){
+        log.error (colors.red + "The workflow cannot run without passing a valid bam normal file" + colors.reset)
         can_start = false
     }
     if (!params.germline) {
@@ -136,19 +136,28 @@ workflow {
     /*
     * Start processing the bam files
     * It accepts two bam files: 
-    * 1. Control bam
-    * 2. Cancer bam
+    * 1. Tumor bam
+    * 2. Control bam (optional for mod)
     */
-    bam_normal = bam_ingress_normal(
-            ref,
-            ref_index,
-            params.bam_normal,
-        )
+    // If running in tumor-only mode, create an empty channel.
+    if (params.bam_normal){
+        bam_normal = bam_ingress_normal(
+                ref,
+                ref_index,
+                params.bam_normal,
+            )
+    } else {
+        bam_normal = Channel.empty()
+    }
+
+    // Import the tumor, which is always required.
     bam_tumor = bam_ingress_tumor(
             ref,
             ref_index,
             params.bam_tumor,
-        )   
+        )
+
+    // Combine everything
     all_bams = bam_normal
                 .map{ bam, bai, meta -> 
                     meta.sample = params.sample_name

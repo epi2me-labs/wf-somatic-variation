@@ -119,7 +119,6 @@
             },
             "required": [
                 "ref",
-                "bam_normal",
                 "bam_tumor"
             ]
         },

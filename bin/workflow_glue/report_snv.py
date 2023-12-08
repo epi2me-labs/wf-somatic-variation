@@ -3,7 +3,7 @@
 
 import os
 
-from dominate.tags import a, div, h6, p
+from dominate.tags import a, h6, p
 from ezcharts.components.bcfstats import load_bcfstats
 from ezcharts.components.clinvar import load_clinvar_vcf
 from ezcharts.components.ezchart import EZChart
@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import pysam
 
-from .report_utils.utils import COLORS, PRECISION  # noqa: ABS101
+from .report_utils.utils import COLORS, display_alert, PRECISION  # noqa: ABS101
 from .report_utils.visualizations import plot_profile  # noqa: ABS101
 from .report_utils.visualizations import plot_spectra  # noqa: ABS101
 from .report_utils.visualizations import scatter_plot  # noqa: ABS101
@@ -138,29 +138,25 @@ def main(args):
 
     with report.add_section('At a glance', 'Summary'):
         if args.no_germline:
-            with div(cls="alert alert-warning"):
-                p(
-                    "This report was produced in somatic only mode,"
-                    " no germline calling was performed."
-                )
+            display_alert(
+                "This report was produced in somatic-only mode,"
+                " no germline calling was performed."
+            )
         if args.normal_vcf:
-            with div(cls="alert alert-warning"):
-                p(
-                    "Germline calls for the normal sample were provided by the user",
-                    f" in file {args.normal_vcf}"
-                )
+            display_alert(
+                "Germline calls for the normal sample were provided by the user",
+                f" in file {args.normal_vcf}"
+            )
         if args.hybrid_mode_vcf_fn:
-            with div(cls="alert alert-warning"):
-                p(
-                    "Hybrid calling from VCF file provided by the user",
-                    f": {args.hybrid_mode_vcf_fn}"
-                )
+            display_alert(
+                "Hybrid calling from VCF file provided by the user",
+                f": {args.hybrid_mode_vcf_fn}"
+            )
         if args.genotyping_mode_vcf_fn:
-            with div(cls="alert alert-warning"):
-                p(
-                    "Genotyping sites in VCF file provided by the user",
-                    f": {args.genotyping_mode_vcf_fn}"
-                )
+            display_alert(
+                "Genotyping sites in VCF file provided by the user",
+                f": {args.genotyping_mode_vcf_fn}"
+            )
         tabs = Tabs()
         with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
@@ -226,7 +222,9 @@ def main(args):
                             f'Filtered Tumor vs Normal VAF ({vt})',
                             xaxis='Normal VAF', yaxis='Tumor VAF',
                             min_x=0, max_x=1, min_y=0, max_y=1)
-                        plt.color = [COLORS.cerulean if vt == 'SNV' else COLORS.green]
+                        plt.color = [
+                            COLORS.cerulean if vt == 'SNV' else COLORS.cinnabar
+                        ]
                         for s in plt.series:
                             s.symbolSize = 3
                             s.encode = {
