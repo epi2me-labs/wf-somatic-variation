@@ -4,8 +4,8 @@ include {
     nanomonsv_parse;
     nanomonsv_filter;
     nanomonsv_classify;
-    nanomonsv_get;
     annotate_classify;
+    nanomonsv_get;
     annotate_filter;
     postprocess_nanomon_vcf;
     sortVCF;
@@ -17,43 +17,66 @@ include {
 } from "../modules/local/wf-somatic-sv.nf"
 include {bgzipper; tabixer; annotate_vcf as annotate_sv} from "../modules/local/common.nf"
 
-
 workflow somatic_sv {
     take:
-        input_bam
+        input_xam
         reference
         optional_file
     main:
         // Run nanomonsv parse on all the files
-        nanomonsv_parse(input_bam, reference.collect())
+        nanomonsv_parse(input_xam, reference.collect())
 
-        // Separate normal and tumor
-        nanomonsv_parse.out.branch{
-            tumor: it[3].type == 'tumor'
-            normal: it[3].type == 'normal'
-        }.set{forked_channel}
+        if (params.bam_normal) {
+            // Separate normal and tumor
+            nanomonsv_parse.out.branch{
+                tumor: it[0].type == 'tumor'
+                normal: it[0].type == 'normal'
+            }.set{forked_channel}
 
-        // This section combine tumor/normal pairs for each sample.
-        // Use cross to combine based on the sample ID, returning a tuple with this structure:
-        // [ 
-        //  [sampleID, cram, crai], 
-        //  [sampleID, tissue, cram, crai] 
-        // ] 
-        // The first entry is always the normal, the second is the tumor tissue.
-        // Then uses map to create a metadata for each sample x tissue combination and 
-        // returns a tuple with [metadata, CRAM normal, CRAI normal, CRAM tumor, CRAI tumor] 
-        forked_channel.normal
-            .map{ bam, bai, cache, meta -> [ meta.sample, bam, bai, cache, meta ] } 
-            .cross(
-                forked_channel.tumor.map{ bam, bai, cache, meta -> [ meta.sample, bam, bai, cache, meta ] }
-            )
-            .map { normal, tumor ->
-                    [tumor[4], normal[1], normal[2], normal[3], tumor[1], tumor[2], tumor[3]]
+            // This section combine tumor/normal pairs for each sample.
+            // Use cross to combine based on the sample ID, returning a tuple with this structure:
+            // [ 
+            //  [sampleID, cram, crai], 
+            //  [sampleID, tissue, cram, crai] 
+            // ] 
+            // The first entry is always the normal, the second is the tumor tissue.
+            // Then uses map to create a metadata for each sample x tissue combination and 
+            // returns a tuple with [metadata, CRAM normal, CRAI normal, CRAM tumor, CRAI tumor] 
+            forked_channel.normal
+                .map{ 
+                    meta, xam, xam_idx, cache -> 
+                    [ meta.sample, meta, xam, xam_idx, cache ]
+                }
+                .cross(
+                    forked_channel.tumor.map{ 
+                        meta, xam, xam_idx, cache -> 
+                        [ meta.sample, meta, xam, xam_idx, cache ]
+                    }
+                )
+                .map { normal, tumor ->
+                    [tumor[1]] + normal[2..4] + tumor[2..4]
                 } 
-            .set{paired_samples}
+                .set{parsed_samples}
+        } else {
+            // For the tumor only mode, use the OPTIONAL_FILE is not a viable solution. This is because
+            // multiple optional files would be staged in the same subdirectory, and would require to be 
+            // stagedAs either bam or cram, as both are supported and possible at this stage. Enforcing
+            // files to be saved as bam is not an ideal solution, as it would cause to unnecessarily bloat
+            // the working directory.
+            // To overcome the issue, we:
+            // 1. Stage the additional optional files.
+            optional_xam = file("$projectDir/data/OPTIONAL_FILE.bam")
+            optional_xai = file("$projectDir/data/OPTIONAL_FILE.bam.bai")
+            // 2. Create the input channel.
+            parsed_samples = nanomonsv_parse.out
+                .map{ 
+                    meta, xam, xam_idx, cache -> 
+                    [ meta, optional_xam, optional_xai, optional_file, xam, xam_idx, cache ]
+                }
+        }
 
         // Run standard nanomonsv get if 1 fragment is specified
-        nanomonsv_get(paired_samples, reference)
+        nanomonsv_get(parsed_samples, reference)
         ch_vcf = nanomonsv_get.out.vcf
         ch_txt = nanomonsv_get.out.txt
         ch_sbd = nanomonsv_get.out.single_breakend

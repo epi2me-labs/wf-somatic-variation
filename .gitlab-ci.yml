@@ -243,10 +243,11 @@ docker-run:
         - if: $MATRIX_NAME == "tumor-only"
           variables:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
-              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--mod --sv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
-                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                     dss,makeModReport"
@@ -261,7 +262,67 @@ docker-run:
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
               ASSERT_NEXTFLOW_FAILURE: "yes"
-              ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is available only with --mod"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is not available with --snv"
+
+aws-run:
+    stage: test
+    artifacts:
+        when: always
+        paths:
+            - ${CI_PROJECT_NAME}
+            - .nextflow.log
+        exclude:
+            - ${CI_PROJECT_NAME}/**/*.bam
+            - ${CI_PROJECT_NAME}/**/*.cram
+            - ${CI_PROJECT_NAME}/**/*.fa
+            - ${CI_PROJECT_NAME}/**/*.fna
+            - ${CI_PROJECT_NAME}/**/*.fasta
+            - ${CI_PROJECT_NAME}/**/ref_cache/**
+    variables:
+        CWG_AWS_ENV_NAME: "stack"
+
+    # Define a 1D job matrix to inject a variable named MATRIX_NAME into
+    #   the CI environment, we can use the value of MATRIX_NAME to determine
+    #   which options to apply as part of the rules block below
+    # NOTE There is a slightly cleaner way to define this matrix to include
+    #   the variables, but it is broken when using long strings! See CW-756
+    parallel:
+        matrix:
+            - MATRIX_NAME: [
+                "wf-somatic-tumor-only",
+                "wf-somatic-variation"
+              ]
+    rules:
+        # NOTE As we're overriding the rules block for the included docker-run
+        #   we must redefine this CI_COMMIT_BRANCH rule to prevent docker-run
+        #   being incorrectly scheduled for "detached merge request pipelines" etc.
+        - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
+          when: never
+
+        - if: $MATRIX_NAME == "wf-somatic-tumor-only"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--mod --sv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+                    dss,makeModReport"
+
+        - if: $MATRIX_NAME == "wf-somatic-variation"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--mod --sv --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+                    dss,makeModReport"
 
 macos-run:
   # Let's avoid those ARM64 runners for now

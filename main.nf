@@ -60,8 +60,8 @@ workflow {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
         can_start = false
     }
-    if (!params.bam_normal && (params.sv || params.snv)) {
-        log.error (colors.red + "The tumor-only mode is available only with --mod" + colors.reset)
+    if (!params.bam_normal && params.snv) {
+        log.error (colors.red + "The tumor-only mode is not available with --snv" + colors.reset)
         can_start = false
     }
     if (params.bam_normal && !file(params.bam_normal).exists()){

@@ -20,37 +20,38 @@ process nanomonsv_parse {
     label "wf_somatic_sv"
     cpus 1
     input:
-        tuple path(bam), path(bai), val(meta)
+        tuple path(xam), path(xam_idx), val(meta)
         tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         
     output:
-        tuple path(bam), path(bai), path("${meta.sample}_${meta.type}/*"), val(meta)
+        tuple val(meta), path(xam), path(xam_idx), path("${meta.sample}_${meta.type}/*")
     script:
     """
     mkdir ${meta.sample}_${meta.type}/
-    nanomonsv parse ${bam} "${meta.sample}_${meta.type}/${meta.sample}"
+    nanomonsv parse ${xam} "${meta.sample}_${meta.type}/${meta.sample}"
     """
 }
 
 
-// Old method for nanomonsv get
+// Run nanomonsv get on paired tumor/normal samples
 process nanomonsv_get {
     label "wf_somatic_sv"
     label "avx2"
     // Use at least 2 cores
-    cpus params.nanomonsv_get_threads < 2 ? 2 : params.nanomonsv_get_threads 
+    cpus params.nanomonsv_get_threads < 2 ? 2 : params.nanomonsv_get_threads
     input:
         tuple val(meta),
-            path(bam_normal, stageAs: "norm/*"), 
-            path(bai_normal, stageAs: "norm/*"), 
-            path(parsed_normal, stageAs: "parsed_normal/*"), 
-            path(bam_tumor, stageAs: "tum/*"), 
-            path(bai_tumor, stageAs: "tum/*"), 
-            path(parsed_tumor, stageAs: "parsed_tumor/*")            
+            path(xam_normal, stageAs: "norm/*"),
+            path(xam_idx_normal, stageAs: "norm/*"),
+            path(parsed_normal, stageAs: "parsed_normal/*"),
+            path(xam_tumor, stageAs: "tum/*"),
+            path(xam_idx_tumor, stageAs: "tum/*"),
+            path(parsed_tumor, stageAs: "parsed_tumor/*")
         tuple path(ref), 
             path(fai), 
             path(ref_cache), 
             env(REF_PATH)
+
     output:
         tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.txt"), emit: txt
         tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.vcf"), emit: vcf
@@ -60,21 +61,21 @@ process nanomonsv_get {
     script:
     def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
     def qv = params.qv ? "--qv${params.qv}" : ""
+    // If bam_normal is provided, then process it.
+    def control_bam = params.bam_normal ? "--control_bam ${xam_normal} --control_prefix parsed_normal/${meta.sample}" : ""
     """
     nanomonsv get \\
         "parsed_tumor/${meta.sample}" \\
-        ${bam_tumor} \\
+        ${xam_tumor} \\
         ${ref} \\
         --min_indel_size ${params.min_sv_length} \\
-        --control_prefix "parsed_normal/${meta.sample}" \\
-        --control_bam ${bam_normal} \\
+        ${control_bam} \\
         --processes ${ncores} \\
         --single_bnd \\
         --use_racon \\
         --max_memory_minimap2 2 ${qv}
     """
 }
-
 
 // Filter SVs in tandem repeat
 process nanomonsv_filter {
@@ -182,10 +183,11 @@ process postprocess_nanomon_vcf {
     output:
         tuple val(meta), path("${params.sample_name}.wf-somatic-sv.vcf")
     script:
+    def tumor_only = params.bam_normal ? "" : "--tumor_only"
     """
     # Filter out sites with END < POS
     bcftools filter -e "INFO/END < POS" input.vcf > filtered.vcf
-    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf-somatic-sv.vcf"
+    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf-somatic-sv.vcf" $tumor_only
     """
 }
 
@@ -237,6 +239,7 @@ process report {
         // (https://github.com/nextflow-io/nextflow/issues/3574); needs to be
         // `path.fileName.name` instead
         def evalResults = eval_json.fileName.name == 'OPTIONAL_FILE' ? "" : "--eval_results ${eval_json}"
+        def tumorOnly = params.bam_normal ? "" : "--tumor_only"
     """
     workflow-glue report_sv \
         $report_name \
@@ -246,7 +249,7 @@ process report {
         --versions $versions \
         --revision ${workflow.revision} \
         --commit ${workflow.commitId} \
-        $evalResults
+        $evalResults $tumorOnly
     """
 }
 
