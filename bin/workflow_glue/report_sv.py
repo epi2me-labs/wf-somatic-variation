@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Create workflow report."""
-from dominate.tags import p
+from dominate.tags import a, p
 from ezcharts.components.common import CATEGORICAL
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
@@ -12,7 +12,8 @@ import pandas as pd
 import pysam
 
 from .report_utils.utils import compare_max_axes  # noqa: ABS101
-from .report_utils.utils import COLORS, PRECISION  # noqa: ABS101
+from .report_utils.utils import COLORS, display_alert  # noqa: ABS101
+from .report_utils.utils import PRECISION  # noqa: ABS101
 from .report_utils.visualizations import hist_plot  # noqa: ABS101
 from .report_utils.visualizations import scatter_plot  # noqa: ABS101
 from .util import wf_parser  # noqa: ABS101
@@ -226,6 +227,13 @@ def main(args):
         p(
             "This section displays a description"
             " of the variant calls made by nanomonsv.")
+        if args.tumor_only:
+            display_alert(
+                "Workflow run in tumor-only mode; this mode has not been tested for ",
+                "performance, as described in the namomonsv get ",
+                a('page', href="https://github.com/friend1ws/nanomonsv#get"),
+                "."
+            )
         sv_stats(vcf_data)
         if dropped_svs > 0:
             p(
@@ -282,6 +290,10 @@ def argparser():
         "--vcf",
         nargs='+',
         required=True)
+    parser.add_argument(
+        "--tumor_only",
+        action="store_true",
+        default=False)
     parser.add_argument(
         "--genome",
         default='hg38',

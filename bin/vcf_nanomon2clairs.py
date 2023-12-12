@@ -4,6 +4,8 @@
 import argparse
 import gzip
 
+from workflow_glue.report_utils.utils import PRECISION  # noqa: ABS101
+
 
 def main():
     """Run entry point."""
@@ -15,8 +17,11 @@ def main():
         '--sample_id', required=False, default='SAMPLE',
         help="Sample ID")
     parser.add_argument(
-        '--control_id', required=False, default="CONTROL",
-        help="Control sample ID")
+        '--tumor_only', required=False, action="store_true",
+        help="The run was tumor-only")
+    parser.add_argument(
+        '--normal_id', required=False, default="CONTROL",
+        help="Normal sample ID")
     parser.add_argument(
         '--tumor_id', required=False, default="TUMOR",
         help="Tumor sample ID")
@@ -72,11 +77,10 @@ def main():
             header = line.strip().split()
             # Get field index in each record
             tumor_idx = header.index(args.tumor_id)
-            control_idx = header.index(args.control_id)
+            if not args.tumor_only:
+                normal_idx = header.index(args.normal_id)
             # Replace TUMOR/CONTROL with provided sample ID
-            header = [
-                f for n, f in enumerate(header) if n not in [tumor_idx, control_idx]] +\
-                [args.sample_id]
+            header = header[0:9] + [args.sample_id]
             # Write header line
             output_file.write('\t'.join(header) + '\n')
             continue
@@ -86,14 +90,21 @@ def main():
         record[header.index('FORMAT')] = 'GT:DP:AF:AD:NDP:NAF:NAD'
         # Prepare the allele frequencies, alleles depths and total depths
         # for normal and tumor samples.
-        ndp, nad = record[control_idx].split(':')
-        tdp, tad = record[tumor_idx].split(':')
-        naf = round(float(nad)/float(ndp), 4)
-        taf = round(float(tad)/float(tdp), 4)
+        tumor_dp, tumor_ad = record[tumor_idx].split(':')
+        tumor_af = round(float(tumor_ad)/float(tumor_dp), PRECISION)
+        # If not tumor-only, extract values; otherwise set to NA
+        if args.tumor_only:
+            normal_af = normal_dp = normal_ad = 0
+        else:
+            normal_dp, normal_ad = record[normal_idx].split(':')
+            normal_af = round(float(normal_ad)/float(normal_dp), PRECISION)
         # Remove old sample fields
-        record = [f for n, f in enumerate(record) if n not in [tumor_idx, control_idx]]
+        record = record[0:9]
         # Add the new sample
-        record.append(f'0/1:{tdp}:{taf}:{tad}:{ndp}:{naf}:{nad}')
+        record.append(
+            f'0/1:{tumor_dp}:{tumor_af}:{tumor_ad}' +
+            f':{normal_dp}:{normal_af}:{normal_ad}'
+        )
         # Save the record
         record = "\t".join(record)
         output_file.write(f'{record}\n')

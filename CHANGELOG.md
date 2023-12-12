@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 ### Added
-- tumor-only mode for the base workflow and modified base-calling.
+- Tumor-only mode for the base workflow, modified base aggregation and somatic SV calling.
 
 ## [v0.5.2]
 ### Changed
