@@ -357,6 +357,13 @@
                     "type": "integer",
                     "description": "Approximate single base quality value (QV), one of 10, 15, 20 or 25.",
                     "help_text": "Expected single base quality as described in the [nanomonsv web page](https://github.com/friend1ws/nanomonsv#get)."
+                },
+                "control_panel": {
+                    "title": "Control panel",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to the directory containing the non-matched control panel data generated with `nanomonsv merge_control`.",
+                    "help_text": "`nanomonsv get` can use a panel of non-matched control data to remove reads carrying common alleles; see [here](https://github.com/friend1ws/nanomonsv#control-panel) for more details."
                 }
             }
         },
