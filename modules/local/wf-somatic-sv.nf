@@ -51,7 +51,7 @@ process nanomonsv_get {
             path(fai), 
             path(ref_cache), 
             env(REF_PATH)
-
+        tuple path(control_panel), val(control_root)
     output:
         tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.txt"), emit: txt
         tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.vcf"), emit: vcf
@@ -63,6 +63,8 @@ process nanomonsv_get {
     def qv = params.qv ? "--qv${params.qv}" : ""
     // If bam_normal is provided, then process it.
     def control_bam = params.bam_normal ? "--control_bam ${xam_normal} --control_prefix parsed_normal/${meta.sample}" : ""
+    // Use input control panel for downstream analyses
+    def use_control_panel = params.control_panel ? "--control_panel_prefix ${control_panel}/${control_root}" : ""
     """
     nanomonsv get \\
         "parsed_tumor/${meta.sample}" \\
@@ -73,7 +75,8 @@ process nanomonsv_get {
         --processes ${ncores} \\
         --single_bnd \\
         --use_racon \\
-        --max_memory_minimap2 2 ${qv}
+        --max_memory_minimap2 2 \\
+        ${qv} ${use_control_panel}
     """
 }
 

@@ -148,7 +148,8 @@ docker-run:
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz"
+                  --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz \
+                  --control_panel wf-somatic-variation-demo/giab_merged_controls"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
         - if: $MATRIX_NAME == "snv-r10-som_only"
@@ -290,7 +291,8 @@ aws-run:
         matrix:
             - MATRIX_NAME: [
                 "wf-somatic-tumor-only",
-                "wf-somatic-variation"
+                "wf-somatic-variation",
+                "wf-somatic-variation-sv"
               ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
@@ -320,6 +322,20 @@ aws-run:
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+                    dss,makeModReport"
+
+        - if: $MATRIX_NAME == "wf-somatic-variation-sv"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz"
+              NF_WORKFLOW_OPTS: "--sv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
+                  --bam_normal wf-somatic-variation-demo/demo_normal.bam \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert \
+                  --control_panel wf-somatic-variation-demo/giab_merged_controls"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                     dss,makeModReport"

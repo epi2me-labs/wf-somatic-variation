@@ -48,6 +48,7 @@
 | min_sv_length | integer | Minimum SV size to call. | Provide the minimum size of the structural variants to call with nanomonsv. | 50 |
 | classify_insert | boolean | Perform SV insert classification. | Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences. | False |
 | qv | integer | Approximate single base quality value (QV), one of 10, 15, 20 or 25. | Expected single base quality as described in the [nanomonsv web page](https://github.com/friend1ws/nanomonsv#get). |  |
+| control_panel | string | Path to the directory containing the non-matched control panel data generated with `nanomonsv merge_control`. | `nanomonsv get` can use a panel of non-matched control data to remove reads carrying common alleles; see [here](https://github.com/friend1ws/nanomonsv#control-panel) for more details. |  |
 
 
 ### Methylation calling options

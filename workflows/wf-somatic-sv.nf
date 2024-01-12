@@ -23,6 +23,26 @@ workflow somatic_sv {
         reference
         optional_file
     main:
+        // Create mismatched control panel channel
+        // nanomonsv requires to provide the input in the format
+        // root_dir/root_name
+        // Where root_name is the common part of all the files in the
+        // root_dir after stripping file extensions (which we do here
+        // with simpleName). We can ignore the other files as only the
+        // common path is required by nanomonsv.
+        if (params.control_panel){
+            control_panel = Channel
+                .fromPath("${params.control_panel}/*", checkIfExists: true)
+                .map{fname -> [file(params.control_panel), fname.simpleName]}
+                .first()
+        } else {
+            control_panel = Channel
+                .fromPath("$projectDir/data/OPTIONAL_FILE")
+                .map{
+                    [it, 'OPTIONAL']
+                }
+        }
+
         // Run nanomonsv parse on all the files
         nanomonsv_parse(input_xam, reference.collect())
 
@@ -76,7 +96,7 @@ workflow somatic_sv {
         }
 
         // Run standard nanomonsv get if 1 fragment is specified
-        nanomonsv_get(parsed_samples, reference)
+        nanomonsv_get(parsed_samples, reference, control_panel)
         ch_vcf = nanomonsv_get.out.vcf
         ch_txt = nanomonsv_get.out.txt
         ch_sbd = nanomonsv_get.out.single_breakend
