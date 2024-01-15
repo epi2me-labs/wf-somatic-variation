@@ -85,7 +85,17 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 
 
 
-## Inputs
+## Input example
+
+<!---Example of input directory structure, delete and edit as appropriate per workflow.--->
+This workflow accepts BAM files (aligned or unaligned) as input.
+
+The BAM input parameters for this workflow accept the path to a single BAM file for the tumor sample (`--bam_tumor`), and one optional bam for the normal sample (`--bam_normal`). A sample name can be supplied with `--sample`.
+
+
+
+
+## Input parameters
 
 ### Workflow Options
 
@@ -115,6 +125,8 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | depth_intervals | boolean | Output a bedGraph file with entries for each genomic interval featuring homogeneous depth. | The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications. | False |
+| tumor_min_coverage | number | Minimum read coverage for the tumor sample required to run analysis. | A tumor BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses. | 20 |
+| normal_min_coverage | number | Minimum read coverage for the normal sample required to run analysis. | A normal BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses. | 20 |
 
 
 ### Small variant calling options
@@ -128,6 +140,7 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 | include_all_ctgs | boolean | Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y}. | Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases. | False |
 | skip_haplotype_filter | boolean | Skip haplotype filtering of variants. | Setting this will skip haplotype filtering of variants. | False |
 | fast_mode | boolean | Fast germline variants calling in Clair3 (does not emit germline calls). | Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs. | False |
+| germline | boolean | The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution). |  | True |
 
 
 ### Somatic structural variant calling options
@@ -174,7 +187,7 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 
 ## Outputs
 
-Outputs files may be aggregated including information for all samples or provided per sample. Per-sample files will be prefixed with respective aliases and represented below as {{ alias }}.
+Output files may be aggregated including information for all samples or provided per sample. Per-sample files will be prefixed with respective aliases and represented below as {{ alias }}.
 
 | Title | File path | Description | Per sample or aggregated |
 |-------|-----------|-------------|--------------------------|
