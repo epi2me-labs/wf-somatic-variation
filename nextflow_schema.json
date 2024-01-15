@@ -148,7 +148,7 @@
                     "default": 20,
                     "hidden": false,
                     "description": "Minimum read coverage for the tumor sample required to run analysis.",
-                    "help_text": "Tumor bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                    "help_text": "A tumor BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
                 },
                 "normal_min_coverage": {
                     "title": "Normal minimum coverage",
@@ -156,7 +156,7 @@
                     "default": 20,
                     "hidden": false,
                     "description": "Minimum read coverage for the normal sample required to run analysis.",
-                    "help_text": "Normal bam below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                    "help_text": "A normal BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
                 }
             }
         },
