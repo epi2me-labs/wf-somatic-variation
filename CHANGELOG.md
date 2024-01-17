@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tumor-only mode for the base workflow, modified base aggregation and somatic SV calling.
 - `--control_panel` option to provide a non-matching control panel produced with [nanomonsv merge_control](https://github.com/friend1ws/nanomonsv#control-panel).
 
+### Fixed
+- `--snv` calling genome-wide variants when `--bed` is specified.
+
 ## [v0.5.2]
 ### Changed
 - New documentation

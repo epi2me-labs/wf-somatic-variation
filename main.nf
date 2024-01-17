@@ -333,8 +333,6 @@ workflow {
             pass_bam_channel,
             bed,
             ref_channel,
-            // mosdepth_stats,
-            // bam_stats,
             clairs_model,
             clair3_model
         )

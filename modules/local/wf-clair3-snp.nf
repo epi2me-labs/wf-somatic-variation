@@ -65,6 +65,7 @@ process pileup_variants {
             path(ref_cache), 
             env(REF_PATH), 
             path(bed),
+            path(split_bed),
             val(region),
             val(model),
             path(command)
@@ -80,6 +81,7 @@ process pileup_variants {
         // note: the VCF output here is required to use the contig
         //       name since that's parsed in the SortVcf step
         // note: snp_min_af and indel_min_af have an impact on performance
+        def bedargs = bed.name != 'OPTIONAL_FILE' ? "--bed_fn ${bed} --extend_bed split_bed/${region.contig}" : ''
         """
         python \$(which clair3.py) CallVariantsFromCffi \\
             --chkpnt_fn \${CLAIR_MODELS_PATH}/clair3_models/${model}/pileup \\
@@ -99,12 +101,12 @@ process pileup_variants {
             --sampleName ${meta.sample} \\
             --vcf_fn ${params.vcf_fn} \\
             --enable_long_indel False \\
-            --bed_fn \\
             --samtools samtools \\
             --gvcf ${params.GVCF} \\
             --temp_file_dir gvcf_tmp_path \\
             --pileup \\
-            --cmd_fn ${command}
+            --cmd_fn ${command} \\
+            ${bedargs}
         """
 }
 
