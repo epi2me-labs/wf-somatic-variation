@@ -139,14 +139,16 @@ workflow snv {
                 } 
         contigs = make_chunks.out.contigs_file.splitText() { it -> [it[0], it[1].trim()] }
         cmd_file = make_chunks.out.cmd_file
+        split_beds = wf_build_regions.out.split_beds
 
         // Run the "pileup" caller on all chunks and collate results
         // > Step 1 
         bam_for_germline
             .combine(ref)
             .combine(bed)
-            .map{bam, bai, meta, ref, fai, ref_cache, ref_path, bed ->
-                [meta, bam, bai, ref, fai, ref_cache, ref_path, bed]
+            .combine(split_beds)
+            .map{bam, bai, meta, ref, fai, ref_cache, ref_path, bed, t_meta, bed_dir ->
+                [meta, bam, bai, ref, fai, ref_cache, ref_path, bed, bed_dir]
             }
             .combine(chunks, by:0)
             .combine(clair3_model)
@@ -357,7 +359,7 @@ workflow snv {
                             ctrbm, ctrbi, canbm, canbi, meta -> [meta, ctrbm, ctrbi, canbm, canbi]
                             }, by: 0
                     )
-                .combine(wf_build_regions.out.split_beds, by: 0)
+                .combine(split_beds, by: 0)
                 .combine(ref)
                 .combine(clairs_model)
                 .set{chunks}
