@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `--snv` calling genome-wide variants when `--bed` is specified.
+- `snv:makeReport` crashing when `--annotation false`.
 
 ## [v0.5.2]
 ### Changed
