@@ -68,7 +68,7 @@ process makeReport {
             path(tbi), 
             path("vcfstats.txt"), 
             path("spectra.csv"), 
-            path(clinvar_vcf), 
+            path(clinvar_vcf, stageAs: "clinvar.vcf"), 
             path("version.txt"), 
             path("params.json"),
             path(typing_vcf),
@@ -78,8 +78,8 @@ process makeReport {
     script:
         // Define report name.
         def report_name = "${params.sample_name}.wf-somatic-snv-report.html"
-        // Define report name.
-        def clinvar = clinvar_vcf.name == 'OPTIONAL_FILE' ? "" : "--clinvar_vcf ${clinvar_vcf}"
+        // Define clinvar file. Use staged name to avoid double staging of files.
+        def clinvar = params.annotation ? "--clinvar_vcf ${clinvar_vcf}" : ""
         wfversion = workflow.manifest.version
         if( workflow.commitId ){
             wfversion = workflow.commitId
