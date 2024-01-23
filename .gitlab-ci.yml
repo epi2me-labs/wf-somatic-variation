@@ -61,7 +61,7 @@ docker-run:
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
               NF_IGNORE_PROCESSES: "annotate_classify,annotate_filter,bwa_index,lookup_clair3_model,\
-                  nanomonsv_classify,nanomonsv_filter,add_missing_vars,getVariantType,clairs_full_hap_filter"
+                  nanomonsv_classify,nanomonsv_filter,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "snv-r9"
           variables:
@@ -75,7 +75,7 @@ docker-run:
                   --basecaller_cfg dna_r9.4.1_e8_sup@v3.3"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,\
                   clairs_create_fullalignment_paired_tensors_indels,clairs_create_paired_tensors_indels,clairs_merge_final_indels,\
-                  clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,\
+                  clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,concat_hap_filtered_vcf,\
                   clairs_predict_pileup_indel,lookup_clair3_model,add_missing_vars,getVariantType,clairs_hap_filter_indels,clairs_full_hap_filter"
 
         - if: $MATRIX_NAME == "snv-r10"
@@ -87,7 +87,7 @@ docker-run:
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,\
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,concat_hap_filtered_vcf,\
                   getVariantType,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels,add_missing_vars,clairs_full_hap_filter"
 
         - if: $MATRIX_NAME == "snv-r10-no_annot"
@@ -113,7 +113,7 @@ docker-run:
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --bed wf-somatic-variation-demo/demo.bed"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,\
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,concat_hap_filtered_vcf,\
                   getVariantType,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels,add_missing_vars,clairs_full_hap_filter"
 
         - if: $MATRIX_NAME == "snv-gvcf"
@@ -126,7 +126,7 @@ docker-run:
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-                  add_missing_vars,getVariantType,clairs_merge_snv_and_indels,clairs_full_hap_filter"
+                  add_missing_vars,getVariantType,clairs_merge_snv_and_indels,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "snv-r10-fail"
           variables:
@@ -141,7 +141,7 @@ docker-run:
                   clairs_create_paired_tensors_indels,clairs_merge_final_indels,clairs_merge_full_indels,clairs_merge_pileup_indels,clairs_merge_snv_and_indels,clairs_predict_full_indels,\
                   clairs_predict_pileup_indel,lookup_clair3_model,change_count,clairs_create_fullalignment_paired_tensors,clairs_create_paired_tensors,clairs_extract_candidates,\
                   clairs_full_hap_filter,clairs_haplotag,clairs_merge_final,clairs_merge_full,clairs_merge_pileup,clairs_phase,clairs_predict_full,clairs_predict_pileup,clairs_select_het_snps,\
-                  vcfStats,add_missing_vars,getVariantType,concat_bams"
+                  vcfStats,add_missing_vars,getVariantType,concat_bams,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "sv"
           variables:
@@ -178,7 +178,7 @@ docker-run:
                     lookup_clair3_model,clairs_select_het_snps,clairs_phase,clairs_haplotag,make_chunks,pileup_variants,\
                     aggregate_pileup_variants,select_het_snps,phase_contig,get_qual_filter,create_candidates,\
                     evaluate_candidates,aggregate_full_align_variants,merge_pileup_and_full_vars,aggregate_all_variants,\
-                    add_missing_vars,getVariantType,clairs_full_hap_filter,concat_bams"
+                    add_missing_vars,getVariantType,clairs_full_hap_filter,concat_bams,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "wf-somatic-snv-r10-gt"
           variables:
@@ -193,7 +193,7 @@ docker-run:
                     lookup_clair3_model,clairs_select_het_snps,clairs_phase,clairs_haplotag,make_chunks,pileup_variants,\
                     aggregate_pileup_variants,select_het_snps,phase_contig,get_qual_filter,create_candidates,\
                     evaluate_candidates,aggregate_full_align_variants,merge_pileup_and_full_vars,aggregate_all_variants,\
-                    add_missing_vars,getVariantType,clairs_full_hap_filter"
+                    add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "wf-somatic-snv-r10-hy"
           variables:
@@ -207,7 +207,7 @@ docker-run:
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                     clairs_select_het_snps,clairs_phase,clairs_haplotag,make_chunks,pileup_variants,aggregate_pileup_variants,select_het_snps,\
                     phase_contig,get_qual_filter,create_candidates,evaluate_candidates,aggregate_full_align_variants,merge_pileup_and_full_vars,\
-                    aggregate_all_variants,add_missing_vars,getVariantType,clairs_full_hap_filter"
+                    aggregate_all_variants,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "snv-r10-normal_vcf"
           variables:
@@ -219,7 +219,7 @@ docker-run:
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --normal_vcf wf-somatic-variation-demo/normal.vcf.gz"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-                    clairs_merge_snv_and_indels,add_missing_vars,getVariantType,clairs_full_hap_filter"
+                    clairs_merge_snv_and_indels,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "mod-args"
           variables:
