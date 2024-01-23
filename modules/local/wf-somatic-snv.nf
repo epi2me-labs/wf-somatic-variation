@@ -633,6 +633,7 @@ process clairs_full_hap_filter {
     cpus params.haplotype_filter_threads
     input:
         tuple val(meta),
+            val(ctg),
             path(tumor_bams, stageAs: "bams/*"),
             path(tumor_bai, stageAs: "bams/*"),
             path("germline.vcf.gz"),
@@ -646,12 +647,9 @@ process clairs_full_hap_filter {
             val(variant_type)
     output:
         tuple val(meta), 
+            val(variant_type),
             path("vcf_output/*pileup_filter.vcf"),
             path("vcf_output/*full_alignment_filter.vcf"),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
             emit: filtered_vcfs
             
     script:
@@ -662,6 +660,8 @@ process clairs_full_hap_filter {
         def show_ref = params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf ? "--show_ref" : ""
         // CW_2359: Define if it is indels.
         def is_indels = variant_type == 'indels' ? "--is_indel" : ""
+        def pileup_output_fn = variant_type == 'indels' ? "indel_pileup_filter.vcf" : "pileup_filter.vcf"
+        def fa_output_fn = variant_type == 'indels' ? "indel_full_alignment_filter.vcf" : "full_alignment_filter.vcf"
         """
         mkdir vcf_output/
         pypy3 \$CLAIRS_PATH/clairs.py haplotype_filtering \\
@@ -673,10 +673,62 @@ process clairs_full_hap_filter {
             --output_dir vcf_output/ \\
             --samtools samtools \\
             --threads ${task.cpus} \\
+            --ctg_name ${ctg} \\
             ${show_ref} \\
             ${is_indels} \\
             ${debug}
+        mv vcf_output/${pileup_output_fn} vcf_output/${ctg}_${pileup_output_fn}
+        mv vcf_output/${fa_output_fn} vcf_output/${ctg}_${fa_output_fn}
         """
+}
+
+// Module to convert fai index to bed
+process concat_hap_filtered_vcf {
+    label "wf_somatic_snv"
+    cpus 2
+    input:
+        tuple val(meta), 
+            val(variant_type),
+            path("pileups/*"),
+            path("fullalign/*"),
+            path(contig_file),
+            path(ref), 
+            path(fai), 
+            path(ref_cache), 
+            env(REF_PATH)
+
+    output:
+        tuple val(meta), 
+            path("${variant_type}_pileup_filter.vcf"),
+            path("${variant_type}_full_alignment_filter.vcf"),
+            path(ref), 
+            path(fai), 
+            path(ref_cache), 
+            env(REF_PATH),
+            emit: filtered_vcfs
+
+    script:
+    // Concatenate the VCFs for the individual contigs using sort_vcf.
+    // This is used over bcftools concat as the outputs are not valid
+    // VCFs, and the internal tool is more tolerant. The pileup VCFs
+    // and full-alignment VCFs are concatenated separately.
+    """
+    # Concatenate the individual pileups
+    pypy3 \$CLAIRS_PATH/clairs.py sort_vcf \\
+            --ref_fn ${ref} \\
+            --contigs_fn ${contig_file} \\
+            --input_dir pileups/ \\
+            --vcf_fn_prefix chr \\
+            --output_fn ${variant_type}_pileup_filter.vcf
+
+    # Concatenate the individual full-alignments
+    pypy3 \$CLAIRS_PATH/clairs.py sort_vcf \\
+            --ref_fn ${ref} \\
+            --contigs_fn ${contig_file} \\
+            --input_dir fullalign/ \\
+            --vcf_fn_prefix chr \\
+            --output_fn ${variant_type}_full_alignment_filter.vcf
+    """
 }
 
 // Final merging of pileup and full-alignment sites.

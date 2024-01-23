@@ -18,6 +18,8 @@ include {
     clairs_merge_full;
     clairs_full_hap_filter as clairs_hap_filter_snv;  
     clairs_full_hap_filter as clairs_hap_filter_indels;  
+    concat_hap_filtered_vcf as concat_hap_filtered_snv;  
+    concat_hap_filtered_vcf as concat_hap_filtered_indels;  
     clairs_merge_final;
     clairs_create_paired_tensors_indels;
     clairs_predict_pileup_indel;
@@ -509,9 +511,25 @@ workflow snv {
             // Create channel with the tumor bam, all the VCFs
             // (germline, pileup and full-alignment) and the 
             // reference genome.
-            tagged
-                .map{ samp, ctg, bam, bai, meta -> [meta, bam, bai] }
-                .groupTuple(by: 0)
+
+            // When no germline is required, the workflow generates a single dummy
+            // channel for the tagged bam, with 'all' in place of the single contigs. This
+            // is necessary to avoid breaking other parts of the wf where multiple copies
+            // of the BAM are passed to a single process, causing duplicated inputs with the
+            // same name. Therefore, the issue is fixed here by defining whether to use the
+            // tagged BAM, or the raw input to which we add the processed contigs.
+            if (params.germline){
+                tagged
+                    .map{ samp, ctg, xam, xai, meta -> [meta, ctg, xam, xai] }
+                    .set{xam_for_hap_filter}
+            } else {
+                bam_channel
+                    .map{xam, xai, meta -> [meta, xam, xai]}
+                    .combine(clairs_contigs, by:0)
+                    .map{meta, xam, xai, ctg -> [meta, ctg, xam, xai]}
+                    .set{xam_for_hap_filter}
+            }
+            xam_for_hap_filter
                 .combine(
                     aggregated_vcfs, by: 0
                 )
@@ -525,8 +543,19 @@ workflow snv {
                 .combine(['snv'])
                 .set{ clair_all_variants }
 
-            // Apply the filtering and create the final VCF.
-            snv_calling = clair_all_variants | clairs_hap_filter_snv | clairs_merge_final
+            // Apply the filtering and create the final SNV VCF.
+            // 1. Run haplotype_filter on each contig individually
+            // 2. Group the outputs by  metadata and variant type
+            // 3. Add the contig list file and the reference channel
+            // 4. Concatenate the files for both pileup and full-alignment
+            // 5. Merge the filtered pileup and full alignment VCFs. 
+            snv_calling =  clair_all_variants | 
+                clairs_hap_filter_snv |
+                groupTuple(by: [0, 1]) | 
+                combine(wf_build_regions.out.contigs_file, by: 0) |
+                combine(ref) |
+                concat_hap_filtered_snv |
+                clairs_merge_final
         }
 
         // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
@@ -629,9 +658,7 @@ workflow snv {
                 // Create channel with the tumor bam, all the VCFs
                 // (germline, pileup and full-alignment) and the 
                 // reference genome.
-                tagged
-                    .map{ samp, ctg, bam, bai, meta -> [meta, bam, bai] }
-                    .groupTuple(by: 0)
+                xam_for_hap_filter
                     .combine(
                         aggregated_vcfs, by: 0
                     )
@@ -644,8 +671,20 @@ workflow snv {
                     .combine( ref )
                     .combine(['indels'])
                     .set{ clair_all_indels }
-                // Apply the filtering and create the final VCF.
-                called_indels = clair_all_indels | clairs_hap_filter_indels | clairs_merge_final_indels
+
+                // Apply the filtering and create the final Indels VCF.
+                // 1. Run haplotype_filter on each contig individually
+                // 2. Group the outputs by  metadata and variant type
+                // 3. Add the contig list file and the reference channel
+                // 4. Concatenate the files for both pileup and full-alignment
+                // 5. Merge the filtered pileup and full alignment VCFs. 
+                called_indels = clair_all_indels | 
+                    clairs_hap_filter_indels |
+                    groupTuple(by: [0, 1]) |
+                    combine(wf_build_regions.out.contigs_file, by: 0) |
+                    combine(ref) |
+                    concat_hap_filtered_indels | 
+                    clairs_merge_final_indels
             }
 
             // Add missing genotypes if either hybrid_vcf or genotyping_vcf are provided
