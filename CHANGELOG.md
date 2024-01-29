@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Run `ClairS` `haplotype_filter` by contig.
+- `--sv` will no longer emit genotypes by default, and only save the same fields from `nanomonsv`.
+    - Users can still request a genotype using `--genotype_sv`.
+    - `--min_ref_support` defines the minimum number of REF-supporting reads to call a heterozygote site.
 
 ### Fixed
 - `--snv` calling genome-wide variants when `--bed` is specified.
