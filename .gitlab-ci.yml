@@ -100,7 +100,7 @@ docker-run:
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --annotation false \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,annotate_snv,\
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,annotate_snv,concat_hap_filtered_vcf,\
                   getVariantType,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels,add_missing_vars,clairs_full_hap_filter"
 
         - if: $MATRIX_NAME == "snv-bed"

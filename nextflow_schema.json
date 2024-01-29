@@ -345,6 +345,23 @@
                     "description": "Minimum SV size to call.",
                     "help_text": "Provide the minimum size of the structural variants to call with nanomonsv."
                 },
+                "min_ref_support": {
+                    "title": "Minimum reference-supporting reads",
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 0,
+                    "hidden": true,
+                    "description": "Call a heterozygote site if there are at least this many reference-supporting reads.",
+                    "help_text": "If a site has more than this many reads supporting the reference allele, the site is classified as heterozygote; otherwise, it is classified as homozygote for the alternative allele."
+                },
+                "genotype_sv": {
+                    "title": "Add genotype to SV calls",
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Add a genotype field to the output SV VCF.",
+                    "help_text": "By default, the workflow generates a VCF with only allele depth information for the normal and tumor data. Setting this to true will add a genotype field to the VCF based on the number of reads supporting the REF allele."
+                },
                 "classify_insert": {
                     "title": "Classify insertion sequence",
                     "type": "boolean",

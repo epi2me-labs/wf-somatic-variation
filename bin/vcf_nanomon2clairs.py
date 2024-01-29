@@ -26,6 +26,12 @@ def main():
         '--tumor_id', required=False, default="TUMOR",
         help="Tumor sample ID")
     parser.add_argument(
+        '--min_ref_support', required=False, default=3, type=int,
+        help="Number of REF reads required to call a heterozygote site")
+    parser.add_argument(
+        '--genotype', action="store_true",
+        help="Add a genotype field to the output record")
+    parser.add_argument(
         '-o', '--output', required=True,
         help="Output genome")
     args = parser.parse_args()
@@ -87,12 +93,22 @@ def main():
         # Process the records
         record = line.strip().split()
         # Replace the format field
-        record[header.index('FORMAT')] = 'GT:DP:AF:AD:NDP:NAF:NAD'
+        if args.genotype:
+            format_string = 'GT:DP:AF:AD:NDP:NAF:NAD'
+        else:
+            format_string = 'DP:AF:AD:NDP:NAF:NAD'
+        record[header.index('FORMAT')] = format_string
         # Prepare the allele frequencies, alleles depths and total depths
         # for normal and tumor samples.
         tumor_dp, tumor_ad = record[tumor_idx].split(':')
         tumor_af = round(float(tumor_ad)/float(tumor_dp), PRECISION)
-        # If not tumor-only, extract values; otherwise set to NA
+        # Define the genotype based on the number of reads supporting the
+        # reference allele. If there are < args.min_ref_support, then call
+        # the site as homozygote for the alternative allele (1/1). Otherwise,
+        # call it as heterozygote (0/1).
+        genotype = (
+            "0/1" if (int(tumor_dp) - int(tumor_ad)) >= args.min_ref_support else '1/1')
+        # If not tumor-only, extract values; otherwise set to 0
         if args.tumor_only:
             normal_af = normal_dp = normal_ad = 0
         else:
@@ -100,11 +116,17 @@ def main():
             normal_af = round(float(normal_ad)/float(normal_dp), PRECISION)
         # Remove old sample fields
         record = record[0:9]
-        # Add the new sample
+        # Create the GT field for the VCF, if requested.
+        if args.genotype:
+            gt_field = f"{genotype}:"
+        else:
+            gt_field = ""
+        # Save record.
         record.append(
-            f'0/1:{tumor_dp}:{tumor_af}:{tumor_ad}' +
+            f'{gt_field}{tumor_dp}:{tumor_af}:{tumor_ad}' +
             f':{normal_dp}:{normal_af}:{normal_ad}'
         )
+
         # Save the record
         record = "\t".join(record)
         output_file.write(f'{record}\n')

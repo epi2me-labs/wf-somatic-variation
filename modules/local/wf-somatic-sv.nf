@@ -187,10 +187,16 @@ process postprocess_nanomon_vcf {
         tuple val(meta), path("${params.sample_name}.wf-somatic-sv.vcf")
     script:
     def tumor_only = params.bam_normal ? "" : "--tumor_only"
+    def genotype_sv = params.genotype_sv ? "--genotype" : ""
     """
     # Filter out sites with END < POS
     bcftools filter -e "INFO/END < POS" input.vcf > filtered.vcf
-    vcf_nanomon2clairs.py --vcf filtered.vcf --sample_id ${params.sample_name} --output "${params.sample_name}.wf-somatic-sv.vcf" $tumor_only
+    vcf_nanomon2clairs.py \
+        --vcf filtered.vcf \
+        --sample_id ${params.sample_name} \
+        --min_ref_support ${params.min_ref_support} \
+        --output "${params.sample_name}.wf-somatic-sv.vcf" \
+        $tumor_only $genotype_sv
     """
 }
 
