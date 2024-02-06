@@ -3,6 +3,7 @@ import groovy.json.JsonBuilder
 process getVersions {
     label "wf_somatic_mod"
     cpus 1
+    memory 4.GB
     output:
         path "versions_tmp.txt"
     script:
@@ -16,7 +17,8 @@ process getVersions {
 
 process rVersions {
     label "dss"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         path "versions_tmp.txt"
     output:
@@ -32,6 +34,7 @@ process rVersions {
 
 process getParams {
     cpus 1
+    memory 4.GB
     output:
         path "params.json"
     script:
@@ -77,7 +80,11 @@ process validate_modbam {
 
 process modkit {
     label "wf_somatic_mod"
+    // Requires ~1G/core + ~1-2G; set to 3 extra as buffer
     cpus params.modkit_threads
+    memory {(1.GB * params.modkit_threads * task.attempt) + 3.GB}
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple path(alignment), 
             path(alignment_index), 
@@ -111,6 +118,7 @@ process modkit {
 
 process bedmethyl_split {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             val('all'),
@@ -133,6 +141,9 @@ process bedmethyl_split {
 process summary {
     label "wf_somatic_mod"
     cpus 4
+    memory {(1.GB * params.modkit_threads * task.attempt) + 3.GB}
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple path(alignment), 
             path(alignment_index), 
@@ -157,7 +168,8 @@ process summary {
 // Convert to DSS
 process bed2dss {
     label "wf_somatic_mod"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), 
             val(mod),
@@ -178,7 +190,11 @@ process bed2dss {
 // Run DSS to compute DMR/L
 process dss {
     label "dss"
-    cpus params.dss_threads
+    cpus { params.dss_threads <= 4 ? params.dss_threads : 4 }
+    // Set memory to 16G/core + 2GB for buffer.
+    // Benchmark shows that DSS ends up using more memory than predicted,
+    // with spikes up to >74GB with 4 cores.
+    memory { (task.cpus * 19.GB) }
     input:
         tuple val(meta), 
             val(mod),
@@ -239,6 +255,10 @@ process dss {
 
 // Make report.
 process makeModReport {
+    cpus 1
+    memory { 6.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input: 
         tuple val(meta), 
             path("normal_summary/*"),

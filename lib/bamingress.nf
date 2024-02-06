@@ -18,7 +18,8 @@ def create_metamap(Map arguments) {
 
 
 process check_for_alignment {
-
+    cpus 2
+    memory 4.GB
     input:
         tuple path(reference), path(ref_idx)
         tuple path(xam), path(xam_idx)

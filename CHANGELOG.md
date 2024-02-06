@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Tumor-only mode for the base workflow, modified base aggregation and somatic SV calling.
 - `--control_panel` option to provide a non-matching control panel produced with [nanomonsv merge_control](https://github.com/friend1ws/nanomonsv#control-panel).
+- Memory directives for every process.
 
 ### Changed
 - Run `ClairS` `haplotype_filter` by contig.
@@ -18,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `--snv` calling genome-wide variants when `--bed` is specified.
 - `snv:makeReport` crashing when `--annotation false`.
+
+### Removed
+- `--annotation_threads` removed as `snpEff` v5 uses only one thread.
 
 ## [v0.5.2]
 ### Changed

@@ -1,5 +1,6 @@
 process bamstats {
     cpus 4
+    memory 4.GB
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
         tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
@@ -16,6 +17,9 @@ process bamstats {
 
 process mosdepth {
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
         file target_bed
@@ -50,6 +54,7 @@ process mosdepth {
 // Get coverage to a channel
 process get_coverage {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), path(mosdepth_summary)
 
@@ -72,6 +77,7 @@ process get_coverage {
 // Process to get the regions with genome coverage above given thresholds.
 process get_region_coverage {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta),
             path(regions),
@@ -114,6 +120,7 @@ process get_region_coverage {
 // Define shared regions in Tumor and/or Normal passing the thresholds.
 process get_shared_region {
     cpus 1
+    memory 4.GB
     input:
         tuple val(sample),
             path("tumor.bed"),
@@ -133,6 +140,8 @@ process get_shared_region {
 
 // Make report.
 process makeQCreport {
+    cpus 1
+    memory 7.GB
     input: 
         tuple val(meta), 
             path(readstats_normal, stageAs: "readstats_normal/*"),

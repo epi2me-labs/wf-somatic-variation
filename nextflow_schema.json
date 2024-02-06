@@ -277,14 +277,12 @@
                     "type": "boolean",
                     "title": "Call germline sites",
                     "default": true,
-                    "hidden": false,
                     "description": "The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution)."
                 },
                 "phase_normal": {
                     "title": "Phase normal sample",
                     "type": "boolean",
                     "default": false,
-                    "hidden": true,
                     "description": "Phase and tag the normal, in addition to the tumor dataset."
                 },
                 "clair3_phase_vcf": {
@@ -427,11 +425,6 @@
                     "default": 1,
                     "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)."
                 },
-                "annotation_threads": {
-                    "type": "integer",
-                    "default": 4,
-                    "description": "Total number of threads to use in SnpEff annotation (limited by config executor cpus)."
-                },
                 "nanomonsv_get_threads": {
                     "type": "integer",
                     "default": 4,
@@ -440,8 +433,9 @@
                 "dss_threads": {
                     "type": "integer",
                     "default": 1,
+                    "maximum": 4,
                     "description": "Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus).",
-                    "help_test": "The DSS R Package step identifies differentially modified loci and regions, a computationally intensive step. Increasing this parameter speeds up the analysis, at the cost of increased memory requirements."
+                    "help_test": "The DSS R Package step identifies differentially modified loci and regions, a computationally intensive step. Increasing this parameter speeds up the analysis, at the cost of significantly increased memory requirements."
                 },
                 "modkit_threads": {
                     "type": "integer",

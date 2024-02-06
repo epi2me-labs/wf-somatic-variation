@@ -1,4 +1,5 @@
-
+// Define memories for the phasing
+def req_mem = params.use_longphase ? [7.GB, 31.GB, 56.GB] : [4.GB, 7.GB, 12.GB]
 
 process make_chunks {
     // Do some preliminaries. Ordinarily this would setup a working directory
@@ -6,6 +7,7 @@ process make_chunks {
     // list of contigs and chunks.
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), path(bam), path(bai), path(contigs), path(ref), path(fai), path(ref_cache), env(REF_PATH), path(bed), val(model)
         val clair3_mode
@@ -55,7 +57,12 @@ process pileup_variants {
     // Calls variants per region ("chunk") using pileup network.
     label "wf_somatic_snv"
     cpus 1
+    // This workflow takes 4Gb in, but on occasions (0.7% of jobs) there    
+    // can be unexpected spikes of up to 8GB. Hard to predict the reason
+    // for this, but the chances increase with larger genomes. Use retries.
+    memory { 4.GB * task.attempt }
     errorStrategy 'retry'
+    maxRetries 1
     input:
         tuple val(meta), 
             path(bam), 
@@ -117,6 +124,7 @@ process aggregate_pileup_variants {
     // to use for phasing.
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcfs, stageAs: "input_vcfs/*"),
@@ -146,7 +154,7 @@ process aggregate_pileup_variants {
             --cmd_fn ${command}
 
         # Replaced bgzip with the faster bcftools index -n
-        if [ "\$( bcftools index -n pileup_${meta.sample}_${meta.type}.vcf.gz )" -eq 0 ]; \
+        if [ "\$( bcftools index --threads !{task.cpus} -n pileup_${meta.sample}_${meta.type}.vcf.gz )" -eq 0 ]; \
         then echo "[INFO] Exit in pileup variant calling"; exit 1; fi
 
         bgzip -@ ${task.cpus} -fdc pileup_${meta.sample}_${meta.type}.vcf.gz | \
@@ -159,6 +167,7 @@ process select_het_snps {
     // Filters a VCF by contig, selecting only het SNPs.
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(pileup_vcf), path(pileup_tbi), path(split, stageAs: "phase_qual"), val(contig)
         // this is used implicitely by the program
@@ -188,7 +197,11 @@ process phase_contig {
     //   but adds the VCF as it is now tagged with phasing information
     //   used later in the full-alignment model
     label "wf_somatic_snv"
-    cpus { params.use_longphase_intermediate ? 4 : 1 }
+    cpus 4
+    // Define memory from phasing tool and number of attempt
+    memory { req_mem[task.attempt - 1] }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             path(het_snps), 
@@ -234,6 +247,7 @@ process get_qual_filter {
     // stage "full alignment" calling.
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path("pileup.vcf.gz"), path("pileup.vcf.gz.tbi")
     output:
@@ -259,6 +273,7 @@ process create_candidates {
     // Performed per chromosome; output a list of bed files one for each chunk.
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), 
             path("pileup.vcf.gz"), 
@@ -300,9 +315,12 @@ process create_candidates {
 process evaluate_candidates {
     // Run "full alignment" network for variants in a candidate bed file.
     // phased_bam just references the input BAM as it no longer contains phase information.
+    // This can go very high, depending on the depth of coverage and size of the dataset.
     label "wf_somatic_snv"
     cpus 1
-    errorStrategy 'retry'
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), val(contig), path(phased_bam), path(phased_bam_index), path(phased_vcf), path(phased_tbi), path(command)
         tuple val(meta_2), val(contig_2), path(candidate_bed)
@@ -345,6 +363,9 @@ process aggregate_full_align_variants {
     // Sort and merge all "full alignment" variants
     label "wf_somatic_snv"
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             path(vcfs, stageAs: "full_alignment/*"), 
@@ -369,7 +390,7 @@ process aggregate_full_align_variants {
             --contigs_fn !{contigs}
 
 
-        if [ "$( bcftools index -n full_alignment_!{meta.sample}_!{meta.type}.vcf.gz )" -eq 0 ]; then
+        if [ "$( bcftools index --threads !{task.cpus} -n full_alignment_!{meta.sample}_!{meta.type}.vcf.gz )" -eq 0 ]; then
             echo "[INFO] Exit in full-alignment variant calling"
             exit 0
         fi
@@ -393,6 +414,7 @@ process merge_pileup_and_full_vars{
     // Merge VCFs
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), 
             path(pile_up_vcf), 
@@ -440,6 +462,9 @@ process merge_pileup_and_full_vars{
 process aggregate_all_variants{
     label "wf_somatic_snv"
     cpus 4
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             val(contigs), 
@@ -469,7 +494,7 @@ process aggregate_all_variants{
             --cmd_fn !{command} \
             --contigs_fn !{contigs}
 
-        if [ "$( bcftools index -n !{meta.sample}_!{meta.type}_germline.vcf.gz )" -eq 0 ]; then
+        if [ "$( bcftools index --threads !{task.cpus} -n !{meta.sample}_!{meta.type}_germline.vcf.gz )" -eq 0 ]; then
             echo "[INFO] Exit in all contigs variant merging"
             exit 0
         fi
@@ -488,8 +513,8 @@ process aggregate_all_variants{
 
                 # Reheading samples named "SAMPLE" to params.sample_name, fixing Clair3 mislabelling of the GVCF output.
                 echo "SAMPLE" "!{params.sample_name}" > rename.txt
-                bcftools reheader -s rename.txt tmp.gvcf.gz > !{meta.sample}_!{meta.type}_germline.gvcf.gz
-                bcftools index -t "!{meta.sample}_!{meta.type}_germline.gvcf.gz" #&& rm tmp.gvcf.gz rename.txt
+                bcftools reheader --threads !{task.cpus} -s rename.txt tmp.gvcf.gz > !{meta.sample}_!{meta.type}_germline.gvcf.gz
+                bcftools index --threads !{task.cpus} -t "!{meta.sample}_!{meta.type}_germline.gvcf.gz" #&& rm tmp.gvcf.gz rename.txt
         fi
 
         echo "[INFO] Finish calling, output file: !{meta.sample}_!{meta.type}_germline.vcf.gz"

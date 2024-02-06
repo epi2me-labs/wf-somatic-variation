@@ -141,6 +141,7 @@ The BAM input parameters for this workflow accept the path to a single BAM file 
 | skip_haplotype_filter | boolean | Skip haplotype filtering of variants. | Setting this will skip haplotype filtering of variants. | False |
 | fast_mode | boolean | Fast germline variants calling in Clair3 (does not emit germline calls). | Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs. | False |
 | germline | boolean | The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution). |  | True |
+| phase_normal | boolean | Phase and tag the normal, in addition to the tumor dataset. |  | False |
 
 
 ### Somatic structural variant calling options
@@ -167,7 +168,6 @@ The BAM input parameters for this workflow accept the path to a single BAM file 
 | ubam_map_threads | integer | Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus). |  | 8 |
 | ubam_sort_threads | integer | Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus). |  | 3 |
 | ubam_bam2fq_threads | integer | Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus). |  | 1 |
-| annotation_threads | integer | Total number of threads to use in SnpEff annotation (limited by config executor cpus). |  | 4 |
 | nanomonsv_get_threads | integer | Total number of threads to use in `nanomonsv get` (minimum of 2 and limited by config executor cpus). |  | 4 |
 | dss_threads | integer | Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus). |  | 1 |
 | modkit_threads | integer | Total number of threads to use in modkit modified base calling (limited by config executor cpus). |  | 4 |
