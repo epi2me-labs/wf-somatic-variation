@@ -3,6 +3,8 @@ import groovy.json.JsonBuilder
 // Generate BWA-mem index for the insert_classify stage
 process bwa_index {
     label "wf_somatic_sv"
+    cpus 1
+    memory 7.GB
     input:
         tuple path(ref), path(fai), path(cram_cache), env(REF_PATH)
     output:
@@ -19,6 +21,7 @@ process bwa_index {
 process nanomonsv_parse {
     label "wf_somatic_sv"
     cpus 1
+    memory 31.GB
     input:
         tuple path(xam), path(xam_idx), val(meta)
         tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
@@ -38,7 +41,8 @@ process nanomonsv_get {
     label "wf_somatic_sv"
     label "avx2"
     // Use at least 2 cores
-    cpus params.nanomonsv_get_threads < 2 ? 2 : params.nanomonsv_get_threads
+    cpus params.nanomonsv_get_threads < 2 ? 2 : params.nanomonsv_get_threads 
+    memory 31.GB
     input:
         tuple val(meta),
             path(xam_normal, stageAs: "norm/*"),
@@ -84,6 +88,7 @@ process nanomonsv_get {
 process nanomonsv_filter {
     label "wf_somatic_sv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), path(txt)
         tuple val(meta), path(vcf)
@@ -103,6 +108,7 @@ process nanomonsv_filter {
 // Annotate filters
 process annotate_filter {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcf),
@@ -124,6 +130,8 @@ process annotate_filter {
 // Still in alpha stage, quite buggy
 process nanomonsv_classify {
     label "wf_somatic_sv"
+    cpus 2
+    memory 31.GB
     input:
         tuple val(meta), path(txt), path(vcf)
         tuple path(ref), path(fai), path(cram_cache), env(REF_PATH), path(amb), path(ann), path(bwt), path(pac), path(sa)
@@ -143,6 +151,8 @@ process nanomonsv_classify {
 
 // Annotate classify
 process annotate_classify {
+    cpus 1
+    memory 4.GB
     input:
         tuple val(meta), path(txt), path(vcf), path(annot_txt)
     output:
@@ -162,7 +172,8 @@ process annotate_classify {
 //  we'll rename it with its desired output name here
 process sortVCF {
     label "wf_somatic_sv"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(vcf)
     output:
@@ -171,7 +182,7 @@ process sortVCF {
     script:
     """
     bcftools sort -m 2G -O z -o ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz -T ./ $vcf 
-    bcftools index -t ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz
+    bcftools index --threads ${task.cpus} -t ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz
     """
 }
 
@@ -180,7 +191,8 @@ process sortVCF {
 // CW-2702: remove sites with END < POS, as in nanomonsv GitHub [issue](https://github.com/friend1ws/nanomonsv/issues/31)
 process postprocess_nanomon_vcf {
     label "wf_somatic_sv"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(vcf, stageAs: "input.vcf")
     output:
@@ -190,7 +202,7 @@ process postprocess_nanomon_vcf {
     def genotype_sv = params.genotype_sv ? "--genotype" : ""
     """
     # Filter out sites with END < POS
-    bcftools filter -e "INFO/END < POS" input.vcf > filtered.vcf
+    bcftools filter --threads ${task.cpus} -e "INFO/END < POS" input.vcf > filtered.vcf
     vcf_nanomon2clairs.py \
         --vcf filtered.vcf \
         --sample_id ${params.sample_name} \
@@ -204,6 +216,7 @@ process postprocess_nanomon_vcf {
 process getVersions {
     label "wf_somatic_sv"
     cpus 1
+    memory 4.GB
     output:
         path "versions.txt"
     script:
@@ -221,6 +234,7 @@ process getVersions {
 process getParams {
     label "wf_somatic_sv"
     cpus 1
+    memory 4.GB
     output:
         path "params.json"
     script:
@@ -234,6 +248,7 @@ process getParams {
 
 process report {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), file(vcf)
         tuple val(meta), file(tbi)

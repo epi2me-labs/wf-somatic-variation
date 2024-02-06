@@ -1,6 +1,8 @@
 import groovy.json.JsonBuilder
 
 process cram_cache {
+    cpus 1
+    memory 4.GB
     input:
         path reference
     output:
@@ -16,6 +18,7 @@ process cram_cache {
 
 process index_ref_fai {
     cpus 1
+    memory 4.GB
     input:
         file reference
     output:
@@ -27,6 +30,7 @@ process index_ref_fai {
 
 process index_ref_gzi {
     cpus 1
+    memory 4.GB
     input:
         file reference
     output:
@@ -39,6 +43,7 @@ process index_ref_gzi {
 // NOTE -f required to compress symlink
 process decompress_ref {
     cpus 1
+    memory 4.GB
     input:
         file compressed_ref
     output:
@@ -50,6 +55,10 @@ process decompress_ref {
 
 process minimap2_ubam {
     cpus {params.ubam_map_threads + params.ubam_sort_threads + params.ubam_bam2fq_threads}
+    memory { 15.GB * task.attempt }
+    maxRetries 2
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+
     input:
         path reference
         path old_reference
@@ -58,15 +67,18 @@ process minimap2_ubam {
         tuple path("${params.sample_name}.cram"), path("${params.sample_name}.cram.crai"), emit: alignment
     script:
     def bam2fq_ref = old_reference.name != "OPTIONAL_FILE" ? "--reference ${old_reference}" : ''
+    // samtools sort need extra threads. Specify these as N - 1 to avoid using too many cores.
+    def sort_threads = params.ubam_sort_threads - 1
     """
     samtools bam2fq -@ ${params.ubam_bam2fq_threads} -T 1 ${bam2fq_ref} ${reads} | minimap2 -y -t ${params.ubam_map_threads} -ax map-ont ${reference} - \
-    | samtools sort -@ ${params.ubam_sort_threads} --write-index -o ${params.sample_name}.cram##idx##${params.sample_name}.cram.crai -O CRAM --reference ${reference} -
+    | samtools sort -@ ${sort_threads} --write-index -o ${params.sample_name}.cram##idx##${params.sample_name}.cram.crai -O CRAM --reference ${reference} -
     """
 }
 
 // Module to convert fai index to bed
 process bgzipper {
     cpus 1
+    memory 4.GB
     input:
         path infile
     output:
@@ -81,6 +93,7 @@ process bgzipper {
 // Module to convert fai index to bed
 process tabixer {
     cpus 1
+    memory 4.GB
     input:
         path infile
     output:
@@ -105,6 +118,7 @@ process tabixer {
 // Module to convert fai index to bed
 process getAllChromosomesBed {
     cpus 1
+    memory 4.GB
     input:
         tuple path(reference), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
@@ -122,8 +136,8 @@ process annotate_vcf {
     // variants - if any variants are present in this file, it is used to populate a table in 
     // the report.
     label "snpeff_annotation"
-    memory 6.GB
-    cpus {params.annotation_threads}
+    cpus 2
+    memory 7.GB
     input:
         tuple val(meta), path("input.vcf.gz"), path("input.vcf.gz.tbi")
         val(output_label)
@@ -153,8 +167,8 @@ process annotate_vcf {
             clinvar_vcf="${CLINVAR_PATH}/clinvar_GRCh37.vcf.gz"
         fi
 
-        # Specify 4G of memory otherwise SnpEff will crash with the default 1G
-        snpEff -Xmx!{task.memory.giga - 2}g ann $snpeff_db input.vcf.gz > !{params.sample_name}.snpeff_annotated.vcf
+        # Specify N-1 G of memory, otherwise SnpEff will crash with the default 1G
+        snpEff -Xmx!{task.memory.giga - 1}g ann $snpeff_db input.vcf.gz > !{params.sample_name}.snpeff_annotated.vcf
         # Add ClinVar annotations
         SnpSift annotate $clinvar_vcf !{params.sample_name}.snpeff_annotated.vcf > !{params.sample_name}.wf-!{output_label}.vcf
         # Get the ClinVar-annotated variants into a separate VCF
@@ -174,6 +188,7 @@ process annotate_vcf {
 
 process getVersions {
     cpus 1
+    memory 4.GB
     output:
         path "versions.txt"
     script:
@@ -193,6 +208,7 @@ process getVersions {
 
 process getParams {
     cpus 1
+    memory 4.GB
     output:
         path "params.json"
     script:
@@ -206,6 +222,7 @@ process getParams {
 
 process getGenome {
     cpus 1
+    memory 4.GB
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
     output:

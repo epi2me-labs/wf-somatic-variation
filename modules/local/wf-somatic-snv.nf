@@ -1,5 +1,8 @@
 import groovy.json.JsonBuilder
 
+// Define memory requirements for phasing
+def req_mem = params.use_longphase ? [8.GB, 32.GB, 64.GB] : [4.GB, 8.GB, 12.GB]
+
 // See https://github.com/nextflow-io/nextflow/issues/1636
 // This is the only way to publish files from a workflow whilst
 // decoupling the publish from the process steps.
@@ -23,6 +26,7 @@ process output_snv {
 process getVersions {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     output:
         path "versions.txt"
     script:
@@ -36,6 +40,7 @@ process getVersions {
 process getParams {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     output:
         path "params.json"
     script:
@@ -49,19 +54,22 @@ process getParams {
 // extract base metrics on the provided VCF file.
 process vcfStats {
     label "wf_somatic_snv"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(vcf), path(index)
     output:
         tuple val(meta), path("${meta.sample}.stats")
     """
-    bcftools stats $vcf > ${meta.sample}.stats
+    bcftools stats --threads ${task.cpus} $vcf > ${meta.sample}.stats
     """
 }
 
 
 // Generate report file.
 process makeReport {
+    cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcf), 
@@ -104,6 +112,8 @@ process makeReport {
 // Define the appropriate model to use.
 process lookup_clair3_model {
     label "wf_somatic_snv"
+    cpus 1
+    memory 4.GB
     input:
         path("lookup_table")
         val basecall_model
@@ -123,6 +133,7 @@ process lookup_clair3_model {
 process wf_build_regions {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple path(normal_bam, stageAs: "normal/*"), 
             path(normal_bai, stageAs: "normal/*"),
@@ -172,6 +183,7 @@ process wf_build_regions {
 process clairs_select_het_snps {
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta_tumor), 
             path(tumor_vcf, stageAs: "tumor.vcf.gz"), 
@@ -200,7 +212,11 @@ process clairs_select_het_snps {
 // Run variant phasing on each contig using either longphase or whatshap.
 process clairs_phase {
     label "wf_somatic_snv"
-    cpus { params.use_longphase_intermediate ? 4 : 1 }
+    cpus 4
+    // Define memory from phasing tool and number of attempt
+    memory { req_mem[task.attempt - 1] }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             val(contig), 
@@ -255,6 +271,7 @@ process clairs_phase {
 process clairs_haplotag {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             val(contig), 
@@ -292,6 +309,9 @@ process clairs_haplotag {
 process clairs_extract_candidates {
     label "wf_somatic_snv"
     cpus 2
+    memory { 6.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -377,6 +397,9 @@ process clairs_extract_candidates {
 process clairs_create_paired_tensors {
     label "wf_somatic_snv"
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -430,6 +453,9 @@ process clairs_predict_pileup {
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -479,6 +505,7 @@ process clairs_predict_pileup {
 process clairs_merge_pileup {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcfs, stageAs: 'vcf_output/*'), 
@@ -506,6 +533,9 @@ process clairs_merge_pileup {
 process clairs_create_fullalignment_paired_tensors {
     label "wf_somatic_snv"
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(sample), 
             val(contig), 
@@ -558,6 +588,9 @@ process clairs_predict_full {
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(contig),
@@ -604,6 +637,9 @@ process clairs_predict_full {
 process clairs_merge_full {
     label "wf_somatic_snv"
     cpus 1
+    memory { 4.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             path(vcfs, stageAs: 'vcf_output/*'), 
@@ -631,6 +667,7 @@ process clairs_full_hap_filter {
     label "wf_somatic_snv"
     label "avx2"
     cpus params.haplotype_filter_threads
+    memory { (2.GB * task.cpus) + 3.GB }
     input:
         tuple val(meta),
             val(ctg),
@@ -686,6 +723,7 @@ process clairs_full_hap_filter {
 process concat_hap_filtered_vcf {
     label "wf_somatic_snv"
     cpus 2
+    memory 4.GB
     input:
         tuple val(meta), 
             val(variant_type),
@@ -734,7 +772,8 @@ process concat_hap_filtered_vcf {
 // Final merging of pileup and full-alignment sites.
 process clairs_merge_final {
     label "wf_somatic_snv"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta),
             path(pileup_filter),
@@ -759,7 +798,7 @@ process clairs_merge_final {
             --sample_name ${meta.sample}
 
         # Check if the number of variants is > 0
-        if [ "\$( bcftools index -n ${meta.sample}_somatic_snv.vcf.gz )" -eq 0 ]; \\
+        if [ "\$( bcftools index --threads ${task.cpus} -n ${meta.sample}_somatic_snv.vcf.gz )" -eq 0 ]; \\
         then echo "[INFO] Exit in pileup variant calling"; exit 1; fi
         """
 }
@@ -772,6 +811,9 @@ process clairs_merge_final {
 process clairs_create_paired_tensors_indels {
     label "wf_somatic_snv"
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -824,6 +866,9 @@ process clairs_predict_pileup_indel {
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -874,6 +919,7 @@ process clairs_predict_pileup_indel {
 process clairs_merge_pileup_indels {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcfs, stageAs: 'vcf_output/*'), 
@@ -900,6 +946,9 @@ process clairs_merge_pileup_indels {
 process clairs_create_fullalignment_paired_tensors_indels {
     label "wf_somatic_snv"
     cpus 2
+    memory { 4.GB * task.attempt }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(sample), 
             val(contig), 
@@ -950,6 +999,9 @@ process clairs_predict_full_indels {
     label "wf_somatic_snv"
     label "avx2"
     cpus 1
+    memory { 4.GB * task.attempt }
+    maxRetries 3
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(contig),
@@ -996,6 +1048,7 @@ process clairs_predict_full_indels {
 process clairs_merge_full_indels {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcfs, stageAs: 'vcf_output/*'), 
@@ -1021,7 +1074,8 @@ process clairs_merge_full_indels {
 // Final merging of pileup and full-alignment indels.
 process clairs_merge_final_indels {
     label "wf_somatic_snv"
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta),
             path(pileup_indels),
@@ -1048,7 +1102,7 @@ process clairs_merge_final_indels {
             --indel_calling
 
         # Check if the number of variants is > 0
-        if [ "\$( bcftools index -n ${meta.sample}_somatic_indels.vcf.gz )" -eq 0 ]; \\
+        if [ "\$( bcftools index --threads ${task.cpus} -n ${meta.sample}_somatic_indels.vcf.gz )" -eq 0 ]; \\
         then echo "[INFO] Exit in pileup variant calling"; exit 1; fi
         """
 }
@@ -1063,7 +1117,8 @@ process clairs_merge_final_indels {
 // We therefore extract indels and SNPs independently, allowing then to merge them without
 // duplicated sites.
 process getVariantType {
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(vcf), path(tbi)
         val variant_type
@@ -1071,7 +1126,7 @@ process getVariantType {
         tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz"), emit: vcf
         tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz.tbi"), emit: tbi
     """
-    bcftools view -O z -v ${variant_type} ${vcf} > ${vcf.simpleName}.subset.vcf.gz && \
+    bcftools view --threads ${task.cpus} -O z -v ${variant_type} ${vcf} > ${vcf.simpleName}.subset.vcf.gz && \
         tabix -p vcf ${vcf.simpleName}.subset.vcf.gz
     """
 }
@@ -1079,7 +1134,8 @@ process getVariantType {
 
 // Concatenate SNVs and Indels in a single VCF file. 
 process clairs_merge_snv_and_indels {
-    cpus 1
+    cpus 2
+    memory 4.GB
     input:
         tuple val(meta), path(vcfs, stageAs: 'VCFs/*'), path(tbis, stageAs: 'VCFs/*')
     output:
@@ -1091,14 +1147,14 @@ process clairs_merge_snv_and_indels {
     // ideal for this mode. bedtools doesn't have this issue, and therefore use this instead.
     if (params.genotyping_mode_vcf || params.hybrid_mode_vcf)
     """
-    bcftools concat -O v -a VCFs/*.vcf.gz | \\
+    bcftools concat --threads ${task.cpus} -O v -a VCFs/*.vcf.gz | \\
         bedtools sort -header -i - | \\
-            bcftools view -O z > ${meta.sample}_somatic.vcf.gz && \\
+            bcftools view --threads ${task.cpus} -O z > ${meta.sample}_somatic.vcf.gz && \\
         tabix -p vcf ${meta.sample}_somatic.vcf.gz
     """
     else
     """
-    bcftools concat -a VCFs/*.vcf.gz | \\
+    bcftools concat --threads ${task.cpus} -a VCFs/*.vcf.gz | \\
         bcftools sort -m 2G -T ./ -O z > ${meta.sample}_somatic.vcf.gz && \\
         tabix -p vcf ${meta.sample}_somatic.vcf.gz
     """
@@ -1108,6 +1164,7 @@ process clairs_merge_snv_and_indels {
 process concat_bams {
     label "wf_somatic_snv"
     cpus 4
+    memory { (task.cpus * 2.GB) + 2.GB }
     input:
         tuple val(meta), 
             path("bams/*"), 
@@ -1128,6 +1185,7 @@ process concat_bams {
 // Annotate the change type counts (e.g. mutation_type=AAA>ATA)
 process change_count {
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta),
             path("input.vcf.gz"),
@@ -1156,6 +1214,7 @@ process change_count {
 process add_missing_vars {
     label "wf_somatic_snv"
     cpus 1
+    memory 4.GB
     input:
         tuple val(meta), 
             path(vcf), 
