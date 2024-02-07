@@ -342,7 +342,6 @@ It is possible to run a reduced version of the workflow using only the tumor BAM
 Currently, the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
-- `--sv`: the workflow will run nanomonsv on the tumor BAM file, and all the additional post-processing requested
 
 
 
@@ -363,7 +362,7 @@ Currently, the following components can run in tumor-only mode:
 
 + *Does the workflow calls 5hmC, on top of 5mC?* - Yes, the workflow does call 5hmC, but only if you performed the basecalling with the appropriate module; for more details, check out the [dorado github page](https://github.com/nanoporetech/dorado#dna-models).
 
-+ *Can I run the workflow in tumor-only mode?* - Yes, but currently this run mode is available only for the `--sv` and `--mod`.
++ *Can I run the workflow in tumor-only mode?* - Yes, but currently this mode is only available for `--mod`.
 
 
 

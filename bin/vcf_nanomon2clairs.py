@@ -83,8 +83,7 @@ def main():
             header = line.strip().split()
             # Get field index in each record
             tumor_idx = header.index(args.tumor_id)
-            if not args.tumor_only:
-                normal_idx = header.index(args.normal_id)
+            normal_idx = header.index(args.normal_id)
             # Replace TUMOR/CONTROL with provided sample ID
             header = header[0:9] + [args.sample_id]
             # Write header line
@@ -108,12 +107,9 @@ def main():
         # call it as heterozygote (0/1).
         genotype = (
             "0/1" if (int(tumor_dp) - int(tumor_ad)) >= args.min_ref_support else '1/1')
-        # If not tumor-only, extract values; otherwise set to 0
-        if args.tumor_only:
-            normal_af = normal_dp = normal_ad = 0
-        else:
-            normal_dp, normal_ad = record[normal_idx].split(':')
-            normal_af = round(float(normal_ad)/float(normal_dp), PRECISION)
+        # Extract values
+        normal_dp, normal_ad = record[normal_idx].split(':')
+        normal_af = round(float(normal_ad)/float(normal_dp), PRECISION)
         # Remove old sample fields
         record = record[0:9]
         # Create the GT field for the VCF, if requested.
