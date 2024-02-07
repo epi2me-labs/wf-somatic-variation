@@ -129,4 +129,3 @@ It is possible to run a reduced version of the workflow using only the tumor BAM
 Currently, the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
-- `--sv`: the workflow will run nanomonsv on the tumor BAM file, and all the additional post-processing requested

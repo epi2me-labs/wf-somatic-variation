@@ -65,8 +65,6 @@ process nanomonsv_get {
     script:
     def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
     def qv = params.qv ? "--qv${params.qv}" : ""
-    // If bam_normal is provided, then process it.
-    def control_bam = params.bam_normal ? "--control_bam ${xam_normal} --control_prefix parsed_normal/${meta.sample}" : ""
     // Use input control panel for downstream analyses
     def use_control_panel = params.control_panel ? "--control_panel_prefix ${control_panel}/${control_root}" : ""
     """
@@ -74,8 +72,9 @@ process nanomonsv_get {
         "parsed_tumor/${meta.sample}" \\
         ${xam_tumor} \\
         ${ref} \\
+        --control_bam ${xam_normal} \\
+        --control_prefix parsed_normal/${meta.sample} \\
         --min_indel_size ${params.min_sv_length} \\
-        ${control_bam} \\
         --processes ${ncores} \\
         --single_bnd \\
         --use_racon \\
@@ -198,7 +197,6 @@ process postprocess_nanomon_vcf {
     output:
         tuple val(meta), path("${params.sample_name}.wf-somatic-sv.vcf")
     script:
-    def tumor_only = params.bam_normal ? "" : "--tumor_only"
     def genotype_sv = params.genotype_sv ? "--genotype" : ""
     """
     # Filter out sites with END < POS
@@ -208,7 +206,7 @@ process postprocess_nanomon_vcf {
         --sample_id ${params.sample_name} \
         --min_ref_support ${params.min_ref_support} \
         --output "${params.sample_name}.wf-somatic-sv.vcf" \
-        $tumor_only $genotype_sv
+        $genotype_sv
     """
 }
 
@@ -263,7 +261,6 @@ process report {
         // (https://github.com/nextflow-io/nextflow/issues/3574); needs to be
         // `path.fileName.name` instead
         def evalResults = eval_json.fileName.name == 'OPTIONAL_FILE' ? "" : "--eval_results ${eval_json}"
-        def tumorOnly = params.bam_normal ? "" : "--tumor_only"
     """
     workflow-glue report_sv \
         $report_name \
@@ -273,7 +270,7 @@ process report {
         --versions $versions \
         --revision ${workflow.revision} \
         --commit ${workflow.commitId} \
-        $evalResults $tumorOnly
+        $evalResults
     """
 }
 
