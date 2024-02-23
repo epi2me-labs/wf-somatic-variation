@@ -343,6 +343,18 @@ Currently, the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
 
+### 7. Run the workflow on a region
+When sequencing specific regions or genes, the runtime can vary substantially.
+The table below provides a guideline on the average compute time for a given number of genes or regions.
+All analyses are run using up to 128GB of RAM and 16 cores, computing `--sv` and `--snv` on a 75X/55X tumor/normal coverage in the regions of interest.
+
+| Number of genes |    Region size    | CPU/h |  Runtime   |
+|-----------------|-------------------|-------|------------|
+|      1-10       |      200Kb-1Mb    |  ~2.0 |  8m-15m    |
+|     11-100      |       1Mb-6Mb     |  ~7.0 | 25m-45m    |
+|    100-1000     |      20Mb-60Mb    | ~14.0 | 45m-1h:30m |
+
+
 
 
 
