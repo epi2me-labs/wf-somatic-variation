@@ -24,12 +24,12 @@ from .util import get_named_logger, wf_parser  # noqa: ABS101
 # Mutation profile palette to match the COSMIC
 # patterns.
 cmap = {
-    'C>A': COLORS.cerulean,
-    'C>G': COLORS.black,
-    'C>T': COLORS.cinnabar,
-    'T>A': COLORS.grey70,
-    'T>C': COLORS.medium_spring_bud,
-    'T>G': COLORS.fandango,
+    'C>A': "#25BDEE",  # Light blue
+    'C>G': "#000000",  # Black
+    'C>T': "#E32925",  # Red
+    'T>A': "#CAC9C9",  # Grey
+    'T>C': "#A1CE63",  # Green
+    'T>G': "#ECC7C6",  # Pink
 }
 
 

@@ -1,7 +1,6 @@
 """Commonly used code in visualizations."""
 from ezcharts import barplot, histplot
 from ezcharts import lineplot, scatterplot
-import numpy as np
 from .utils import COLORS  # noqa: ABS101
 
 
@@ -197,15 +196,19 @@ def plot_spectra(spectra, sample, cmap=None):
     # Count by change type
     tots = df.groupby('Change').sum().reset_index()
     tots.columns = ['Change', sample]
-    # Create bar plot
-    plot = barplot(data=tots, x='Change', y=sample)
+
+    # Define appropriate palette
+    palette = None
     if cmap:
-        plot.color = list(cmap.values())
-    plot.xAxis.name = 'Change'
-    plot.yAxis.name = "Counts"
-    for s in plot.series:
-        s.colorBy = 'data'
-    plot.tooltip = dict({'trigger': 'item'})
+        palette = [cmap.get(i) for i in sorted(df.get("Change").unique())]
+
+    # Create bar plot
+    plot = barplot(
+        data=tots,
+        x='Change',
+        y=sample,
+        palette=palette
+    )
     return plot
 
 
@@ -214,51 +217,23 @@ def plot_profile(df, sample, cmap=None):
     # Ensure sorting
     df = df.sort_values(["Change", "Flanks"])
 
+    # Define appropriate palette
+    palette = None
+    if cmap:
+        palette = [cmap.get(i) for i in sorted(df.get("Change").unique())]
+
     # Create base barplot
     plt = barplot(
         data=df.assign(order=range(df.shape[0])),
-        x="order", y=sample,
-        hue='Change', dodge=False)
-
-    # Define appropriate palette
-    if cmap:
-        plt.color = list(cmap.values())
-
-    # Definition of the x-axis
-    # in distinct axes
-    flanks_axis = dict(
-        data=[dict(value=x) for x in df["Flanks"]],
-        axisLabel=dict(
-            rotate=90,
-            fontSize=10,
-            interval=0,  # this forces echarts to show all tick labels
-        ),
-        axisTick=dict(alignWithLabel=True),
-    )
-    change_axis = dict(
-        position="bottom",
-        # make sure the df is sorted by `change` (otherwise the labels will be wrong)
-        data=[dict(value=x) for x in df["Change"].unique()],
-        # tick length and label margin below might need tweaking
-        axisTick=dict(length=50),
-        axisLabel=dict(margin=40),
-        splitLine=dict(show=True),
+        x="Flanks",
+        y=sample,
+        hue="Change",
+        dodge=True,
+        palette=palette,
+        nested_x=True
     )
 
-    # replace the original axis with the new ones
-    plt.xAxis = [flanks_axis, change_axis]
-    plt.yAxis.name = 'Count'
+    # Sort out axis
+    plt._fig.xaxis.major_label_orientation = 1.2
 
-    # Add tooltip to facilitate reading
-    tmp_df = plt.dataset[0].source
-    tmp_sum = np.array([tmp_df[:, 0], np.sum(tmp_df[:, 1:], axis=1)]).T
-    plt.add_series(
-        dict(
-            type="scatter",
-            name="",
-            data=[dict(value=tmp_sum[i, :]) for i in range(0, tmp_sum.shape[0])],
-            symbolSize=0,
-            tooltip=dict(formatter='{c}')
-        ))
-    plt.tooltip = dict({'trigger': 'item'})
     return plt
