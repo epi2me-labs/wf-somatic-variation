@@ -51,7 +51,11 @@ include {
     aggregate_all_variants;
 } from "../modules/local/wf-clair3-snp.nf"
 
-include {annotate_vcf as annotate_snv} from '../modules/local/common.nf'
+include {
+    annotate_vcf as annotate_snv;
+    concat_vcfs as concat_snp_vcfs;
+    sift_clinvar_vcf as sift_clinvar_snp_vcf
+} from '../modules/local/common.nf'
 
 // workflow module
 workflow snv {
@@ -751,7 +755,9 @@ workflow snv {
             tagged_bams = concat_bams(
                 clairs_haplotag.out.phased_data
                     .map{samp, ctg, bam, bai, meta -> [meta, bam, bai]}
-                    .groupTuple(by:0).combine(extensions)
+                    .groupTuple(by:0)
+                    .combine(ref)
+                    .combine(extensions)
             )
         }
 
@@ -768,11 +774,14 @@ workflow snv {
         
         // Add snpEff annotation if requested
         if (params.annotation){
-            annotate_snv(ch_vcf.combine(ch_tbi, by:0), 'somatic-snv')
-            ch_vcf = annotate_snv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
-            ch_tbi = annotate_snv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
-            clinvar_vcf = annotate_snv.out.annot_vcf_clinvar
-            gene_txt = annotate_snv.out.gene_txt
+            // snpeff is slow so we'll just pass the whole VCF but annotate per contig
+            annotations = annotate_snv(
+                ch_vcf.combine(ch_tbi, by:0).combine(clairs_contigs, by:0), 'somatic-snv'
+            )
+            final_vcf = concat_snp_vcfs(annotations.groupTuple(by: 0), "${params.sample_name}.wf-somatic-snv").final_vcf
+            clinvar_vcf = sift_clinvar_snp_vcf(final_vcf, "snv").final_vcf_clinvar
+            ch_vcf = final_vcf.map{meta, vcf, tbi -> [meta, vcf]}
+            ch_tbi = final_vcf.map{meta, vcf, tbi -> [meta, tbi]}
         // Otherwise, create optional file from the vcf channel to preserve the structure
         } else {
             clinvar_vcf = ch_vcf.map{meta, vcf -> [meta, file("$projectDir/data/OPTIONAL_FILE")]}
@@ -861,10 +870,6 @@ workflow snv {
         }
         if (params.annotation){
             outputs
-                .concat(
-                    gene_txt.map{
-                        meta, gene -> [gene, "${meta.sample}/snv/annot/"]
-                        })
                 .concat(
                     clinvar_vcf.map{
                         meta, vcf -> [vcf, "${meta.sample}/snv/annot/"]

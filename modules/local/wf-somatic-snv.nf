@@ -270,7 +270,7 @@ process clairs_phase {
 // Run whatshap haplotag on the bam file
 process clairs_haplotag {
     label "wf_somatic_snv"
-    cpus 1
+    cpus 4
     memory 4.GB
     input:
         tuple val(meta), 
@@ -294,13 +294,12 @@ process clairs_haplotag {
     shell:
         '''
         whatshap haplotag \\
-            --output !{meta.sample}_!{meta.type}_!{contig}.bam \\
             --reference !{ref} \\
             --regions !{contig} \\
             --ignore-read-groups \\
             !{vcf} \\
-            !{bam}
-        samtools index !{meta.sample}_!{meta.type}_!{contig}.bam
+            !{bam} \\
+        | samtools view -b -1 -@3 -o !{meta.sample}_!{meta.type}_!{contig}.bam##idx##!{meta.sample}_!{meta.type}_!{contig}.bam.bai --write-index --no-PG
         '''
 }
 
@@ -1169,16 +1168,45 @@ process concat_bams {
         tuple val(meta), 
             path("bams/*"), 
             path("bams/*"),
-            val(align_ext),
-            val(index_ext)
+            path(ref), 
+            path(fai), 
+            path(ref_cache), 
+            env(REF_PATH),
+            val(xam_fmt),
+            val(xai_fmt)
     output:    
         tuple val(meta),
-            path("${meta.sample}_${meta.type}.ht.${align_ext}"),
-            path("${meta.sample}_${meta.type}.ht.${align_ext}.${index_ext}"), emit: tagged_bams
+            path("${meta.sample}_${meta.type}.ht.${xam_fmt}"),
+            path("${meta.sample}_${meta.type}.ht.${xam_fmt}.${xai_fmt}"), emit: tagged_xams
             
     script:
+        def threads = Math.max(task.cpus - 1, 1)
         """
-        samtools merge "${meta.sample}_${meta.type}.ht.${align_ext}##idx##${meta.sample}_${meta.type}.ht.${align_ext}.${index_ext}" ./bams/*.bam -O ${align_ext} --write-index --threads ${task.cpus}
+        # ensure that this file does not exists
+        if [ -f seq_list.txt ]; then
+            rm seq_list.txt
+        fi
+        # pick the "first" bam and read its SQ list to determine sort order
+        samtools view -H --no-PG `ls bams/*.bam | head -n1` | grep '^@SQ' | sed -nE 's,.*SN:([^[:space:]]*).*,\\1,p' > seq_list.txt
+        # append present contigs to a file of file names, to cat according to SQ order
+        while read sq; do
+            if [ -f "bams/${meta.sample}_${meta.type}_\${sq}.bam" ]; then
+                echo "bams/${meta.sample}_${meta.type}_\${sq}.bam" >> cat.fofn
+            fi
+        done < seq_list.txt
+        if [ ! -s cat.fofn ]; then
+            echo "No haplotagged inputs to cat? Are the input file names staged correctly?"
+            exit 70 # EX_SOFTWARE
+        fi
+
+        # cat just cats files of the same format, if we want CRAM, we'll have to call samtools view ourselves
+        if [ "${xam_fmt}" = "cram" ]; then
+            samtools cat -b cat.fofn --no-PG -o - | \
+                samtools view --no-PG -@ ${threads} --reference ${ref} -O cram --write-index -o "${meta.sample}_${meta.type}.ht.cram##idx##${meta.sample}_${meta.type}.ht.cram.crai"
+        else
+            samtools cat -b cat.fofn --no-PG -@ ${threads} -o "${meta.sample}_${meta.type}.ht.bam"
+            samtools index -@ ${threads} -b "${meta.sample}_${meta.type}.ht.bam"
+        fi
         """
 }
 
