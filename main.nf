@@ -5,7 +5,7 @@ nextflow.enable.dsl = 2
 // Load base modules
 include {bam_ingress as bam_ingress_normal; bam_ingress as bam_ingress_tumor} from './lib/bamingress.nf'
 include {
-    somatic_sv
+    somatic_sv as sv
     } from './workflows/wf-somatic-sv.nf'
 include {
     index_ref_gzi;
@@ -344,7 +344,7 @@ workflow {
     
     // Start SV calling workflow
     if (params.sv){
-        somatic_sv(pass_bam_channel, ref_channel, OPTIONAL)
+        sv(pass_bam_channel, ref_channel, OPTIONAL)
     }
 
     // Extract modified bases

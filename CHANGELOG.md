@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Changed
 - Updated ClairS to v0.1.7, with the new dorado 4KHz/5KHz HAC models.
+- Several performance improvements which should noticeably reduce the running time of the workflow
+- `makeQCreport` allows for one retry to prevent the workflow failing on report generation
 
 ## [v1.0.0]
 ### Added

@@ -159,10 +159,12 @@ workflow somatic_sv {
 
         // Add snpEff annotation if requested
         if (params.annotation){
-            annotate_sv(sortVCF.out.vcf_gz.combine(sortVCF.out.vcf_tbi, by:0), 'somatic-sv')
+            vcf_to_annotate = sortVCF.out.vcf_gz
+                .combine(sortVCF.out.vcf_tbi, by:0)
+                .map{ it << '*' }
+            annotate_sv(vcf_to_annotate, 'somatic-sv')
             proc_vcf = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
             proc_tbi = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
-            gene_txt = annotate_sv.out.gene_txt
         // Otherwise, create optional file from the vcf channel to preserve the structure
         } else {
             proc_vcf = sortVCF.out.vcf_gz
@@ -222,15 +224,6 @@ workflow somatic_sv {
                     it -> [it, null]
                 })
             .set{outputs}
-        
-        if (params.annotation){
-            outputs
-                .concat(
-                    gene_txt.map{
-                        meta, gene -> [gene, "${meta.sample}/sv/annot/"]
-                        })
-                .set{outputs}
-        }
         outputs | output_sv
     emit:
         soma_sv = report.out.html.concat(
