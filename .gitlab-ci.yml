@@ -196,7 +196,7 @@ docker-run:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz; wget https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
-                  --genotyping_mode_vcf https://www.nygenome.org/bioinformatics/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
+                  --genotyping_mode_vcf https://bioinformatics.nygenome.org/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
@@ -212,7 +212,7 @@ docker-run:
               NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz; wget https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
-                  --hybrid_mode_vcf https://www.nygenome.org/bioinformatics/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
+                  --hybrid_mode_vcf https://bioinformatics.nygenome.org/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
                   --bam_normal wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor wf-somatic-variation-demo/demo_tumor.bam \
                   --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
