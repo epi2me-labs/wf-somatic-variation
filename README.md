@@ -90,8 +90,14 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 <!---Example of input directory structure, delete and edit as appropriate per workflow.--->
 This workflow accepts BAM files (aligned or unaligned) as input.
 
-The BAM input parameters for this workflow accept the path to a single BAM file for the tumor sample (`--bam_tumor`), and one optional bam for the normal sample (`--bam_normal`). A sample name can be supplied with `--sample`.
+The `--bam_tumor` and `--bam_normal` input parameters for this workflow accept the path to a single BAM file or folder containing multiple BAM files for the tumor sample and the normal sample, respectively. The normal sample is optional for some components. A sample name can be supplied with `--sample`.
 
+```
+(i)                     (ii)    
+input_reads.bam     ─── input_directory
+                        ├── reads0.bam
+                        └── reads1.bam
+```
 
 
 
@@ -111,8 +117,8 @@ The BAM input parameters for this workflow accept the path to a single BAM file 
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | sample_name | string | Sample name to be displayed in workflow outputs. | The sample name will be used from the workflow to correctly name output files. | SAMPLE |
-| bam_normal | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample. | You may choose to provide a BAM/CRAM, but not both. |  |
-| bam_tumor | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample. | You may choose to provide a BAM/CRAM, but not both. |  |
+| bam_normal | string | BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`. |  |
+| bam_tumor | string | BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`. |  |
 | ref | string | Path to a reference FASTA file. | Reference against which to compare reads for variant calling. |  |
 | bed | string | An optional BED file enumerating regions to process for variant calling. |  |  |
 | tr_bed | string | An optional BED file enumerating simple repeat regions. | This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1). |  |
@@ -215,15 +221,15 @@ below as {{ alias }}.
 
 The workflow relies on three primary input files:
 1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
-2. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample (either aligned or unaligned)
-3. An optional [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample (either aligned or unaligned)
+2. A single tumor sample in the format of one [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf), or a folder of BAM files (either aligned or unaligned)
+3. An optional single normal sample in the format of one [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf), or a folder of BAM files (either aligned or unaligned)
 
 The BAM files can be generated from:
 1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
+
 Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
 It is possible to run the workflow without the BAM file of the "normal" sample. See [tumor-only mode](#6-tumor-only-mode) for more details.
-
 
 ### 2. Data QC and pre-processing.
 The workflow starts by performing multiple checks of the input BAM files, as well as computing:

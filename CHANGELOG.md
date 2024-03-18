@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+### Added
+- Support for input folders of BAM files for `--bam_tumor` and `--bam_normal` (instead of only allowing single BAM files).
+
+### Removed
+- CRAM as supported input format.
+
 ## [v1.1.0]
 ### Changed
 - Updated ClairS to v0.1.7, with the new dorado 4KHz/5KHz HAC models.

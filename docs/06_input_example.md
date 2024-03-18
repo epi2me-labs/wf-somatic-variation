@@ -1,4 +1,11 @@
 <!---Example of input directory structure, delete and edit as appropriate per workflow.--->
 This workflow accepts BAM files (aligned or unaligned) as input.
 
-The BAM input parameters for this workflow accept the path to a single BAM file for the tumor sample (`--bam_tumor`), and one optional bam for the normal sample (`--bam_normal`). A sample name can be supplied with `--sample`.
+The `--bam_tumor` and `--bam_normal` input parameters for this workflow accept the path to a single BAM file or folder containing multiple BAM files for the tumor sample and the normal sample, respectively. The normal sample is optional for some components. A sample name can be supplied with `--sample`.
+
+```
+(i)                     (ii)    
+input_reads.bam     ─── input_directory
+                        ├── reads0.bam
+                        └── reads1.bam
+```

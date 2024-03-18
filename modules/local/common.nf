@@ -53,28 +53,6 @@ process decompress_ref {
     """
 }
 
-process minimap2_ubam {
-    cpus {params.ubam_map_threads + params.ubam_sort_threads + params.ubam_bam2fq_threads}
-    memory { 15.GB * task.attempt }
-    maxRetries 2
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
-
-    input:
-        path reference
-        path old_reference
-        tuple path(reads), path(reads_idx)
-    output:
-        tuple path("${params.sample_name}.cram"), path("${params.sample_name}.cram.crai"), emit: alignment
-    script:
-    def bam2fq_ref = old_reference.name != "OPTIONAL_FILE" ? "--reference ${old_reference}" : ''
-    // samtools sort need extra threads. Specify these as N - 1 to avoid using too many cores.
-    def sort_threads = params.ubam_sort_threads - 1
-    """
-    samtools bam2fq -@ ${params.ubam_bam2fq_threads} -T 1 ${bam2fq_ref} ${reads} | minimap2 -y -t ${params.ubam_map_threads} -ax map-ont ${reference} - \
-    | samtools sort -@ ${sort_threads} --write-index -o ${params.sample_name}.cram##idx##${params.sample_name}.cram.crai -O CRAM --reference ${reference} -
-    """
-}
-
 // Module to convert fai index to bed
 process bgzipper {
     cpus 1

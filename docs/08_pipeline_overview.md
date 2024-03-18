@@ -9,15 +9,15 @@ below as {{ alias }}.
 
 The workflow relies on three primary input files:
 1. A reference genome in [fasta format](https://www.ncbi.nlm.nih.gov/genbank/fastaformat/)
-2. A [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the tumor sample (either aligned or unaligned)
-3. An optional [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf) for the normal sample (either aligned or unaligned)
+2. A single tumor sample in the format of one [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf), or a folder of BAM files (either aligned or unaligned)
+3. An optional single normal sample in the format of one [BAM file](https://samtools.github.io/hts-specs/SAMv1.pdf), or a folder of BAM files (either aligned or unaligned)
 
 The BAM files can be generated from:
 1. [POD5](https://github.com/nanoporetech/pod5-file-format)/[FAST5](https://github.com/nanoporetech/ont_fast5_api) files using the [wf-basecalling](https://github.com/epi2me-labs/wf-basecalling) workflow, or
 2. [fastq](https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq) files using [wf-alignment](https://github.com/epi2me-labs/wf-alignment).
+
 Both workflows will generate aligned BAM files that are ready to be used with `wf-somatic-variation`.
 It is possible to run the workflow without the BAM file of the "normal" sample. See [tumor-only mode](#6-tumor-only-mode) for more details.
-
 
 ### 2. Data QC and pre-processing.
 The workflow starts by performing multiple checks of the input BAM files, as well as computing:
