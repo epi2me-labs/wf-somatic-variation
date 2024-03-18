@@ -72,15 +72,15 @@
                     "title": "Normal BAM",
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample.",
-                    "help_text": "You may choose to provide a BAM/CRAM, but not both."
+                    "description": "BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
                 },
                 "bam_tumor": {
                     "title": "Tumor BAM",
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample.",
-                    "help_text": "You may choose to provide a BAM/CRAM, but not both."
+                    "description": "BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
                 },
                 "ref": {
                     "title": "Reference genome file",

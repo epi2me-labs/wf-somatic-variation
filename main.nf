@@ -3,7 +3,10 @@ import groovy.json.JsonBuilder
 nextflow.enable.dsl = 2
 
 // Load base modules
-include {bam_ingress as bam_ingress_normal; bam_ingress as bam_ingress_tumor} from './lib/bamingress.nf'
+include {
+    ingress as ingress_normal;
+    ingress as ingress_tumor
+    } from './lib/_ingress.nf'
 include {
     somatic_sv as sv
     } from './workflows/wf-somatic-sv.nf'
@@ -141,7 +144,7 @@ workflow {
     */
     // If running in tumor-only mode, create an empty channel.
     if (params.bam_normal){
-        bam_normal = bam_ingress_normal(
+        bam_normal = ingress_normal(
                 ref,
                 ref_index,
                 params.bam_normal,
@@ -151,7 +154,7 @@ workflow {
     }
 
     // Import the tumor, which is always required.
-    bam_tumor = bam_ingress_tumor(
+    bam_tumor = ingress_tumor(
             ref,
             ref_index,
             params.bam_tumor,
@@ -159,12 +162,12 @@ workflow {
 
     // Combine everything
     all_bams = bam_normal
-                .map{ bam, bai, meta -> 
+                .map{ meta, bam, bai -> 
                     meta.sample = params.sample_name
                     meta.type = 'normal'
                     [bam, bai, meta]
                 }
-                .mix(bam_tumor.map{bam, bai, meta -> 
+                .mix(bam_tumor.map{meta, bam, bai -> 
                     meta.sample = params.sample_name
                     meta.type = 'tumor'
                     return [bam, bai, meta]

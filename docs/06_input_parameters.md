@@ -12,8 +12,8 @@
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | sample_name | string | Sample name to be displayed in workflow outputs. | The sample name will be used from the workflow to correctly name output files. | SAMPLE |
-| bam_normal | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the normal sample. | You may choose to provide a BAM/CRAM, but not both. |  |
-| bam_tumor | string | Path to a BAM (or CRAM) containing aligned or unaligned reads for the tumor sample. | You may choose to provide a BAM/CRAM, but not both. |  |
+| bam_normal | string | BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`. |  |
+| bam_tumor | string | BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`. |  |
 | ref | string | Path to a reference FASTA file. | Reference against which to compare reads for variant calling. |  |
 | bed | string | An optional BED file enumerating regions to process for variant calling. |  |  |
 | tr_bed | string | An optional BED file enumerating simple repeat regions. | This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1). |  |

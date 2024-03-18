@@ -36,7 +36,7 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "snv-r10-no_annot",
+                "input-multibam-dirs", "snv-r10-no_annot",
                 "tumor-only", "tumor-only-fail", 
                 "snv-bed", "snv-gvcf", 
                 "wf-somatic-snv-r10-gt", "wf-somatic-snv-r10-hy",
@@ -296,6 +296,18 @@ docker-run:
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
               ASSERT_NEXTFLOW_FAILURE: "yes"
               ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is only available with --mod"
+
+        - if: $MATRIX_NAME == "input-multibam-dirs"
+          variables:
+              NF_BEFORE_SCRIPT: "wget -q -O demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf demo_data.tar.gz; wget https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_tumor wf-somatic-variation-demo/20240213_0958_1-AN-DN__fghij456/bam_pass/tumor/ \
+                  --bam_normal wf-somatic-variation-demo/20240213_0951_0-AN-DN__abcde123/bam_pass/normal/ \
+                  --ref wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
 aws-run:
     stage: test
