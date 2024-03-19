@@ -92,7 +92,7 @@ workflow ingress {
                 ingressed_bam.map{ it - null }
             ) | 
             map{ realign, meta, xam, xai ->
-                [meta + [is_cram: xam.endsWith('.cram'), realign: realign != '0'], xam, xai]
+                [meta + [is_cram: xam.name.endsWith('.cram'), realign: realign != '0'], xam, xai]
             }
         // fork BAMs into realign and noalign subchannels
         checked_bam.branch {

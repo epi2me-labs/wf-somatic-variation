@@ -750,7 +750,7 @@ workflow snv {
         }
 
         // Concatenate haplotagged bams, if phasing requested
-              if (params.germline){
+        if (params.germline){
             extensions = Channel.of(['cram', 'crai'])
             tagged_bams = concat_bams(
                 clairs_haplotag.out.phased_data
