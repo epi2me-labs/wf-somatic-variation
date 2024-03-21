@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for input folders of BAM files for `--bam_tumor` and `--bam_normal` (instead of only allowing single BAM files).
 
+### Fixed
+- Force minimap2 to clean up memory more aggressively. Empirically this reduces peak-memory use over the course of execution.
+
 ### Removed
 - CRAM as supported input format.
 
