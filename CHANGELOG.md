@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Force minimap2 to clean up memory more aggressively. Empirically this reduces peak-memory use over the course of execution.
+- Workflow occasionally repeating QC analyses when resuming, even if successful.
 
 ### Removed
 - CRAM as supported input format.

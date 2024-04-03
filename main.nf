@@ -173,6 +173,25 @@ workflow {
                     return [bam, bai, meta]
                 })
 
+    // Add genome build information
+    // CW-2491: make this optional, allowing any genome to be processed
+    // CW-3830: perform this before the QC as changing the metadata causes the
+    //          `-resume` to break.
+    if ((params.sv && params.classify_insert) || params.annotation){
+        getGenome(all_bams)
+        getGenome.out.genome_build.map{
+                bam, bai, meta, g_build -> 
+                    [bam, bai, meta + [genome_build: g_build]]
+            }.set{all_bams}
+    } else {
+        all_bams
+            .map{
+                bam, bai, meta ->
+                [bam, bai, meta + [genome_build: null]]
+            }
+            .set{all_bams}
+    }
+
     // Check input region bed file.
     // If it doesn't exists, then extract the regions from
     // the reference faidx file.
@@ -288,26 +307,6 @@ workflow {
     }
     // Output QC data
     output_qc( qc_outputs )
-
-
-    // Add genome build information
-    // CW-2491: make this optional, allowing any genome to be processed
-    if ((params.sv && params.classify_insert) || params.annotation){
-        getGenome(pass_bam_channel)
-        getGenome.out.genome_build.map{
-                bam, bai, meta, g_build -> 
-                    meta.genome_build = g_build
-                    [bam, bai, meta]
-            }.set{pass_bam_channel}
-    } else {
-        pass_bam_channel
-            .map{
-                bam, bai, meta ->
-                meta.genome_build = false
-                [bam, bai, meta]
-            }
-            .set{pass_bam_channel}
-    }
 
     // Run snv workflow if requested
     if (params.snv) {
