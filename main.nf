@@ -162,16 +162,16 @@ workflow {
 
     // Combine everything
     all_bams = bam_normal
-                .map{ meta, bam, bai -> 
-                    meta.sample = params.sample_name
-                    meta.type = 'normal'
-                    [bam, bai, meta]
+                .map{
+                    meta, bam, bai -> 
+                    [bam, bai, meta + [sample: params.sample_name, type: 'normal']]
                 }
-                .mix(bam_tumor.map{meta, bam, bai -> 
-                    meta.sample = params.sample_name
-                    meta.type = 'tumor'
-                    return [bam, bai, meta]
-                })
+                .mix(
+                    bam_tumor.map{
+                        meta, bam, bai -> 
+                        [bam, bai, meta + [sample: params.sample_name, type: 'tumor']]
+                        }
+                    )
 
     // Add genome build information
     // CW-2491: make this optional, allowing any genome to be processed
