@@ -71,14 +71,14 @@
                 "bam_normal": {
                     "title": "Normal BAM",
                     "type": "string",
-                    "format": "file-path",
+                    "format": "path",
                     "description": "BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis.",
                     "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
                 },
                 "bam_tumor": {
                     "title": "Tumor BAM",
                     "type": "string",
-                    "format": "file-path",
+                    "format": "path",
                     "description": "BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis.",
                     "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
                 },
