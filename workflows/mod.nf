@@ -8,7 +8,6 @@ process getVersions {
         path "versions_tmp.txt"
     script:
     """
-    python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions_tmp.txt
     modkit --version | tr -s ' ' ',' >> versions_tmp.txt
     bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions_tmp.txt
     """
@@ -97,7 +96,7 @@ process modkit {
     output:
         tuple val(meta), 
             val('all'),
-            path("${meta.sample}_${meta.type}.bed.gz"), 
+            path("${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl.gz"), 
             emit: full_output
 
     script:
@@ -108,10 +107,12 @@ process modkit {
     """
     modkit pileup \\
         ${alignment} \\
-        ${meta.sample}_${meta.type}.bed \\
+        "${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl" \\
         --ref ${reference} \\
+        --interval-size 1000000 \\
+        --log-filepath modkit.log \\
         --threads ${task.cpus} ${options}
-    bgzip ${meta.sample}_${meta.type}.bed
+    bgzip "${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl"
     """
 }
 
@@ -125,13 +126,13 @@ process bedmethyl_split {
             path(bed)
     output:
         tuple val(meta), 
-            path("*.${meta.sample}_${meta.type}.bed.gz"), 
+            path("*.${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl.gz"), 
             emit: mod_outputs
 
     script:
     """
     workflow-glue mod_split ${bed}
-    for i in `ls *.bed`; do
+    for i in *.bedmethyl; do
         bgzip \$i
     done
     """

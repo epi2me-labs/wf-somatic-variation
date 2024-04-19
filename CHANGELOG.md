@@ -8,9 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for input folders of BAM files for `--bam_tumor` and `--bam_normal` (instead of only allowing single BAM files).
 
+### Changed
+- ClinVar version in SnpEff container updated to version 20240307
+- Update to Clair3 v1.0.7.
+- Update to modkit v0.2.6.
+- Improved modkit runtime by increasing the default interval size.
+- Increased minimum CPU requirement for the workflow to 16.
+- bedMethyl output files now follow the pattern `{{ alias }}.wf-somatic-mods.{{ type }}.bedmethyl.gz`.
+
 ### Fixed
 - Force minimap2 to clean up memory more aggressively. Empirically this reduces peak-memory use over the course of execution.
 - Workflow occasionally repeating QC analyses when resuming, even if successful.
+- Alignment report script using too much memory.
+- HAC models not recognised as valid.
 
 ### Removed
 - CRAM as supported input format.

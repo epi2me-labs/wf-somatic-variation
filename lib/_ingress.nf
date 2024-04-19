@@ -37,14 +37,18 @@ process check_for_alignment {
         tuple path(reference), path(ref_idx)
         tuple val(meta), path(xam), path(xam_idx)
     output:
-        tuple env(realign), val(meta), path(xam), path(xam_idx)
+        tuple env(to_align), val(meta), path(xam), path(xam_idx)
     script:
         """
-        realign=0
-        workflow-glue check_sq_ref --xam ${xam} --ref ${reference} || realign=\$?
+        to_align=0
+        workflow-glue check_sq_ref --xam ${xam} --ref ${reference} || to_align=\$?
+
+        # Count SQ lines to help determine if this is unaligned BAM/CRAM later
+        # permit grep to exit 1 if the count is zero, otherwise blow up here
+        xam_sq_len=\$(samtools view -H ${xam} | { grep -c '^@SQ' || [[ \$? == 1 ]]; })
 
         # Allow EX_OK and EX_DATAERR, otherwise explode
-        if [ \$realign -ne 0 ] && [ \$realign -ne 65 ]; then
+        if [ \$to_align -ne 0 ] && [ \$to_align -ne 65 ]; then
             exit 1
         fi
         """
@@ -92,26 +96,26 @@ workflow ingress {
                 check_ref,
                 ingressed_bam.map{ it - null }
             ) | 
-            map{ realign, meta, xam, xai ->
-                [meta + [is_cram: xam.name.endsWith('.cram'), realign: realign != '0'], xam, xai]
+            map{ to_align, meta, xam, xai ->
+                [meta + [is_cram: xam.name.endsWith('.cram'), to_align: to_align != '0'], xam, xai]
             }
-        // fork BAMs into realign and noalign subchannels
+        // fork BAMs into to_align and noalign subchannels
         checked_bam.branch {
             meta, xam, xai -> 
-            realign: meta.is_unaligned || meta.realign
+            to_align: meta.is_unaligned || meta.to_align
             noalign: true
         }.set{alignment_fork}
 
         // call minimap on bams that require (re)alignment
         // then map the result of minimap2_ubam to the canonical (reads, index, meta) tuple
-        new_mapped_bams = minimap2_ubam(ref_file, alignment_fork.realign).map{
+        new_mapped_bams = minimap2_ubam(ref_file, alignment_fork.to_align).map{
             // map newly aligned bam to (xam_path, xam_index, xam_meta) tuple
             // setting the meta.is_cram to true because the bam was (re)aligned
             meta, xam, xai -> 
             [meta + [is_cram: true], xam, xai]
         }
 
-        // mix realign and noalign forks back to canonical bam_channel with (reads, reads_idx, meta) format
+        // mix to_align and noalign forks back to canonical bam_channel with (reads, reads_idx, meta) format
         bam_channel = alignment_fork.noalign.mix(new_mapped_bams)
 
     emit:
