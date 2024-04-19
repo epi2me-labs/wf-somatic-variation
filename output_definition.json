@@ -65,7 +65,7 @@
       "type": "per-sample"
     },
     "mod-bedmethyl-normal": {
-      "filepath": "{{ alias }}_normal.wf_mod.bedmethyl.gz",
+      "filepath": "{{ alias }}.wf-somatic-mods.normal.bedmethyl.gz",
       "title": "Modified bases BEDMethyl (normal)",
       "description": "BED file with the aggregated modification counts for the normal sample.",
       "mime-type": "application/gzip",
@@ -73,7 +73,7 @@
       "type": "per-sample"
     },
     "mod-bedmethyl-tumor": {
-      "filepath": "{{ alias }}_tumor.wf_mod.bedmethyl.gz",
+      "filepath": "{{ alias }}.wf-somatic-mods.tumor.bedmethyl.gz",
       "title": "Modified bases BEDMethyl (tumor)",
       "description": "BED file with the aggregated modification counts for the tumor sample.",
       "mime-type": "application/gzip",

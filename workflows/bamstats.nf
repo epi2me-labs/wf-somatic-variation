@@ -155,11 +155,11 @@ process makeQCreport {
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input: 
         tuple val(meta), 
-            path("readstats_normal/*"),
+            path("readstats_normal.tsv.gz"),
             path("flagstat_normal/*"),
             path("summary_depth_normal/*"),
             path("depth_normal/*"),
-            path("readstats_tumor/*"),
+            path("readstats_tumor.tsv.gz"),
             path("flagstat_tumor/*"),
             path("summary_depth_tumor/*"),
             path("depth_tumor/*"),
@@ -174,7 +174,7 @@ process makeQCreport {
         // If no *_min_coverage provided, or set to null by mistake, set it to 0.
         def tumor_cvg = params.tumor_min_coverage ?: 0
         def normal_cvg = params.normal_min_coverage ?: 0
-        def normal_readstats_arg = params.bam_normal ? "--read_stats_normal readstats_normal" : ""
+        def normal_readstats_arg = params.bam_normal ? "--read_stats_normal readstats_normal.tsv.gz" : ""
         def normal_flagstats_arg = params.bam_normal ? "--flagstat_normal flagstat_normal" : ""
         def normal_depth_summary_arg = params.bam_normal ? "--mosdepth_summary_normal summary_depth_normal" : ""
         def normal_depth_region_arg = params.bam_normal ? "--depth_normal depth_normal" : ""
@@ -185,7 +185,7 @@ process makeQCreport {
             --normal_cov_threshold ${normal_cvg} \\
             --sample_id ${meta.sample} \\
             --name ${meta.sample}.wf-somatic-variation-readQC \\
-            --read_stats_tumor readstats_tumor \\
+            --read_stats_tumor readstats_tumor.tsv.gz \\
             ${normal_readstats_arg} \\
             --flagstat_tumor flagstat_tumor \\
             ${normal_flagstats_arg} \\

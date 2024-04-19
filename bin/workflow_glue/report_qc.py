@@ -4,7 +4,7 @@
 from dominate.tags import a, p
 from ezcharts.components.common import fasta_idx
 from ezcharts.components.ezchart import EZChart
-from ezcharts.components.fastcat import load_bamstats_flagstat, load_stats
+from ezcharts.components.fastcat import load_bamstats_flagstat
 from ezcharts.components.mosdepth import load_mosdepth_regions, load_mosdepth_summary
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
@@ -67,9 +67,7 @@ def populate_report(report, args, **kwargs):
     else:
         normal_read_number_str = str(len(normal_stats_df.index))
         normal_n50 = compute_n50(normal_stats_df["read_length"].values)
-        normal_n50_str = (
-            str(compute_n50(normal_stats_df["read_length"].values)) + " bp"
-        )
+        normal_n50_str = str(compute_n50(normal_stats_df["read_length"].values)) + " bp"
         normal_median_read_length = int(normal_stats_df["read_length"].median())
 
     # Start structuring the report
@@ -115,7 +113,8 @@ def populate_report(report, args, **kwargs):
         normal_threshold_string = ""
         if args.normal_cov_threshold:
             normal_threshold_string = (
-                f" and {args.normal_cov_threshold}x for the normal sequences")
+                f" and {args.normal_cov_threshold}x for the normal sequences"
+            )
         p(
             f"""
             The aligned bam files have been tested for coverage thresholds of
@@ -368,6 +367,66 @@ def populate_report(report, args, **kwargs):
         )
 
 
+def read_stats(
+    logger,
+    read_stats=None,
+    flagstats=None,
+    depth=None,
+    mosdepth_summary=None,
+    faidx=None,
+    winsize=50000,
+):
+    """Load all stats files for a sample."""
+    if read_stats:
+        logger.info(f"Loading {read_stats}")
+        stats_df = pd.read_csv(
+            read_stats,
+            sep="\t",
+            usecols=[
+                "sample_name",
+                "ref",
+                "read_length",
+                "mean_quality",
+                "acc",
+                "coverage",
+            ],
+            dtype={
+                "sample_name": "category",
+                "ref": "category",
+                "read_length": int,
+                "mean_quality": float,
+                "acc": float,
+                "coverage": float,
+            },
+        )
+    else:
+        stats_df = pd.DataFrame()
+
+    if flagstats:
+        logger.info(f"Loading {flagstats}")
+        flags_df = load_bamstats_flagstat(flagstats)
+    else:
+        flags_df = pd.DataFrame()
+
+    if mosdepth_summary:
+        logger.info(f"Loading {mosdepth_summary}")
+        depth_su = load_mosdepth_summary(mosdepth_summary)
+    else:
+        depth_su = pd.DataFrame()
+
+    if depth:
+        logger.info(f"Loading {depth}")
+        depth_df = load_mosdepth_regions(
+            depth, faidx=faidx, winsize=winsize, min_size=10000000
+        )
+        if not depth_df.empty:
+            depth_df = depth_df[["chrom", "total_mean_pos", "depth"]]
+    else:
+        depth_df = pd.DataFrame()
+
+    return stats_df, flags_df, depth_su, depth_df
+
+
 # Finally, main
 def main(args):
     """Run entry point."""
@@ -386,40 +445,32 @@ def main(args):
     logger.info(f"Loading {args.reference_fai}")
     faidx = fasta_idx(args.reference_fai)
 
-    logger.info(f"Loading {args.read_stats_tumor}")
-    tumor_stats_df = load_stats(args.read_stats_tumor, format="bamstats")
-    if args.read_stats_normal:
-        logger.info(f"Loading {args.read_stats_normal}")
-        normal_stats_df = load_stats(args.read_stats_normal, format="bamstats")
-    else:
-        normal_stats_df = pd.DataFrame()
-
-    logger.info(f"Loading {args.flagstat_tumor}")
-    tumor_flags_df = load_bamstats_flagstat(args.flagstat_tumor)
-    if args.flagstat_normal:
-        logger.info(f"Loading {args.flagstat_normal}")
-        normal_flags_df = load_bamstats_flagstat(args.flagstat_normal)
-    else:
-        normal_flags_df = pd.DataFrame()
-
-    logger.info(f"Loading {args.mosdepth_summary_tumor}")
-    tumor_depth_su = load_mosdepth_summary(args.mosdepth_summary_tumor)
-    if args.mosdepth_summary_normal:
-        logger.info(f"Loading {args.mosdepth_summary_normal}")
-        normal_depth_su = load_mosdepth_summary(args.mosdepth_summary_normal)
-    else:
-        normal_depth_su = [pd.DataFrame()]
-
-    logger.info(f"Loading {args.depth_tumor}")
-    tumor_depth_df = load_mosdepth_regions(
-        args.depth_tumor, faidx=faidx, winsize=args.window_size, min_size=10000000
+    logger.info("Loading tumor stats")
+    tumor_stats_df, tumor_flags_df, tumor_depth_su, tumor_depth_df = read_stats(
+        logger,
+        read_stats=args.read_stats_tumor,
+        flagstats=args.flagstat_tumor,
+        depth=args.depth_tumor,
+        mosdepth_summary=args.mosdepth_summary_tumor,
+        faidx=faidx,
+        winsize=args.window_size,
     )
-    if args.depth_normal:
-        logger.info(f"Loading {args.depth_normal}")
-        normal_depth_df = load_mosdepth_regions(
-            args.depth_normal, faidx=faidx, winsize=args.window_size, min_size=10000000
+
+    if args.read_stats_normal:
+        logger.info("Loading normal stats")
+        normal_stats_df, normal_flags_df, normal_depth_su, normal_depth_df = read_stats(
+            logger,
+            read_stats=args.read_stats_normal,
+            flagstats=args.flagstat_normal,
+            depth=args.depth_normal,
+            mosdepth_summary=args.mosdepth_summary_normal,
+            faidx=faidx,
+            winsize=args.window_size,
         )
     else:
+        normal_stats_df = pd.DataFrame()
+        normal_flags_df = pd.DataFrame()
+        normal_depth_su = [pd.DataFrame()]
         normal_depth_df = pd.DataFrame()
 
     # Populate report

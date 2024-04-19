@@ -10,7 +10,8 @@ variables:
     NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
             --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
             --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
-            --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
+            --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+            -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
     CI_FLAVOUR: "new" # set to "classic" for old-style CI
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
 
