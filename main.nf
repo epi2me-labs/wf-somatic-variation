@@ -357,8 +357,8 @@ workflow {
         )
     }
 
-    // Emit reference and its index
-    output(ref_channel.map{it[0..2]}.concat(versions).concat(parameters))
+    // Emit version and parameters
+    output(versions.concat(parameters))
 
 
 }
