@@ -86,16 +86,6 @@ workflow {
     if (params.snv && params.hybrid_mode_vcf && params.genotyping_mode_vcf){
         throw new Exception("Can run --hybrid_mode_vcf or --genotyping_mode_vcf, not both. Choose one and try again.")
     }
-    // Normally, I would use a enum statement in nextflow_schema. However, EPI2ME at the moment cannot handle 
-    // enum options with integer values. Changing it to string fixes the app issue, but causes the workflow to
-    // crash. Therefore, we check it in-code for now, and then replace that with an enum once fixed in app.
-    ArrayList valid_qvs = [10, 15, 20, 25]
-    if (params.sv && params.qv){
-        if (!valid_qvs.any { qv -> params.qv == qv } ) {
-            log.error (colors.red + "The QV value chosen is not valid. Choose one of 10, 15, 20 or 25 and try again." + colors.reset)
-            can_start = false
-        }
-    }
 
     // Check ref and decompress if needed
     ref = null
@@ -177,7 +167,7 @@ workflow {
     // CW-2491: make this optional, allowing any genome to be processed
     // CW-3830: perform this before the QC as changing the metadata causes the
     //          `-resume` to break.
-    if ((params.sv && params.classify_insert) || params.annotation){
+    if (params.annotation){
         getGenome(all_bams)
         getGenome.out.genome_build.map{
                 bam, bai, meta, g_build -> 

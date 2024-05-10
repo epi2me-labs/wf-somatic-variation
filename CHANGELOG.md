@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved modkit runtime by increasing the default interval size.
 - Increased minimum CPU requirement for the workflow to 16.
 - bedMethyl output files now follow the pattern `{{ alias }}.wf-somatic-mods.{{ type }}.bedmethyl.gz`.
+- Structural variant (SV) calling is now performed with [Severus](https://github.com/KolmogorovLab/Severus) (v0.1.2).
+- ARM-compatible base workflow and modified base calling.
+- `minimap2` alignments will be in BAM format when `--sv` is set.
 
 ### Fixed
 - Force minimap2 to clean up memory more aggressively. Empirically this reduces peak-memory use over the course of execution.
@@ -25,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - CRAM as supported input format.
 - Reference genome and its indexes from the output directory.
+- Insert classification and support for mismatching panel of control.
+- Options `--qv`, `--classify_insert`, `--min_ref_support`, `--genotype_sv` and `--control_panel`, as these are no longer used by the workflow.
 
 ## [v1.1.0]
 ### Changed

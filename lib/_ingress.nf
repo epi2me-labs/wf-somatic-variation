@@ -17,15 +17,18 @@ process minimap2_ubam {
     input:
         path reference
         tuple val(meta), path(reads), path(reads_idx)
+        tuple val(extension), val(idx_extension)
+    // Output can either be a BAM or a CRAM. If the user requires SV, the output will be a BAM
+    // This is to simplify the input files in the Severus process, that uses the file name as metadata in-code.
     output:
-        tuple val(meta), path("${params.sample_name}.cram"), path("${params.sample_name}.cram.crai"), emit: alignment
+        tuple val(meta), path("${params.sample_name}.${extension}"), path("${params.sample_name}.${extension}.${idx_extension}"), emit: alignment
     script:
     // samtools sort need extra threads. Specify these as N - 1 to avoid using too many cores.
     def sort_threads = params.ubam_sort_threads - 1
     """
     samtools bam2fq -@ ${params.ubam_bam2fq_threads} -T '*' ${reads} \
     | minimap2 -y -t ${params.ubam_map_threads} -ax map-ont --cap-kalloc 100m --cap-sw-mem 50m ${reference} - \
-    | samtools sort -@ ${sort_threads} --write-index -o ${params.sample_name}.cram##idx##${params.sample_name}.cram.crai -O CRAM --reference ${reference} -
+    | samtools sort -@ ${sort_threads} --write-index -o ${params.sample_name}.${extension}##idx##${params.sample_name}.${extension}.${idx_extension} -O ${extension} --reference ${reference} -
     """
 }
 
@@ -106,9 +109,11 @@ workflow ingress {
             noalign: true
         }.set{alignment_fork}
 
+        // If SVs are requested, create BAM to avoid issues in input definition.
+        def extensions = params.sv ? ['bam', 'bai'] : ['cram', 'crai']
         // call minimap on bams that require (re)alignment
         // then map the result of minimap2_ubam to the canonical (reads, index, meta) tuple
-        new_mapped_bams = minimap2_ubam(ref_file, alignment_fork.to_align).map{
+        new_mapped_bams = minimap2_ubam(ref_file, alignment_fork.to_align, extensions).map{
             // map newly aligned bam to (xam_path, xam_index, xam_meta) tuple
             // setting the meta.is_cram to true because the bam was (re)aligned
             meta, xam, xai -> 

@@ -1,212 +1,67 @@
 import groovy.json.JsonBuilder
+// Memory for the SV process
+def severus_mem = [47.GB, 63.GB]
 
-// Generate BWA-mem index for the insert_classify stage
-process bwa_index {
+// Severus process
+process severus {
     label "wf_somatic_sv"
-    cpus 1
-    memory 7.GB
-    input:
-        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH)
-    output:
-        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH), path("${ref}.amb"), path("${ref}.ann"), path("${ref}.bwt"), path("${ref}.pac"), path("${ref}.sa"), emit: bwa_ref
-    script:
-    """
-    bwa index -a bwtsw ${ref}
-    """
-}
-
-
-// NOTE VCF entries for alleles with no support are removed to prevent them from
-//      breaking downstream parsers that do not expect them
-process nanomonsv_parse {
-    label "wf_somatic_sv"
-    cpus 1
-    memory 31.GB
-    input:
-        tuple path(xam), path(xam_idx), val(meta)
-        tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
-        
-    output:
-        tuple val(meta), path(xam), path(xam_idx), path("${meta.sample}_${meta.type}/*")
-    script:
-    """
-    mkdir ${meta.sample}_${meta.type}/
-    nanomonsv parse ${xam} "${meta.sample}_${meta.type}/${meta.sample}"
-    """
-}
-
-
-// Run nanomonsv get on paired tumor/normal samples
-process nanomonsv_get {
-    label "wf_somatic_sv"
-    label "avx2"
-    // Use at least 2 cores
-    cpus params.nanomonsv_get_threads < 2 ? 2 : params.nanomonsv_get_threads 
-    memory 31.GB
+    cpus Math.max(4, params.severus_threads)
+    // Allow retries for testing purposes
+    memory { severus_mem[task.attempt] }
+    maxRetries 1
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
-            path(xam_normal, stageAs: "norm/*"),
-            path(xam_idx_normal, stageAs: "norm/*"),
-            path(parsed_normal, stageAs: "parsed_normal/*"),
-            path(xam_tumor, stageAs: "tum/*"),
-            path(xam_idx_tumor, stageAs: "tum/*"),
-            path(parsed_tumor, stageAs: "parsed_tumor/*")
-        tuple path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH)
-        tuple path(control_panel), val(control_root)
+            path("normal.bam"),
+            path("normal.bam.bai"),
+            path("tumor.bam"),
+            path("tumor.bam.bai")
+        tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
+        path tr_bed
+        
     output:
-        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.txt"), emit: txt
-        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.result.vcf"), emit: vcf
-        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.sbnd.result.txt"), emit: single_breakend
-        tuple val(meta), path("parsed_tumor/${meta.sample}.nanomonsv.supporting_read.txt"), emit: read_lists
+        tuple val(meta), path("severus-output/"), emit: all_outputs
+        tuple val(meta), path("severus-output/somatic_SVs/severus_somatic.vcf"), emit: vcf
 
     script:
-    def ncores = task.cpus - 1 // Use cpu-1 to ensure racon/minimap run as subprocess
-    def qv = params.qv ? "--qv${params.qv}" : ""
-    // Use input control panel for downstream analyses
-    def use_control_panel = params.control_panel ? "--control_panel_prefix ${control_panel}/${control_root}" : ""
+    def vntr = tr_bed.name != "OPTIONAL_FILE" ? "--vntr-bed ${tr_bed}" : "" 
+    def options = params.severus_args ? "${params.severus_args}" : ""
+    def vaf_thr = params.vaf_threshold ? "--vaf-thr ${params.vaf_threshold}" : ""
+    // Severus takes the sample ID for the VCF from the file name.
+    // To be consistent with ClairS, rename:
+    // - tumor BAM file > {meta.sample}.{bam|cram} > meta.sample becomes the name in the VCF
+    // - normal BAM file > {meta.sample}_normal.{bam|cram}
     """
-    nanomonsv get \\
-        "parsed_tumor/${meta.sample}" \\
-        ${xam_tumor} \\
-        ${ref} \\
-        --control_bam ${xam_normal} \\
-        --control_prefix parsed_normal/${meta.sample} \\
-        --min_indel_size ${params.min_sv_length} \\
-        --processes ${ncores} \\
-        --single_bnd \\
-        --use_racon \\
-        --max_memory_minimap2 2 \\
-        ${qv} ${use_control_panel}
-    """
-}
-
-// Filter SVs in tandem repeat
-process nanomonsv_filter {
-    label "wf_somatic_sv"
-    cpus 1
-    memory 4.GB
-    input:
-        tuple val(meta), path(txt)
-        tuple val(meta), path(vcf)
-        file trbed
-        file trtbi
-    output:
-        tuple val(meta), path(vcf), path("${txt.baseName}.filter.txt"), emit: filtered
-    script:
-    """
-    add_simple_repeat.py \
-        $txt \
-        ${txt.baseName}.filter.txt \
-        $trbed
+    # Run severus
+    severus \
+        --target-bam tumor.bam \
+        --control-bam normal.bam \
+        --out-dir ./severus-output \
+        --threads ${task.cpus} \
+        --min-sv-size ${params.min_sv_length} \
+        --min-support ${params.min_support} \
+        ${vaf_thr} ${vntr} ${options}
     """
 }
-
-// Annotate filters
-process annotate_filter {
-    cpus 1
-    memory 4.GB
-    input:
-        tuple val(meta), 
-            path(vcf),
-            path(filter)
-    output:
-        tuple val(meta), path("${vcf.baseName}.filter.vcf"), emit: vcf
-        tuple val(meta), path(filter), emit: txt
-    script:
-    """
-    workflow-glue extract_filtered_svs \\
-        --in_vcf ${vcf} \\
-        --filtered ${filter} \\
-        --out_vcf ${vcf.baseName}.filter.vcf
-    """
-}
-
-
-// Classify mobile elements
-// Still in alpha stage, quite buggy
-process nanomonsv_classify {
-    label "wf_somatic_sv"
-    cpus 2
-    memory 31.GB
-    input:
-        tuple val(meta), path(txt), path(vcf)
-        tuple path(ref), path(fai), path(cram_cache), env(REF_PATH), path(amb), path(ann), path(bwt), path(pac), path(sa)
-        val n_valid_inserts
-    output:
-        tuple val(meta), path(txt), path(vcf), path("${txt.baseName}.annot.txt"), emit: txt
-    script:
-    if (n_valid_inserts > 0)
-    """
-    nanomonsv insert_classify --genome_id ${meta.genome_build} ${txt} ${txt.baseName}.annot.txt ${ref} 
-    """
-    else
-    """
-    ln -s ${txt} ${txt.baseName}.annot.txt 
-    """
-}
-
-// Annotate classify
-process annotate_classify {
-    cpus 1
-    memory 4.GB
-    input:
-        tuple val(meta), path(txt), path(vcf), path(annot_txt)
-    output:
-        tuple val(meta), path(annot_txt), path("${vcf.baseName}.annot.vcf"), emit: annotated
-    script:
-    """
-    workflow-glue classify_vcf_svs \\
-        --in_vcf ${vcf} \\
-        --original ${txt} \\
-        --annotated ${annot_txt} \\
-        --out_vcf ${vcf.baseName}.annot.vcf
-    """
-}
-
 
 // NOTE This is the last touch the VCF has as part of the workflow,
 //  we'll rename it with its desired output name here
 process sortVCF {
-    label "wf_somatic_sv"
     cpus 2
     memory 4.GB
     input:
         tuple val(meta), path(vcf)
     output:
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz"), emit: vcf_gz
-        tuple val(meta), path("${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz.tbi"), emit: vcf_tbi
+        tuple val(meta), path("${meta.sample}.wf-somatic-sv.vcf.gz"), emit: vcf_gz
+        tuple val(meta), path("${meta.sample}.wf-somatic-sv.vcf.gz.tbi"), emit: vcf_tbi
     script:
+    // Severus uses the input file name as sample ID. Fix this using meta.sample here.
     """
-    bcftools sort -m 2G -O z -o ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz -T ./ $vcf 
-    bcftools index --threads ${task.cpus} -t ${meta.sample}.nanomonsv.result.wf-somatic_sv.vcf.gz
-    """
-}
-
-// NOTE This is the last touch the VCF has as part of the workflow,
-//  we'll rename it with its desired output name here
-// CW-2702: remove sites with END < POS, as in nanomonsv GitHub [issue](https://github.com/friend1ws/nanomonsv/issues/31)
-process postprocess_nanomon_vcf {
-    label "wf_somatic_sv"
-    cpus 2
-    memory 4.GB
-    input:
-        tuple val(meta), path(vcf, stageAs: "input.vcf")
-    output:
-        tuple val(meta), path("${params.sample_name}.wf-somatic-sv.vcf")
-    script:
-    def genotype_sv = params.genotype_sv ? "--genotype" : ""
-    """
-    # Filter out sites with END < POS
-    bcftools filter --threads ${task.cpus} -e "INFO/END < POS" input.vcf > filtered.vcf
-    vcf_nanomon2clairs.py \
-        --vcf filtered.vcf \
-        --sample_id ${params.sample_name} \
-        --min_ref_support ${params.min_ref_support} \
-        --output "${params.sample_name}.wf-somatic-sv.vcf" \
-        $genotype_sv
+    echo "tumor\t${meta.sample}" > sample_rename.txt
+    bcftools sort -m 2G -O v ${vcf} \
+    | bcftools reheader -s sample_rename.txt - \
+    | bgzip -c > ${meta.sample}.wf-somatic-sv.vcf.gz 
+    bcftools index --threads ${task.cpus} -t ${meta.sample}.wf-somatic-sv.vcf.gz
     """
 }
 
@@ -221,10 +76,7 @@ process getVersions {
     """
     trap '' PIPE # suppress SIGPIPE without interfering with pipefail
     python -c "import pysam; print(f'pysam,{pysam.__version__}')" >> versions.txt
-    nanomonsv --version | head -n 1 | sed 's/ /,/' >> versions.txt
-    bcftools --version | head -n 1 | sed 's/ /,/' >> versions.txt
-    samtools --version | head -n 1 | sed 's/ /,/' >> versions.txt
-    minimap2 --version | head -n 1 | sed 's/^/minimap2,/' >> versions.txt
+    severus --version | awk '{OFS=","; print "Severus",\$0}' >> versions.txt
     """
 }
 
