@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Create workflow report."""
-from dominate.tags import p
+from dominate.tags import a, p
 from ezcharts.components.common import CATEGORICAL
 from ezcharts.components.ezchart import EZChart
 from ezcharts.components.reports.labs import LabsReport
@@ -13,8 +13,8 @@ import pysam
 
 from .report_utils.utils import compare_max_axes  # noqa: ABS101
 from .report_utils.utils import COLORS, PRECISION  # noqa: ABS101
+from .report_utils.utils import hist_binning  # noqa: ABS101
 from .report_utils.visualizations import hist_plot  # noqa: ABS101
-from .report_utils.visualizations import scatter_plot  # noqa: ABS101
 from .util import wf_parser  # noqa: ABS101
 
 chroms_37 = [str(x) for x in range(1, 23)] + ['X', 'Y']
@@ -22,72 +22,56 @@ chroms_37 = [str(x) for x in range(1, 23)] + ['X', 'Y']
 
 def read_vcf(fname):
     """Read input VCF as pandas dataframe."""
-    vcf = pysam.VariantFile(fname)
-    sample_name = vcf.header.samples[0]
-    cols = {
-        'CHROM': CATEGORICAL,
-        'POS': int,
-        'ID': str,
-        'REF': str,
-        'ALT': str,
-        'FILTER': str,
-        'VAF': float,
-        'NVAF': float,
-        'SVLEN': int,
-        'SVTYPE': CATEGORICAL,
+    with pysam.VariantFile(fname) as vcf:
+        cols = {
+            'CHROM': CATEGORICAL,
+            'POS': int,
+            'ID': str,
+            'REF': str,
+            'ALT': str,
+            'FILTER': str,
+            'VAF': float,
+            'SVLEN': float,
+            'SVTYPE': CATEGORICAL,
+            }
+        records = {
+            'CHROM': [],
+            'POS': [],
+            'ID': [],
+            'REF': [],
+            'ALT': [],
+            'FILTER': [],
+            'VAF': [],
+            'SVLEN': [],
+            'SVTYPE': [],
         }
-    df = pd.DataFrame(columns=cols).astype(cols)
-    try:
         dropped = 0
-        idx = 0
-
-        # Process one entry at time using pysam
-        for n, rec in enumerate(vcf):
-            # Ignore non-chromosomal SVs
-            if rec.chrom.replace('chr', '') not in chroms_37:
-                dropped += 1
-                continue
-            # Ignore filtered SVs
-            if rec.filter.keys()[0] != 'PASS':
-                dropped += 1
-                continue
-            vaf = float(rec.samples[sample_name]['AF'])
-            nvaf = float(rec.samples[sample_name]['NAF'])
-            sv_len = rec.info.get('SVLEN')
-            if not sv_len:
-                sv_len = rec.info.get('SVINSLEN')
-            if not sv_len:
-                sv_len = np.nan
-            # Deal with multiple allele lines by treating them as
-            # independent sites, changing the site ID
-            for m, alt in enumerate(rec.alts):
-                if alt == '<DEL>':
-                    sv_type = 'DEL'
-                elif alt == '<INS>':
-                    sv_type = 'INS'
-                else:
-                    sv_type = 'BND'
-                rec_id = rec.id if len(rec.alts) > 1 else f"{rec.id}_{m}"
-                new_df = pd.DataFrame(
-                    data={
-                        'CHROM': rec.chrom.replace('chr', ''),
-                        'POS': rec.pos,
-                        'ID': rec_id,
-                        'REF': rec.ref,
-                        'ALT': alt,
-                        'FILTER': ','.join(rec.filter.keys()),
-                        'VAF': vaf,
-                        'NVAF': nvaf,
-                        'SVLEN': sv_len,
-                        'SVTYPE': sv_type,
-                    }, index=[idx]
-                )
-                idx += 1
-            df = pd.concat([df, new_df])
-        # Use appropriate typing
-        df.reset_index(drop=True)
-    except pd.errors.EmptyDataError:
-        df = pd.DataFrame()
+        try:
+            sample_name = vcf.header.samples[0]
+            # Process one entry at time using pysam
+            for rec in vcf:
+                # Ignore non-chromosomal SVs
+                if rec.chrom.replace('chr', '') not in chroms_37:
+                    dropped += 1
+                    continue
+                # Ignore filtered SVs
+                if rec.filter.keys()[0] != 'PASS':
+                    dropped += 1
+                    continue
+                # Load each record
+                records['CHROM'].append(rec.chrom.replace('chr', ''))
+                records['POS'].append(rec.pos)
+                records['ID'].append(rec.id)
+                records['REF'].append(rec.ref)
+                records['ALT'].append(','.join(rec.alts))
+                records['FILTER'].append(','.join(rec.filter.keys()))
+                records['VAF'].append(float(rec.samples[sample_name]['VAF']))
+                records['SVLEN'].append(rec.info.get('SVLEN', default=np.nan))
+                records['SVTYPE'].append(rec.info.get('SVTYPE'))
+            # Convert to dataframe
+            df = pd.DataFrame(data=records).astype(cols)
+        except pd.errors.EmptyDataError:
+            df = pd.DataFrame()
     return df, dropped
 
 
@@ -138,27 +122,32 @@ def sv_size_plots(vcf_data):
                     delets = vcf_df[vcf_df['SVTYPE'] == 'DEL']
                     # Force deletion's length to be negative
                     delets = delets.eval('SVLEN=abs(SVLEN)')
-                    # Define a reasonable bin number and size based on the number
-                    # of variants in the dataset
-                    n_bins = int(np.ceil(2*np.cbrt(vcf_df.shape[0])))
-                    max_x = int(vcf_df.eval('SVLEN=abs(SVLEN)').SVLEN.max())
-                    binwidth = int(vcf_df.eval('SVLEN=abs(SVLEN)').SVLEN.max() / n_bins)
-                    binrange = [0, 0]
-                    while binrange[-1] < max_x:
-                        binrange[-1] += binwidth
+
+                    # Define a reasonable bin number and size
+                    ins_binrange = del_binrange = np.array([])
+                    ins_binwidth = del_binwidth = None
+                    if inserts.SVLEN.shape[0] > 0:
+                        ins_binrange, ins_binwidth = hist_binning(np.abs(inserts.SVLEN))
+                    if delets.SVLEN.shape[0] > 0:
+                        del_binrange, del_binwidth = hist_binning(np.abs(delets.SVLEN))
+
                     # Compute max Y axis
                     if inserts.empty or delets.empty:
                         max_y = None
                     else:
                         max_y = compare_max_axes(
-                            inserts, delets, 'SVLEN', binwidth=binwidth,
+                            inserts, delets, 'SVLEN',
+                            binwidth=ins_binwidth, binwidth_2=del_binwidth,
+                            bins=ins_binrange, bins_2=del_binrange,
                             ptype='hist', buffer=1.2, precision=1)
+
                     if inserts.shape[0] > 0:
                         plt = hist_plot(
                             inserts, 'SVLEN', 'Insertion lengths', no_stats=True,
-                            xaxis='abs. Length', yaxis='Count', rounding=0,
-                            color=COLORS.cinnabar, binwidth=binwidth,
-                            binrange=binrange, max_y=max_y)
+                            xaxis='abs. Length', yaxis='Count',
+                            binwidth=ins_binwidth, binrange=ins_binrange,
+                            rounding=0, color=COLORS.cinnabar,
+                            max_y=max_y)
                         EZChart(plt, 'epi2melabs')
                     else:
                         p('No insertions to show.')
@@ -166,8 +155,8 @@ def sv_size_plots(vcf_data):
                         plt = hist_plot(
                             delets, 'SVLEN', 'Deletion lengths', no_stats=True,
                             xaxis='abs. Length', yaxis='Count', rounding=0,
-                            color=COLORS.cerulean, binwidth=binwidth,
-                            binrange=binrange, max_y=max_y)
+                            color=COLORS.cerulean, binwidth=del_binwidth,
+                            binrange=del_binrange, max_y=max_y)
                         EZChart(plt, 'epi2melabs')
                     else:
                         p('No deletions to show.')
@@ -187,7 +176,7 @@ def karyoplot(vcf_data, args):
                     "DEL": COLORS.cerulean
                 }
                 # Extract relevant columns
-                df = vcf_df[vcf_df['SVTYPE'] != 'BND']
+                df = vcf_df[vcf_df['SVTYPE'].isin(['INS', 'DEL'])]
                 df = df[['CHROM', 'POS', 'ID', 'SVLEN', 'SVTYPE']]
                 # set SV length to absolute value
                 df['SVLEN'] = df['SVLEN'].abs()
@@ -224,8 +213,10 @@ def main(args):
 
     with report.add_section('At a glance', 'Summary'):
         p(
-            "This section displays a description"
-            " of the variant calls made by nanomonsv.")
+            "This section displays a description",
+            " of the variant calls made by",
+            a("Severus", href="https://github.com/KolmogorovLab/Severus"),
+            ".")
         sv_stats(vcf_data)
         if dropped_svs > 0:
             p(
@@ -234,8 +225,10 @@ def main(args):
 
     with report.add_section('Variant calling results', 'Variants'):
         p(
-            "This section displays summary statistics"
-            " of the variant calls made by nanomonsv.")
+            "This section displays summary statistics",
+            " of the variant calls made by",
+            a("Severus", href="https://github.com/KolmogorovLab/Severus"),
+            ".")
         tabs = Tabs()
         for (index, sample_name, vcf_df) in vcf_data:
             with tabs.add_tab(sample_name):
@@ -257,13 +250,10 @@ def main(args):
                 if vcf_df.empty:
                     p('The workflow found no structural variants to report.')
                 else:
-                    plt = scatter_plot(
-                        vcf_df.round(PRECISION), 'NVAF', 'VAF', None,
-                        'Tumor vs Normal variant allele frequency (VAF)',
-                        xaxis='Normal VAF', yaxis='Tumor VAF',
-                        min_x=0, max_x=1, min_y=0, max_y=1)
-                    for s in plt.series:
-                        s.symbolSize = 3
+                    plt = hist_plot(
+                        vcf_df.round(PRECISION), 'VAF', 'Variant allele frequency',
+                        no_stats=True, xaxis='Allele frequency', yaxis='Count',
+                        rounding=0, color=COLORS.cerulean)
                     EZChart(plt, 'epi2melabs')
 
     #

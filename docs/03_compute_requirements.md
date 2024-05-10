@@ -6,8 +6,8 @@ Recommended requirements:
 Minimum requirements:
 
 + CPUs = 16
-+ Memory = 32GB
++ Memory = 48GB
 
-Approximate run time: Variable depending on sequencing modality (targeted sequencing or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a 60X/30X Tumor/Normal pair takes approximately 17h:30m on a 64 core machine with 256Gb of memory.
+Approximate run time: Variable depending on sequencing modality (targeted or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a complete analysis of a 60X/30X Tumor/Normal pair with default settings takes approximately 6h 30m using the recommended requirements.
 
 ARM processor support: False

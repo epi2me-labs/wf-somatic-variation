@@ -42,12 +42,18 @@ def hist_max(variable_data, binwidth=None, bins='auto'):
 
 def compare_max_axes(
         df1, df2, col, ptype='val',
-        bins='auto', binwidth=None,
+        bins='auto', bins_2=None,
+        binwidth=None, binwidth_2=None,
         buffer=1.1, precision=0):
     """Compute max value to set in a plot."""
+    # If not specified, consider the two hists as having the same binning
+    if not bins_2:
+        bins_2 = bins
+    if not binwidth_2:
+        binwidth_2 = binwidth
     if ptype == 'hist':
         v1max = hist_max(df1[col].dropna(), bins=bins, binwidth=binwidth)
-        v2max = hist_max(df2[col].dropna(), bins=bins, binwidth=binwidth)
+        v2max = hist_max(df2[col].dropna(), bins=bins_2, binwidth=binwidth_2)
     else:
         v1max = df1[col].max()
         v2max = df2[col].max()
@@ -63,3 +69,14 @@ def compute_n50(lengths):
     # Get lowest cumulative value >= (total_length/2)
     n50 = sorted_l[np.searchsorted(cumsum, cumsum[-1]/2)]
     return n50
+
+
+def hist_binning(values):
+    """Define histogram bin number and size."""
+    n_bins = int(np.ceil(2*np.cbrt(values.shape[0])))
+    max_x = int(values.max())
+    binwidth = int(values.max() / n_bins)
+    binrange = [0, 0]
+    while binrange[-1] < max_x:
+        binrange[-1] += binwidth
+    return binrange, binwidth

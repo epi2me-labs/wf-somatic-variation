@@ -57,13 +57,13 @@ docker-run:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf modules/local/wf-somatic-sv.nf workflows/mod.nf"
               NF_WORKFLOW_OPTS: "--sv --snv --mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
-              NF_IGNORE_PROCESSES: "annotate_classify,annotate_filter,bwa_index,lookup_clair3_model,\
-                  nanomonsv_classify,nanomonsv_filter,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
+              NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
 
         - if: $MATRIX_NAME == "snv-r9"
           variables:
@@ -155,24 +155,23 @@ docker-run:
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-                  bwa_index,nanomonsv_classify,nanomonsv_filter,annotate_filter,annotate_classify"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
         - if: $MATRIX_NAME == "sv-full"
           variables:
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 --qv 20 --min_sv_length 20 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --classify_insert --tr_bed ./data/wf_str_repeats.bed.gz \
-                  --control_panel ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/giab_merged_controls \
+                  --tr_bed ./data/wf_str_repeats.bed.gz --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
@@ -289,9 +288,10 @@ docker-run:
           variables:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_WORKFLOW_OPTS: "--mod --sv --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0  --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
@@ -336,8 +336,7 @@ aws-run:
         matrix:
             - MATRIX_NAME: [
                 "wf-somatic-tumor-only",
-                "wf-somatic-variation",
-                "wf-somatic-variation-sv"
+                "wf-somatic-variation"
               ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
@@ -365,21 +364,7 @@ aws-run:
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert"
-              NF_PROCESS_FILES: "workflows/mod.nf"
-              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-                    dss,makeModReport"
-
-        - if: $MATRIX_NAME == "wf-somatic-variation-sv"
-          variables:
-              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
-              NF_WORKFLOW_OPTS: "--sv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 \
-                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
-                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
-                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --min_sv_length 20 --tr_bed ./data/wf_str_repeats.bed.gz --classify_insert \
-                  --control_panel ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/giab_merged_controls"
+                  --min_sv_length 20 --vaf_threshold 0.01 --min_support 2 --tr_bed ./data/wf_str_repeats.bed.gz --severus_threads 4"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                     dss,makeModReport"

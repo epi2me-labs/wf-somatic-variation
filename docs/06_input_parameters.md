@@ -50,9 +50,6 @@
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | min_sv_length | integer | Minimum SV size to call. | Provide the minimum size of the structural variants to call with nanomonsv. | 50 |
-| classify_insert | boolean | Perform SV insert classification. | Run nanomonsv insert_classify to annotate transposable and repetitive elements for the inserted SV sequences. | False |
-| qv | integer | Approximate single base quality value (QV), one of 10, 15, 20 or 25. | Expected single base quality as described in the [nanomonsv web page](https://github.com/friend1ws/nanomonsv#get). |  |
-| control_panel | string | Path to the directory containing the non-matched control panel data generated with `nanomonsv merge_control`. | `nanomonsv get` can use a panel of non-matched control data to remove reads carrying common alleles; see [here](https://github.com/friend1ws/nanomonsv#control-panel) for more details. |  |
 
 
 ### Methylation calling options
@@ -69,7 +66,7 @@
 | ubam_map_threads | integer | Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus). |  | 8 |
 | ubam_sort_threads | integer | Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus). |  | 3 |
 | ubam_bam2fq_threads | integer | Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus). |  | 1 |
-| nanomonsv_get_threads | integer | Total number of threads to use in `nanomonsv get` (minimum of 2 and limited by config executor cpus). |  | 4 |
+| severus_threads | integer | Total number of threads to use for `Severus` (minimum of 4 and limited by config executor cpus). |  | 8 |
 | dss_threads | integer | Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus). |  | 1 |
 | modkit_threads | integer | Total number of threads to use in modkit modified base calling (limited by config executor cpus). |  | 4 |
 | haplotype_filter_threads | integer | Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus). |  | 4 |
