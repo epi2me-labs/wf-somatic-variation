@@ -228,6 +228,7 @@ def main(args):
         "wf-somatic-variation",
         args.params,
         args.versions,
+        args.workflow_version,
         head_resources=[*LAB_head_resources],
     )
 
@@ -487,6 +488,11 @@ def argparser():
         "--versions",
         required=True,
         help="directory containing CSVs containing name,version.",
+    )
+    parser.add_argument(
+        "--workflow_version",
+        required=True,
+        help="Workflow version",
     )
     parser.add_argument(
         "--params",

@@ -1,6 +1,7 @@
 import groovy.json.JsonBuilder
 
 process cram_cache {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -17,6 +18,7 @@ process cram_cache {
 }
 
 process index_ref_fai {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -29,6 +31,7 @@ process index_ref_fai {
 }
 
 process index_ref_gzi {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -42,6 +45,7 @@ process index_ref_gzi {
 
 // NOTE -f required to compress symlink
 process decompress_ref {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -55,6 +59,7 @@ process decompress_ref {
 
 // Module to convert fai index to bed
 process bgzipper {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -70,6 +75,7 @@ process bgzipper {
 
 // Module to convert fai index to bed
 process tabixer {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -95,6 +101,7 @@ process tabixer {
 
 // Module to convert fai index to bed
 process getAllChromosomesBed {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -200,6 +207,7 @@ process concat_vcfs {
 }
 
 process getVersions {
+    label "wf_common"
     cpus 1
     memory 4.GB
     output:
@@ -207,10 +215,8 @@ process getVersions {
     script:
     """
     python --version | tr -s ' ' ',' | tr '[:upper:]' '[:lower:]' > versions.txt
-    minimap2 --version | sed 's/^/minimap2,/' >> versions.txt
     samtools --version | (head -n 1 && exit 0) | sed 's/ /,/' >> versions.txt
     fastcat --version | sed 's/^/fastcat,/' >> versions.txt
-    mosdepth --version | sed 's/ /,/' >> versions.txt
     ezcharts --version | sed 's/ /,/' >> versions.txt
     python -c "import pysam; print(pysam.__version__)" | sed 's/^/pysam,/'  >> versions.txt
     bgzip --version | awk 'NR==1 {print \$1","\$3}' >> versions.txt
@@ -218,8 +224,25 @@ process getVersions {
     """
 }
 
+process getVersions_somvar {
+    cpus 1
+    memory 4.GB
+    input:
+        path "versions.tmp.txt"
+    output:
+        path "versions.txt"
+    script:
+    """
+    cat versions.tmp.txt > versions.txt
+    minimap2 --version | sed 's/^/minimap2,/' >> versions.txt
+    mosdepth --version | sed 's/ /,/' >> versions.txt
+    bedtools --version | sed 's/ /,/' >> versions.txt
+    """
+}
+
 
 process getParams {
+    label "wf_common"
     cpus 1
     memory 4.GB
     output:
@@ -234,6 +257,7 @@ process getParams {
 
 
 process getGenome {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:

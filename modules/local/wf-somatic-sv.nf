@@ -97,6 +97,7 @@ process getParams {
 
 
 process report {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -120,6 +121,7 @@ process report {
         --params params.json \
         --params-hidden 'help,schema_ignore_params,${params.schema_ignore_params}' \
         --versions $versions \
+        --workflow_version ${workflow.manifest.version} \
         --revision ${workflow.revision} \
         --commit ${workflow.commitId} \
         $evalResults

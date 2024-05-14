@@ -208,7 +208,7 @@ def main(args):
     report = LabsReport(
         f"{args.vcf[0].split('.')[0]} | Structural variants statistics",
         "wf-somatic-variation",
-        args.params, args.versions,
+        args.params, args.versions, args.workflow_version,
         head_resources=[*LAB_head_resources])
 
     with report.add_section('At a glance', 'Summary'):
@@ -295,5 +295,10 @@ def argparser():
     parser.add_argument(
         "--versions", required=True,
         help="directory contained CSVs containing name,version.")
+    parser.add_argument(
+        "--workflow_version",
+        required=True,
+        help="Workflow version",
+    )
 
     return parser

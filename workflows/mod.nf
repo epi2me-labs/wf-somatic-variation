@@ -46,6 +46,7 @@ process getParams {
 
 
 process validate_modbam {
+    label "wf_common"
     input:
         tuple path(alignment), 
             path(alignment_index), 
@@ -118,6 +119,7 @@ process modkit {
 
 
 process bedmethyl_split {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -256,6 +258,7 @@ process dss {
 
 // Make report.
 process makeModReport {
+    label "wf_common"
     cpus 1
     memory { 6.GB * task.attempt }
     maxRetries 1
@@ -285,7 +288,8 @@ process makeModReport {
             --reference_fai ref.fa.fai \\
             --sample_name ${meta.sample} \\
             --versions versions.txt \\
-            --params params.json ${genome}
+            --params params.json ${genome} \\
+            --workflow_version ${workflow.manifest.version}
         """
 }
 

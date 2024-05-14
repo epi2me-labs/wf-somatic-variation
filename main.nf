@@ -17,6 +17,7 @@ include {
     decompress_ref;
     getAllChromosomesBed;
     getVersions;
+    getVersions_somvar;
     getParams;
     getGenome
     } from './modules/local/common'
@@ -123,7 +124,7 @@ workflow {
     ref_channel = ref.concat(ref_index).concat(ref_cache).concat(ref_path).buffer(size: 4)
 
     // Get software versions
-    versions = getVersions()
+    versions = getVersions() | getVersions_somvar
     parameters = getParams()
 
     /*

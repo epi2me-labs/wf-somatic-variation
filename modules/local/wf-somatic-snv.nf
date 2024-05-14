@@ -68,6 +68,7 @@ process vcfStats {
 
 // Generate report file.
 process makeReport {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -101,6 +102,7 @@ process makeReport {
         workflow-glue report_snv \\
             $report_name \\
             --versions version.txt \\
+            --workflow_version ${workflow.manifest.version} \\
             --params params.json \\
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
@@ -1212,6 +1214,7 @@ process concat_bams {
 
 // Annotate the change type counts (e.g. mutation_type=AAA>ATA)
 process change_count {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:

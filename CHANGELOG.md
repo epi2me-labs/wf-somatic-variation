@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workflow occasionally repeating QC analyses when resuming, even if successful.
 - Alignment report script using too much memory.
 - HAC models not recognised as valid.
+- Spurious `bamstats` crashes with implausible alignment information.
 
 ### Removed
 - CRAM as supported input format.
