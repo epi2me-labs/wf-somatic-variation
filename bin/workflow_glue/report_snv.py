@@ -131,7 +131,7 @@ def main(args):
     # Instantiate the report
     report = LabsReport(
         f"{sample_id} | Small variation statistics", "wf-somatic-variation",
-        args.params, args.versions,
+        args.params, args.versions, args.workflow_version,
         head_resources=[*LAB_head_resources])
 
     # VCF At-a-glance report
@@ -329,6 +329,11 @@ def argparser():
     parser.add_argument(
         "--versions", required=True,
         help="directory containing CSVs containing name,version.")
+    parser.add_argument(
+        "--workflow_version",
+        required=True,
+        help="Workflow version",
+    )
     parser.add_argument(
         "--params", required=True,
         help="directory containing CSVs containing name,version.")

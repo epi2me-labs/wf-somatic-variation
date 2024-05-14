@@ -1,4 +1,5 @@
 process bamstats {
+    label "wf_common"
     cpus 4
     memory 4.GB
     input:
@@ -53,6 +54,7 @@ process mosdepth {
 
 // Get coverage to a channel
 process get_coverage {
+    label "wf_common"
     cpus 1
     memory 4.GB
     input:
@@ -140,6 +142,7 @@ process get_shared_region {
 
 // Make report.
 process makeQCreport {
+    label "wf_common"
     cpus 1
     // Increase memory up to 15GB. 
     // Most time the workflow will do fine with 7.GB, but we have seen the
@@ -156,11 +159,11 @@ process makeQCreport {
     input: 
         tuple val(meta), 
             path("readstats_normal.tsv.gz"),
-            path("flagstat_normal/*"),
+            path("flagstat_normal.tsv"),
             path("summary_depth_normal/*"),
             path("depth_normal/*"),
             path("readstats_tumor.tsv.gz"),
-            path("flagstat_tumor/*"),
+            path("flagstat_tumor.tsv"),
             path("summary_depth_tumor/*"),
             path("depth_tumor/*"),
             path("ref.fa.fai")
@@ -175,7 +178,7 @@ process makeQCreport {
         def tumor_cvg = params.tumor_min_coverage ?: 0
         def normal_cvg = params.normal_min_coverage ?: 0
         def normal_readstats_arg = params.bam_normal ? "--read_stats_normal readstats_normal.tsv.gz" : ""
-        def normal_flagstats_arg = params.bam_normal ? "--flagstat_normal flagstat_normal" : ""
+        def normal_flagstats_arg = params.bam_normal ? "--flagstat_normal flagstat_normal.tsv" : ""
         def normal_depth_summary_arg = params.bam_normal ? "--mosdepth_summary_normal summary_depth_normal" : ""
         def normal_depth_region_arg = params.bam_normal ? "--depth_normal depth_normal" : ""
         """
@@ -187,7 +190,7 @@ process makeQCreport {
             --name ${meta.sample}.wf-somatic-variation-readQC \\
             --read_stats_tumor readstats_tumor.tsv.gz \\
             ${normal_readstats_arg} \\
-            --flagstat_tumor flagstat_tumor \\
+            --flagstat_tumor flagstat_tumor.tsv \\
             ${normal_flagstats_arg} \\
             --mosdepth_summary_tumor summary_depth_tumor \\
             ${normal_depth_summary_arg} \\
@@ -195,7 +198,8 @@ process makeQCreport {
             ${normal_depth_region_arg} \\
             --reference_fai ref.fa.fai \\
             --versions versions.txt \\
-            --params params.json
+            --params params.json \\
+            --workflow_version ${workflow.manifest.version}
         """
 }
 
