@@ -7,7 +7,7 @@ process severus {
     label "wf_somatic_sv"
     cpus Math.max(4, params.severus_threads)
     // Allow retries for testing purposes
-    memory { severus_mem[task.attempt] }
+    memory { severus_mem[task.attempt - 1] }
     maxRetries 1
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
