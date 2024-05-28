@@ -9,10 +9,17 @@ process bamstats {
     output:
         tuple val(xam_meta), path("*.readstats.tsv.gz"), emit: read_stats
         tuple val(xam_meta), path("*.flagstat.tsv"), emit: flagstat
+        tuple val(xam_meta), path("hists_${xam_meta.sample}_${xam_meta.type}"), emit: hists
     script:
     def cores = task.cpus > 1 ? task.cpus - 1 : 1
     """
-    bamstats ${xam} -s ${xam_meta.sample} --threads ${cores} -u -f ${xam_meta.sample}_${xam_meta.type}.flagstat.tsv | gzip > ${xam_meta.sample}_${xam_meta.type}.readstats.tsv.gz
+    bamstats ${xam} \\
+        -s ${xam_meta.sample} \\
+        --threads ${cores} \\
+        -u \\
+        --histograms hists_${xam_meta.sample}_${xam_meta.type} \\
+        -f ${xam_meta.sample}_${xam_meta.type}.flagstat.tsv \\
+        | gzip > ${xam_meta.sample}_${xam_meta.type}.readstats.tsv.gz
     """
 }
 
@@ -158,11 +165,11 @@ process makeQCreport {
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input: 
         tuple val(meta), 
-            path("readstats_normal.tsv.gz"),
+            path("hists_normal"),
             path("flagstat_normal.tsv"),
             path("summary_depth_normal/*"),
             path("depth_normal/*"),
-            path("readstats_tumor.tsv.gz"),
+            path("hists_tumor"),
             path("flagstat_tumor.tsv"),
             path("summary_depth_tumor/*"),
             path("depth_tumor/*"),
@@ -177,7 +184,7 @@ process makeQCreport {
         // If no *_min_coverage provided, or set to null by mistake, set it to 0.
         def tumor_cvg = params.tumor_min_coverage ?: 0
         def normal_cvg = params.normal_min_coverage ?: 0
-        def normal_readstats_arg = params.bam_normal ? "--read_stats_normal readstats_normal.tsv.gz" : ""
+        def normal_readstats_arg = params.bam_normal ? "--hists_normal hists_normal" : ""
         def normal_flagstats_arg = params.bam_normal ? "--flagstat_normal flagstat_normal.tsv" : ""
         def normal_depth_summary_arg = params.bam_normal ? "--mosdepth_summary_normal summary_depth_normal" : ""
         def normal_depth_region_arg = params.bam_normal ? "--depth_normal depth_normal" : ""
@@ -188,7 +195,7 @@ process makeQCreport {
             --normal_cov_threshold ${normal_cvg} \\
             --sample_id ${meta.sample} \\
             --name ${meta.sample}.wf-somatic-variation-readQC \\
-            --read_stats_tumor readstats_tumor.tsv.gz \\
+            --hists_tumor hists_tumor \\
             ${normal_readstats_arg} \\
             --flagstat_tumor flagstat_tumor.tsv \\
             ${normal_flagstats_arg} \\
@@ -239,7 +246,7 @@ workflow alignment_stats {
         // 2. flagstats
         // 3. Per-base depth
         // 4. Depth summary
-        stats.read_stats
+        stats.hists
             .combine(stats.flagstat, by:0)
             .combine(depths.summary, by:0)
             .combine(depths.mosdepth_tuple.map{meta, reg, dist, thresh ->[meta, reg]}, by:0)
@@ -273,14 +280,14 @@ workflow alignment_stats {
             // If no normal is provided, then pass the optional file as
             // place-holder for the normal files.
             forked_channel.tumor
-                .map { meta, readstats, flagstats, depth_summary, depth_regions ->
+                .map { meta, hists, flagstats, depth_summary, depth_regions ->
                         [
                             meta,
                             file("$projectDir/data/OPTIONAL_FILE"), 
                             file("$projectDir/data/OPTIONAL_FILE"), 
                             file("$projectDir/data/OPTIONAL_FILE"), 
                             file("$projectDir/data/OPTIONAL_FILE"), 
-                            readstats, 
+                            hists, 
                             flagstats, 
                             depth_summary, 
                             depth_regions
@@ -296,25 +303,27 @@ workflow alignment_stats {
         // Send the output to the specified sub-directory of params.out_dir.
         // If null is passed, send it to out_dir/ directly.
         if (params.depth_intervals){
-            makeQCreport.out.map{it -> [it[1], null]}
-                .concat(stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]})
+            stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]}
                 .concat(stats.read_stats.map{meta, rstats -> [rstats, "${meta.sample}/qc/readstats"]})
+                .concat(stats.hists.map{meta, hists -> [hists, "${meta.sample}/qc/readstats"]})
                 .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "${meta.sample}/qc/coverage"]})
                 .concat(depths.mosdepth_tuple
                             .map {meta, reg, dist, thresh  -> [meta, [reg, dist, thresh]] }
                             .transpose()
                             .map{meta, fname -> [fname, "${meta.sample}/qc/coverage"]})
                 .concat(depths.perbase.map{meta, pbase ->[pbase, "${meta.sample}/qc/coverage"]})
+                .concat(makeQCreport.out.map{it -> [it[1], null]})
                 .set{outputs}
         } else {
-            makeQCreport.out.map{meta, report -> [report, null]}
-                .concat(stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]})
+            stats.flagstat.map{meta, fstats -> [fstats, "${meta.sample}/qc/readstats"]}
                 .concat(stats.read_stats.map{meta, rstats -> [rstats, "${meta.sample}/qc/readstats"]})
+                .concat(stats.hists.map{meta, hists -> [hists, "${meta.sample}/qc/readstats"]})
                 .concat(depths.summary.map{meta, depth_sum -> [depth_sum, "${meta.sample}/qc/coverage"]})
                 .concat(depths.mosdepth_tuple
                             .map {meta, reg, dist, thresh  -> [meta, [reg, dist, thresh]] }
                             .transpose()
                             .map{meta, fname -> [fname, "${meta.sample}/qc/coverage"]})
+                .concat(makeQCreport.out.map{meta, report -> [report, null]})
                 .set{outputs}
         }
 

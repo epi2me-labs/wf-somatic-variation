@@ -2,18 +2,18 @@
 """Plot QC metrics."""
 
 from dominate.tags import a, p
+from ezcharts.components import fastcat
 from ezcharts.components.common import fasta_idx
 from ezcharts.components.ezchart import EZChart
-from ezcharts.components.fastcat import load_bamstats_flagstat
 from ezcharts.components.mosdepth import load_mosdepth_regions, load_mosdepth_summary
 from ezcharts.components.reports.labs import LabsReport
 from ezcharts.components.theme import LAB_head_resources
 from ezcharts.layout.snippets import DataTable, Grid, Stats, Tabs
 import pandas as pd
 
-from .report_utils.utils import COLORS, compute_n50  # noqa: ABS101
+from .report_utils.utils import compute_n50  # noqa: ABS101
 from .report_utils.utils import compare_max_axes  # noqa: ABS101
-from .report_utils.utils import display_alert, hist_max  # noqa: ABS101
+from .report_utils.utils import display_alert  # noqa: ABS101
 from .report_utils import visualizations  # noqa: ABS101
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 
@@ -22,10 +22,8 @@ from .util import get_named_logger, wf_parser  # noqa: ABS101
 def populate_report(report, args, **kwargs):
     """Populate the report with the different sections."""
     # Extract data used
-    tumor_stats_df = kwargs["tumor_stats_df"]
-    normal_stats_df = kwargs["normal_stats_df"]
-    tumor_flags_df = kwargs["tumor_flags_df"]
-    normal_flags_df = kwargs["normal_flags_df"]
+    tumor_hist_df = kwargs["tumor_hist_df"]
+    normal_hist_df = kwargs["normal_hist_df"]
     tumor_depth_su = kwargs["tumor_depth_su"]
     normal_depth_su = kwargs["normal_depth_su"]
     tumor_depth_df = kwargs["tumor_depth_df"]
@@ -55,20 +53,20 @@ def populate_report(report, args, **kwargs):
 
     # Define read stats for tumor.
     logger.info("Compute N50...")
-    tumor_read_number_str = str(len(tumor_stats_df.index))
-    tumor_n50 = compute_n50(tumor_stats_df["read_length"].values)
+    tumor_read_number_str = str(tumor_hist_df["count"].sum())
+    tumor_n50 = compute_n50(tumor_hist_df)
     tumor_n50_str = str(tumor_n50) + " bp"
-    tumor_median_read_length = int(tumor_stats_df["read_length"].median())
+    tumor_median_read_length = int(fastcat.histogram_median(tumor_hist_df))
 
     # Define read stats for normal, if available.
-    if normal_stats_df.empty:
+    if normal_hist_df.empty:
         normal_median_read_length = normal_read_number_str = "NA"
         normal_n50_str = normal_n50 = "NA"
     else:
-        normal_read_number_str = str(len(normal_stats_df.index))
-        normal_n50 = compute_n50(normal_stats_df["read_length"].values)
-        normal_n50_str = str(compute_n50(normal_stats_df["read_length"].values)) + " bp"
-        normal_median_read_length = int(normal_stats_df["read_length"].median())
+        normal_read_number_str = str(normal_hist_df["count"].sum())
+        normal_n50 = compute_n50(normal_hist_df)
+        normal_n50_str = str(normal_n50) + " bp"
+        normal_median_read_length = int(fastcat.histogram_median(normal_hist_df))
 
     # Start structuring the report
     logger.info("Start reporting.")
@@ -143,171 +141,20 @@ def populate_report(report, args, **kwargs):
 
     # Add comparison of read lengths
     logger.info("Saving read distribution...")
-    with report.add_section("Read length distribution", "Read Length"):
-        tabs = Tabs()
-        with tabs.add_tab(args.sample_id):
-            # Show only one plot if no normal is provided.
-            if normal_stats_df.empty:
-                max_y = hist_max(tumor_stats_df["read_length"].dropna(), binwidth=1000)
-                plt = visualizations.hist_plot(
-                    tumor_stats_df,
-                    "read_length",
-                    "Tumor Read Length",
-                    xaxis="Read length (bp)",
-                    color=COLORS.cerulean,
-                    yaxis="Number of reads",
-                    extra_metric={"N50": tumor_n50},
-                    binwidth=1000,
-                    max_y=max_y,
-                    rounding=0,
-                )
-                EZChart(plt, "epi2melabs")
-            else:
-                with Grid():
-                    max_y = compare_max_axes(
-                        tumor_stats_df,
-                        normal_stats_df,
-                        "read_length",
-                        ptype="hist",
-                        binwidth=1000,
-                    )
-                    inputs = (
-                        (
-                            tumor_stats_df,
-                            tumor_n50,
-                            "Tumor Read Length",
-                            COLORS.cerulean,
-                        ),
-                        (
-                            normal_stats_df,
-                            normal_n50,
-                            "Normal Read Length",
-                            COLORS.cinnabar,
-                        ),
-                    )
-                    for df, n50, header, color in inputs:
-                        plt = visualizations.hist_plot(
-                            df,
-                            "read_length",
-                            header,
-                            xaxis="Read length (bp)",
-                            color=color,
-                            yaxis="Number of reads",
-                            extra_metric={"N50": n50},
-                            binwidth=1000,
-                            max_y=max_y,
-                            rounding=0,
-                        )
-                        EZChart(plt, "epi2melabs")
-            p("""Red: read N50; Yellow: mean length; Purple: median length.""")
-
-    # Add comparison of read quality
-    logger.info("Saving mean read quality...")
-    with report.add_section("Mean read quality", "Read Quality"):
-        tabs = Tabs()
-        with tabs.add_tab(args.sample_id):
-            # Show only one plot if no normal is provided.
-            if normal_stats_df.empty:
-                max_y = hist_max(tumor_stats_df["mean_quality"].dropna(), binwidth=0.5)
-                plt = visualizations.hist_plot(
-                    tumor_stats_df,
-                    "mean_quality",
-                    "Tumor Mean Read Quality",
-                    xaxis="Mean read quality",
-                    color=COLORS.cerulean,
-                    yaxis="Number of reads",
-                    binwidth=0.5,
-                    max_y=max_y,
-                    rounding=1,
-                )
-                EZChart(plt, "epi2melabs")
-            else:
-                with Grid():
-                    max_y = compare_max_axes(
-                        tumor_stats_df,
-                        normal_stats_df,
-                        "mean_quality",
-                        ptype="hist",
-                        binwidth=0.5,
-                    )
-                    inputs = (
-                        (tumor_stats_df, "Tumor Mean Read Quality", COLORS.cerulean),
-                        (normal_stats_df, "Normal Mean Read Quality", COLORS.cinnabar),
-                    )
-                    for df, header, color in inputs:
-                        plt = visualizations.hist_plot(
-                            df,
-                            "mean_quality",
-                            header,
-                            xaxis="Mean read quality",
-                            color=color,
-                            yaxis="Number of reads",
-                            binwidth=0.5,
-                            max_y=max_y,
-                            rounding=1,
-                        )
-                        EZChart(plt, "epi2melabs")
-            p("""Yellow: mean length; Purple: median length.""")
-
-    # Create the alignment stats
-    logger.info("Saving alignment statistics...")
-    with report.add_section("Alignment statistics", "Alignments"):
-        tabs = Tabs()
-        with tabs.add_tab(args.sample_id):
-            tumor_flags_df.insert(0, "Type", "Tumor")
-            normal_flags_df.insert(0, "Type", "Normal")
-            data_table = pd.concat((tumor_flags_df, normal_flags_df)).drop(
-                columns=["unmapped"]
+    with report.add_section("Read statistics", "Read Stats"):
+        # Show only one plot if no normal is provided.
+        if normal_hist_df.empty:
+            fastcat.SeqSummary(
+                args.hists_tumor,
+                flagstat=args.flagstat_tumor,
+                sample_names=f"{args.sample_id} (tumor)"
             )
-            DataTable.from_pandas(data_table, use_index=False)
-
-            # Add accuracy plot
-            if normal_stats_df.empty:
-                max_y = hist_max(tumor_stats_df["acc"].dropna(), binwidth=0.1)
-                plt = visualizations.hist_plot(
-                    tumor_stats_df,
-                    "acc",
-                    "Tumor Alignment Accuracy",
-                    xaxis="Accuracy [%]",
-                    rounding=1,
-                    color=COLORS.cerulean,
-                    yaxis="Number of reads",
-                    binwidth=0.1,
-                    max_y=max_y,
-                    min_x=80,
-                    max_x=100,
-                )
-                EZChart(plt, "epi2melabs")
-            else:
-                with Grid():
-                    max_y = compare_max_axes(
-                        tumor_stats_df,
-                        normal_stats_df,
-                        "acc",
-                        ptype="hist",
-                        binwidth=0.1,
-                    )
-                    inputs = (
-                        (tumor_stats_df, "Tumor Alignment Accuracy", COLORS.cerulean),
-                        (normal_stats_df, "Normal Alignment Accuracy", COLORS.cinnabar),
-                    )
-                    for df, header, color in inputs:
-                        plt = visualizations.hist_plot(
-                            df,
-                            "acc",
-                            header,
-                            xaxis="Accuracy [%]",
-                            rounding=1,
-                            color=color,
-                            yaxis="Number of reads",
-                            binwidth=0.1,
-                            max_y=max_y,
-                            min_x=80,
-                            max_x=100,
-                        )
-                        EZChart(plt, "epi2melabs")
-            p("""Yellow: mean length; Purple: median length.""")
-            p("""The distribution is truncated to show the range between 80-100%.""")
+        else:
+            fastcat.SeqCompare(
+                (args.hists_tumor, args.hists_normal),
+                flagstat=(args.flagstat_tumor, args.flagstat_normal),
+                sample_names=(f"{args.sample_id} (tumor)", f"{args.sample_id} (normal)")
+            )
 
     with report.add_section("Coverage", "Coverage"):
         # Predispose to tabs
@@ -369,44 +216,21 @@ def populate_report(report, args, **kwargs):
 
 def read_stats(
     logger,
-    read_stats=None,
-    flagstats=None,
+    hists_dir=None,
     depth=None,
     mosdepth_summary=None,
     faidx=None,
     winsize=50000,
 ):
     """Load all stats files for a sample."""
-    if read_stats:
-        logger.info(f"Loading {read_stats}")
-        stats_df = pd.read_csv(
-            read_stats,
-            sep="\t",
-            usecols=[
-                "sample_name",
-                "ref",
-                "read_length",
-                "mean_quality",
-                "acc",
-                "coverage",
-            ],
-            dtype={
-                "sample_name": "category",
-                "ref": "category",
-                "read_length": int,
-                "mean_quality": float,
-                "acc": float,
-                "coverage": float,
-            },
-        )
+    if hists_dir:
+        logger.info(f"Loading length hists from: {hists_dir}")
+        hist_df = fastcat.sum_hists((
+            fastcat.load_histogram(hists_dir, "length"),
+            fastcat.load_histogram(hists_dir, "length.unmap")
+        ))
     else:
-        stats_df = pd.DataFrame()
-
-    if flagstats:
-        logger.info(f"Loading {flagstats}")
-        flags_df = load_bamstats_flagstat(flagstats)
-    else:
-        flags_df = pd.DataFrame()
+        hist_df = pd.DataFrame()
 
     if mosdepth_summary:
         logger.info(f"Loading {mosdepth_summary}")
@@ -424,7 +248,7 @@ def read_stats(
     else:
         depth_df = pd.DataFrame()
 
-    return stats_df, flags_df, depth_su, depth_df
+    return hist_df, depth_su, depth_df
 
 
 # Finally, main
@@ -447,30 +271,27 @@ def main(args):
     faidx = fasta_idx(args.reference_fai)
 
     logger.info("Loading tumor stats")
-    tumor_stats_df, tumor_flags_df, tumor_depth_su, tumor_depth_df = read_stats(
+    tumor_hist_df, tumor_depth_su, tumor_depth_df = read_stats(
         logger,
-        read_stats=args.read_stats_tumor,
-        flagstats=args.flagstat_tumor,
+        hists_dir=args.hists_tumor,
         depth=args.depth_tumor,
         mosdepth_summary=args.mosdepth_summary_tumor,
         faidx=faidx,
         winsize=args.window_size,
     )
 
-    if args.read_stats_normal:
+    if args.hists_normal:
         logger.info("Loading normal stats")
-        normal_stats_df, normal_flags_df, normal_depth_su, normal_depth_df = read_stats(
+        normal_hist_df, normal_depth_su, normal_depth_df = read_stats(
             logger,
-            read_stats=args.read_stats_normal,
-            flagstats=args.flagstat_normal,
+            hists_dir=args.hists_normal,
             depth=args.depth_normal,
             mosdepth_summary=args.mosdepth_summary_normal,
             faidx=faidx,
             winsize=args.window_size,
         )
     else:
-        normal_stats_df = pd.DataFrame()
-        normal_flags_df = pd.DataFrame()
+        normal_hist_df = pd.DataFrame()
         normal_depth_su = [pd.DataFrame()]
         normal_depth_df = pd.DataFrame()
 
@@ -478,10 +299,8 @@ def main(args):
     populate_report(
         report=report,
         args=args,
-        tumor_stats_df=tumor_stats_df,
-        normal_stats_df=normal_stats_df,
-        tumor_flags_df=tumor_flags_df,
-        normal_flags_df=normal_flags_df,
+        tumor_hist_df=tumor_hist_df,
+        normal_hist_df=normal_hist_df,
         tumor_depth_su=tumor_depth_su[0],
         normal_depth_su=normal_depth_su[0],
         tumor_depth_df=tumor_depth_df,
@@ -507,12 +326,12 @@ def argparser():
         help="Sample identifier",
     )
     parser.add_argument(
-        "--read_stats_tumor",
-        help="`bamstats` file of per-read stats for the tumor sample",
+        "--hists_tumor",
+        help="`bamstats` histograms folder for the tumor sample",
     )
     parser.add_argument(
-        "--read_stats_normal",
-        help="`bamstats` file of per-read stats for the normal sample",
+        "--hists_normal",
+        help="`bamstats` histograms folder for the normal sample",
     )
     parser.add_argument(
         "--flagstat_tumor",

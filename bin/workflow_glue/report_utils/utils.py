@@ -2,6 +2,7 @@
 from dominate.tags import div, p
 from ezcharts.plots import util
 import numpy as np
+import pandas as pd
 from seaborn._statistics import Histogram
 
 
@@ -60,15 +61,37 @@ def compare_max_axes(
     return np.ceil(max(v1max, v2max) * buffer * (10**precision))/(10**precision)
 
 
-def compute_n50(lengths):
-    """Compute read N50."""
-    # Sort the read lengths
+def compute_n50(data, x='start', y='count'):
+    """Automatic detection of the data type for N50."""
+    if isinstance(data, pd.DataFrame):
+        n50_value = n50_hist(data, x=x, y=y)
+    elif isinstance(data, np.ndarray):
+        n50_value = n50_array(data)
+    elif isinstance(data, list) or isinstance(data, tuple):
+        n50_value = n50_array(np.array(data))
+    else:
+        raise ValueError(f"Unsupported data type {type(data)}")
+    return n50_value
+
+
+def n50_array(lengths):
+    """Compute read N50.
+
+    :param length: numpy vector of lengths
+    """
     sorted_l = np.sort(lengths)[::-1]
-    # Generate cumsum
     cumsum = np.cumsum(sorted_l)
-    # Get lowest cumulative value >= (total_length/2)
-    n50 = sorted_l[np.searchsorted(cumsum, cumsum[-1]/2)]
-    return n50
+    mid = cumsum[-1] / 2
+    n50_idx = np.searchsorted(cumsum, mid)
+    return sorted_l[n50_idx]
+
+
+def n50_hist(length_hist, x='start', y='count'):
+    """Compute read N50 from histogram data."""
+    cumsum = np.cumsum(length_hist[y].to_numpy() * length_hist[x].to_numpy())
+    mid = cumsum[-1] / 2
+    n50_idx = np.searchsorted(cumsum, mid)
+    return length_hist.iloc[n50_idx].start
 
 
 def hist_binning(values):

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+### Changed
+- Use `ezcharts SeqCompare` to in QC report.
+- Memory usage of alignment report reduced by using histograms.
+
 ## [v1.2.0]
 ### Added
 - Support for input folders of BAM files for `--bam_tumor` and `--bam_normal` (instead of only allowing single BAM files).
