@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [unreleased]
+### Added
+- A report with name `[sample name].wf-somatic-variation-report.html`, linking the individual detailed reports.
+
 ### Changed
 - Use `ezcharts SeqCompare` to in QC report.
 - Memory usage of alignment report reduced by using histograms.

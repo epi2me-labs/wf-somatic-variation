@@ -153,6 +153,7 @@ docker-run:
 
         - if: $MATRIX_NAME == "sv"
           variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
@@ -165,6 +166,7 @@ docker-run:
 
         - if: $MATRIX_NAME == "sv-full"
           variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
               NF_WORKFLOW_OPTS: "--sv --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \

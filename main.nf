@@ -19,7 +19,8 @@ include {
     getVersions;
     getVersions_somvar;
     getParams;
-    getGenome
+    getGenome;
+    report
     } from './modules/local/common'
 include {lookup_clair3_model; output_snv} from './modules/local/wf-somatic-snv'
 include {
@@ -299,6 +300,9 @@ workflow {
     // Output QC data
     output_qc( qc_outputs )
 
+    // Create minimal channel for joint report
+    for_joint_report = qcdata.report_qc
+
     // Run snv workflow if requested
     if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
@@ -331,27 +335,45 @@ workflow {
         )
         
         // Publish outputs in the appropriate folder
-        clair_vcf | output_snv
-   
+        clair_vcf.outputs | output_snv
+        snv_joint_report = clair_vcf.report_snv
+    } else {
+        snv_joint_report = Channel.empty()
     }
     
     // Start SV calling workflow
     if (params.sv){
-        sv(pass_bam_channel, ref_channel, OPTIONAL)
+        sv_result = sv(pass_bam_channel, ref_channel, OPTIONAL)
+        sv_joint_report = sv_result.report_sv
+    } else {
+        sv_joint_report = Channel.empty()
     }
 
     // Extract modified bases
     if (params.mod){
-        mod(
+        modkit_output = mod(
             pass_bam_channel,
             ref_channel,
         )
+        mod_joint_report = modkit_output.report_mod
+    } else {
+        mod_joint_report = Channel.empty()
     }
 
+    // Collect all the reports
+    for_joint_report
+        .mix(snv_joint_report)
+        .mix(sv_joint_report)
+        .mix(mod_joint_report)
+        // Remove the null values for the missing reports
+        // Create a nested tuple with all the reports in it
+        .groupTuple(by:0)
+        // Add additional data types
+        .combine(versions)
+        .combine(parameters) | report
+
     // Emit version and parameters
-    output(versions.concat(parameters))
-
-
+    output(versions.concat(parameters).concat(report.out))
 }
 
 workflow.onComplete {

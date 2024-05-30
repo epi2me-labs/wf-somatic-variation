@@ -83,7 +83,7 @@ process makeReport {
             path(typing_vcf),
             val(typing_opt)
     output:
-        path "*report.html", emit: html
+        tuple val(meta), path("*report.html"), emit: html
     script:
         // Define report name.
         def report_name = "${params.sample_name}.wf-somatic-snv-report.html"

@@ -413,6 +413,15 @@ workflow mod {
                 )
         // Otherwise, pass OPTIONAL_FILE
         } else {
+            // Combine the summaries first.
+            forked_sum.tumor
+                .map{t_meta, t_summary ->
+                    def n_meta = [:]
+                    n_meta.type = 'normal'
+                    n_meta.sample = t_meta.sample
+                    [t_meta.sample, file("$projectDir/data/OPTIONAL_FILE"), n_meta, t_summary, t_meta]
+                    }
+                .set{combined_summaries}
             // Use only the one summary, and replace the DSS outputs and normal summary with OPTIONAL_FILE.
             forked_sum.tumor
                 .combine(reference)
@@ -467,4 +476,6 @@ workflow mod {
     emit:
         modbam2bed = bedmethyl_split.out.mod_outputs
         dss = bed2dss.out.dss_outputs
+        mod_summaries = combined_summaries
+        report_mod = makeModReport.out
 }

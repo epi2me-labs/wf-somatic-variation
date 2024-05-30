@@ -332,4 +332,5 @@ workflow alignment_stats {
             coverages = depths.summary
             mosdepth_tuple = depths.mosdepth_tuple
             paired_qc = paired_samples
+            report_qc = makeQCreport.out
 }
