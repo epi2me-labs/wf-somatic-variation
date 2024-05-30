@@ -107,7 +107,7 @@ process report {
         file versions
         path "params.json"
     output:
-        path "*report.html", emit: html
+        tuple val(meta), path("${meta.sample}.wf-somatic-sv-report.html"), emit: html
     script:
         def report_name = "${meta.sample}.wf-somatic-sv-report.html"
         // can't use `path.name` here

@@ -833,7 +833,7 @@ workflow snv {
                     })
             .concat(
                 makeReport.out.html.map{
-                    it -> [it, null]
+                    meta, html -> [html, null]
                 })
             .concat(
                 snv_vcf.map{meta, vcf -> [vcf, "${meta.sample}/snv/vcf/"]}
@@ -897,7 +897,10 @@ workflow snv {
                     )
                 .set { outputs }
         }
+        
 
     emit:
-       outputs 
+       outputs = outputs
+       snv_stats = vcfStats.out[0].combine(change_count.out.changes, by: 0)
+       report_snv = makeReport.out.html
 }

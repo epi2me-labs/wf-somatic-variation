@@ -113,7 +113,7 @@ workflow somatic_sv {
                     })
             .concat(
                 report.out.html.map{
-                    it -> [it, null]
+                    meta, it -> [it, null]
                 })
             .set{outputs}
         outputs | output_sv
@@ -122,4 +122,6 @@ workflow somatic_sv {
                 ch_vcf,
                 ch_tbi
             )
+        sv_vcf = ch_vcf.combine(ch_tbi, by: 0)
+        report_sv = report.out.html
 }
