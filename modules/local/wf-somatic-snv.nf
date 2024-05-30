@@ -456,7 +456,12 @@ process clairs_predict_pileup {
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    // Add 134 as a possible error status. This is because currently ClairS fails with
+    // this error code when libomp.so is already instantiated. This error is rather mysterious
+    // in the sense that it occur spuriously in clusters, both using our own or the official
+    // ClairS container with singularity. Further investigations are ongoing, but being the issue
+    // unrelated with the workflow, add an exception.
+    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -591,7 +596,12 @@ process clairs_predict_full {
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    // Add 134 as a possible error status. This is because currently ClairS fails with
+    // this error code when libomp.so is already instantiated. This error is rather mysterious
+    // in the sense that it occur spuriously in clusters, both using our own or the official
+    // ClairS container with singularity. Further investigations are ongoing, but being the issue
+    // unrelated with the workflow, add an exception.
+    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(contig),
@@ -869,7 +879,12 @@ process clairs_predict_pileup_indel {
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    // Add 134 as a possible error status. This is because currently ClairS fails with
+    // this error code when libomp.so is already instantiated. This error is rather mysterious
+    // in the sense that it occur spuriously in clusters, both using our own or the official
+    // ClairS container with singularity. Further investigations are ongoing, but being the issue
+    // unrelated with the workflow, add an exception.
+    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(region),
@@ -1002,7 +1017,12 @@ process clairs_predict_full_indels {
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    // Add 134 as a possible error status. This is because currently ClairS fails with
+    // this error code when libomp.so is already instantiated. This error is rather mysterious
+    // in the sense that it occur spuriously in clusters, both using our own or the official
+    // ClairS container with singularity. Further investigations are ongoing, but being the issue
+    // unrelated with the workflow, add an exception.
+    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
             val(contig),

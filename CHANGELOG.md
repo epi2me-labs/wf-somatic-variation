@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use `ezcharts SeqCompare` to in QC report.
 - Memory usage of alignment report reduced by using histograms.
+- Retry process when `clairs.py predict` crashes with error 134.
 
 ## [v1.2.0]
 ### Added
