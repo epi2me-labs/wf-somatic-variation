@@ -78,9 +78,39 @@ process validate_modbam {
 }
 
 
+// Pre-compute sample probabilities
+process sample_probs {
+    label "wf_somatic_mod"
+    // Using 4 threads on a 90X takes ~30sec to complete
+    cpus 4
+    memory 8.GB
+    input:
+        tuple path(alignment), 
+            path(alignment_index), 
+            val(meta), 
+            path(reference), 
+            path(reference_index), 
+            path(reference_cache), 
+            env(REF_PATH)
+    output:
+        tuple path(alignment), 
+            path(alignment_index), 
+            val(meta), 
+            path(reference), 
+            path(reference_index), 
+            path(reference_cache), 
+            env(REF_PATH),
+            env(probs)
+
+    script:
+    // Set `--interval-size` to 5Mb to speed up sampling, and `--only-mapped -p 0.1` to be consistent with `pileup`
+    """
+    probs=\$( modkit sample-probs ${alignment} -p 0.1 --interval-size 5000000 --only-mapped --threads ${task.cpus} 2> /dev/null | awk 'NR>1 {ORS=" "; print "--filter-threshold "\$1":"\$3}' )
+    """
+}
+
 process modkit {
     label "wf_somatic_mod"
-    // Requires ~1G/core + ~1-2G; set to 3 extra as buffer
     cpus params.modkit_threads
     memory {(1.GB * params.modkit_threads * task.attempt) + 3.GB}
     maxRetries 1
@@ -93,12 +123,13 @@ process modkit {
             path(reference_index), 
             path(reference_cache), 
             env(REF_PATH),
-            path(bed)
+            val(probs),
+            path(bed),
+            val(contig)
     output:
-        tuple val(meta), 
-            val('all'),
-            path("${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl.gz"), 
-            emit: full_output
+        tuple val(meta),
+            val(contig),
+            path("${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl.gz")
 
     script:
     def options = params.force_strand ? '':'--combine-strands --cpg'
@@ -108,15 +139,39 @@ process modkit {
     """
     modkit pileup \\
         ${alignment} \\
-        "${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl" \\
+        "${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl" \\
         --ref ${reference} \\
+        --region ${contig} \\
         --interval-size 1000000 \\
         --log-filepath modkit.log \\
+        ${probs} \\
         --threads ${task.cpus} ${options}
-    bgzip "${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl"
+    bgzip "${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl"
     """
 }
 
+process concat_bedmethyl {
+    label "wf_somatic_mod"
+    cpus 4
+    memory 8.GB
+
+    input:
+        tuple val(meta),
+            val(contigs),
+            path("bedmethyls/*")
+    output:
+        tuple val(meta),
+            path("${params.sample_name}.wf-somatic-mod.${meta.type}.bedmethyl.gz")
+
+    script:
+    // Concatenate the bedMethyl, sort them and compress them
+    // def label = group != '*' ? "${group}." : ""
+    """
+    zcat -f bedmethyls/* | \
+        sort -k 1,1 -k 2,2n --parallel ${task.cpus} | \
+        bgzip -c -@ ${task.cpus} > ${meta.sample}.wf-somatic-mod.${meta.type}.bedmethyl.gz
+    """
+}
 
 process bedmethyl_split {
     label "wf_common"
@@ -124,11 +179,10 @@ process bedmethyl_split {
     memory 4.GB
     input:
         tuple val(meta), 
-            val('all'),
             path(bed)
     output:
         tuple val(meta), 
-            path("*.${meta.sample}.wf-somatic-mods.${meta.type}.bedmethyl.gz"), 
+            path("*.${meta.sample}.wf-somatic-mod.${meta.type}.bedmethyl.gz"), 
             emit: mod_outputs
 
     script:
@@ -144,7 +198,7 @@ process bedmethyl_split {
 process summary {
     label "wf_somatic_mod"
     cpus 4
-    memory {(1.GB * params.modkit_threads * task.attempt) + 3.GB}
+    memory { 8.GB * task.attempt }
     maxRetries 1
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
@@ -312,6 +366,7 @@ workflow mod {
     take:
         alignment
         reference
+        chromosome_codes
     main:
         // Check for conflicting parameters
         if (params.force_strand && params.modkit_args){
@@ -319,6 +374,14 @@ workflow mod {
         }
         if (params.modkit_args){
             log.warn "--modkit_args will override any preset we defined."
+        }
+        chroms = reference
+        | map{ fasta, fai, cache, env -> fai }
+        | splitCsv(sep:'\t')
+        | map{ chrom, len, os1, os2, os3 -> chrom }
+
+        if (!params.include_all_ctgs){
+            chroms = chroms | filter{ it in chromosome_codes }
         }
 
         // Call modified bases
@@ -340,11 +403,16 @@ workflow mod {
             bed = Channel.fromPath("$projectDir/data/OPTIONAL_FILE")
         }
 
+        // First, compute the sample_probs
+        modkit_probs = sample_probs(validated_bam.modbam.map{it[0..-2]})
+        | combine(bed)
+        | combine(chroms)
+
         // Run modkit on the valid files.
-        modkit(validated_bam.modbam.map{it[0..-2]}.combine(bed))
+        modkit_outputs = modkit(modkit_probs) | groupTuple(by:0) | concat_bedmethyl
 
         // Split modkit, and use file to rename the outputs
-        bedmethyl_split(modkit.out.full_output)
+        bedmethyl_split(modkit_outputs)
         // Each channel has a nested tuple. Transpose linearize it,
         // and then we extract the modification type with simpleName.
         modbed = bedmethyl_split.out.mod_outputs
@@ -436,19 +504,21 @@ workflow mod {
         }
 
         // Create output directory
-        modbed.map{
-            meta, mod, file -> [file, "${meta.sample}/mod/${mod}/bedMethyl/"]
+        // Save raw bedMethyl and summaries in main folder,
+        // and the rest in the {{ sample }}/mod directory.
+        modkit_outputs.map{
+                meta, file -> [file, null]
         }.mix(
-            modkit.out.full_output.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/raw/"]
-            }
-        ).mix(
-            bed2dss.out.dss_outputs.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DSS/"]
+            modbed.map{
+                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/bedMethyl/"]
             }
         ).mix(
             summary.out.mod_summary.map{
                 meta, summary -> [summary, null]
+            }
+        ).mix(
+            bed2dss.out.dss_outputs.map{
+                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DSS/"]
             }
         ).mix(
             dss.out.dml.map{

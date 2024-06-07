@@ -114,6 +114,14 @@ workflow {
     // Dummy optional file
     OPTIONAL = file("$projectDir/data/OPTIONAL_FILE")
 
+    // Programmatically define chromosome codes.
+    // note that we avoid interpolation (eg. "${chr}N") to ensure that values
+    // are Strings and not GStringImpl, ensuring that .contains works.
+    ArrayList chromosome_codes = []
+    ArrayList chromosomes = [1..22] + ["X", "Y", "M", "MT"]
+    for (N in chromosomes.flatten()){
+        chromosome_codes += ["chr" + N, "" + N]
+    }
 
     Pinguscript.ping_start(nextflow, workflow, params)
 
@@ -354,6 +362,7 @@ workflow {
         modkit_output = mod(
             pass_bam_channel,
             ref_channel,
+            chromosome_codes
         )
         mod_joint_report = modkit_output.report_mod
     } else {
