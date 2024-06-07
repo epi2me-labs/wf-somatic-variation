@@ -65,18 +65,82 @@
       "type": "per-sample"
     },
     "mod-bedmethyl-normal": {
-      "filepath": "{{ alias }}.wf-somatic-mods.normal.bedmethyl.gz",
+      "filepath": "{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz",
       "title": "Modified bases BEDMethyl (normal)",
       "description": "BED file with the aggregated modification counts for the normal sample.",
       "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
     },
+    "mod-summary-normal": {
+      "filepath": "{{ alias }}.normal.mod_summary.tsv",
+      "title": "Modified bases summary (normal)",
+      "description": "Summary modification stats for the normal sample.",
+      "mime-type": "text/txt",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-bedmethyl-normal": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz",
+      "title": "Single-change BEDMethyl (normal)",
+      "description": "BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the normal sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-dss-normal": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_normal.dss.tsv",
+      "title": "Single-change DSS input file (normal)",
+      "description": "Input text file for DSS for a single modification type (e.g. 5mc) for the normal sample.",
+      "mime-type": "text/txt",
+      "optional": true,
+      "type": "per-sample"
+    },
     "mod-bedmethyl-tumor": {
-      "filepath": "{{ alias }}.wf-somatic-mods.tumor.bedmethyl.gz",
+      "filepath": "{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz",
       "title": "Modified bases BEDMethyl (tumor)",
       "description": "BED file with the aggregated modification counts for the tumor sample.",
       "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "mod-summary-tumor": {
+      "filepath": "{{ alias }}.normal.mod_summary.tsv",
+      "title": "Modified bases summary (tumor)",
+      "description": "Summary modification stats for the tumor sample.",
+      "mime-type": "text/txt",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-bedmethyl-tumor": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz",
+      "title": "Single-change BEDMethyl (tumor)",
+      "description": "BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the tumor sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-dss-tumor": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_tumor.dss.tsv",
+      "title": "Single-change DSS input file (tumor)",
+      "description": "Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample.",
+      "mime-type": "text/txt",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-differentially-modified-loci": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv",
+      "title": "Differentially modified loci (DML) per change type",
+      "description": "Differentially modified loci from DSS for a single modification type (e.g. 5mc).",
+      "mime-type": "text/txt",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "per-mod-type-differentially-modified-region": {
+      "filepath": "{{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv",
+      "title": "Differentially modified regions (DMR) per change type",
+      "description": "Differentially modified regions from DSS for a single modification type (e.g. 5mc).",
+      "mime-type": "text/txt",
       "optional": true,
       "type": "per-sample"
     },
