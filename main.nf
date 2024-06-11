@@ -314,25 +314,44 @@ workflow {
     // Run snv workflow if requested
     if (params.snv) {
         // TODO: consider implementing custom modules in future releases.
+        // Import the table of ClairS models, retaining:
+        // 1. basecaller model name
+        // 2. ClairS model name
+        // 3. ClairS liquid model name
         lookup_table = Channel
-                            .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
-                            .splitCsv(sep: '\t', header: true)
-                            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
+            .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
+            .splitCsv(sep: '\t', header: true)
+            .map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override] }
+        // Check that the provided basecaller_cfg is in the table.
+        // If the user asks liquid_tumor, and the column has a valid model, then use that.
+        // Otherwise, use regular ClairS model.
         clairs_model = Channel
-                            .value(params.basecaller_cfg)
-                            .cross(lookup_table) 
-                            .filter{ caller, info -> info[1] != '-' }
-                            .map{caller, info -> info[1] }
-        lookup_table = Channel
-                            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
-                            .splitCsv(sep: '\t', header: true)
-                            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
-        clair3_model = Channel
-                            .value(params.basecaller_cfg)
-                            .cross(lookup_table) 
-                            .filter{ caller, info -> info[1] != '-' }
-                            .map{caller, info -> info[1] }
+            .value(params.basecaller_cfg)
+            .cross(lookup_table) 
+            .filter{ caller, info -> info[1] != '-' }
+            .map{
+                caller, info -> 
+                model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
+            }
 
+        // TODO: consider implementing custom modules in future releases.
+        // Import the table of ClairS models, retaining:
+        // 1. basecaller model name
+        // 2. Clair3 model name
+        lookup_table = Channel
+            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
+            .splitCsv(sep: '\t', header: true)
+            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
+        // Check that the provided basecaller_cfg is in the table.
+        clair3_model = Channel
+            .value(params.basecaller_cfg)
+            .cross(lookup_table) 
+            .filter{ caller, info -> info[1] != '-' }
+            .map{caller, info -> info[1] }
+        // Log which models have been chosen.
+        log.info "Models found:"
+        clair3_model.subscribe{ if (params.germline){ log.info " - Clair3 model: ${it}" }}
+        clairs_model.subscribe{ log.info " - ClairS model: ${it}" }
 
         clair_vcf = snv(
             pass_bam_channel,

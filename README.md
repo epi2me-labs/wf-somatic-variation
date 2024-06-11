@@ -148,6 +148,7 @@ input_reads.bam     ─── input_directory
 | fast_mode | boolean | Fast germline variants calling in Clair3 (does not emit germline calls). | Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs. | False |
 | germline | boolean | The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution). |  | True |
 | phase_normal | boolean | Phase and tag the normal, in addition to the tumor dataset. |  | False |
+| liquid_tumor | boolean | The sample is a liquid tumor | Setting this to true will have ClairS to use specific presets and model (where available) for liquid tumors, increasing accuracy. | False |
 
 
 ### Somatic structural variant calling options

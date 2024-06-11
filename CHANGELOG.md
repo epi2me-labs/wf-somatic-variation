@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+### Changed
+- Update to ClairS v0.2.0.
+    - The workflow now uses normal heterozygote sites to haplotag reads.
+    - This behaviour can be changed using `--use_normal_hets_for_phasing` and `--use_tumor_hets_for_phasing`.
+    - Moreover, it uses the indels for the phasing as default; this can be changed with `--use_het_indels_for_phasing`.
+    - The workflow now uses longphase to haplotag reads; this can be changed with `--use_longphase_haplotag`.
+    - The workflow now accepts a `--liquid_tumor` option, enabling presets and, where available, models specific for liquid tumors.
+- Update to Clair3 v1.0.8.
+    - Added `--clair3_base_err` and `--clair3_gq_bin_size` options.
+
 ## [v1.2.1]
 ### Added
 - A report with name `[sample name].wf-somatic-variation-report.html`, linking the individual detailed reports.

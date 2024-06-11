@@ -104,6 +104,8 @@ process pileup_variants {
             --indel_min_af ${clair3_mode.min_indels_af} \\
             --minMQ ${params.clair3_min_mq} \\
             --minCoverage ${clair3_mode.min_cvg} \\
+            --base_err ${params.clair3_base_err} \\
+            --gq_bin_size ${params.clair3_gq_bin_size} \\
             --call_snp_only False \\
             --sampleName ${meta.sample} \\
             --vcf_fn ${params.vcf_fn} \\
@@ -124,7 +126,9 @@ process aggregate_pileup_variants {
     // to use for phasing.
     label "wf_somatic_snv"
     cpus 2
-    memory 4.GB
+    memory { 4.GB * task.attempt }
+    maxRetries 2
+    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
             path(vcfs, stageAs: "input_vcfs/*"),
@@ -318,7 +322,7 @@ process evaluate_candidates {
     // This can go very high, depending on the depth of coverage and size of the dataset.
     label "wf_somatic_snv"
     cpus 1
-    memory { 4.GB * task.attempt }
+    memory { 8.GB * task.attempt }
     maxRetries 3
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:

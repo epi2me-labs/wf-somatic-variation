@@ -251,6 +251,11 @@
                     "description": "Minimum coverage required to call somatic variants.",
                     "hidden": true
                 },
+                "min_bq": {
+                    "type": "number",
+                    "description": "Minimum base quality for candidate somatic variants calling.",
+                    "hidden": true
+                },
                 "indel_min_af": {
                     "type": "number",
                     "default": 0.05,
@@ -274,6 +279,20 @@
                     "default": 0.7,
                     "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling.",
                     "hidden": true
+                },
+                "clair3_base_err": {
+                    "type": "number",
+                    "default": 0.001,
+                    "hidden": true,
+                    "description": "Estimated base error rate when enabling GVCF option (experimental).",
+                    "help_text": "Relevant only if running Clair3 in GVCF mode."
+                },
+                "clair3_gq_bin_size": {
+                    "type": "number",
+                    "default": 5,
+                    "hidden": true,
+                    "description": "Default gq bin size for merge non-variant block when enabling GVCF option (experimental).",
+                    "help_text": "Relevant only if running Clair3 in GVCF mode."
                 },
                 "germline": {
                     "type": "boolean",
@@ -317,6 +336,39 @@
                     "default": true,
                     "hidden": true,
                     "description": "Use longphase in phasing steps."
+                },
+                "use_longphase_haplotag": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use longphase in haplotagging step."
+                },
+                "use_normal_hets_for_phasing": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use normal heterozygote sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the normal sites to perform the variant phasing"
+                },
+                "use_tumor_hets_for_phasing": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Use normal heterozygote sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the normal sites to perform the variant phasing; to revert to use the tumor sites, set this variable to true"
+                },
+                "use_het_indels_for_phasing": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use heterozygote indels sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the heterozygot indels sites to perform the variant phasing as default; to disable this behaviour, set this variable to false"
+                },
+                "liquid_tumor": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "The sample is a liquid tumor",
+                    "help_text": "Setting this to true will have ClairS to use specific presets and model (where available) for liquid tumors, increasing accuracy."
                 },
                 "clairs_debug": {
                     "type": "boolean",
