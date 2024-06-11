@@ -198,17 +198,24 @@ process clairs_select_het_snps {
     output:
         tuple val(meta_normal), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: normal_hets
         tuple val(meta_tumor), val(contig), path("split_folder/${contig}.vcf.gz"), path("split_folder/${contig}.vcf.gz.tbi"), emit: tumor_hets
-    shell:
-        '''
-        pypy3 $CLAIRS_PATH/clairs.py select_hetero_snp_for_phasing \\
+    script:
+        def normal_hets_phasing = params.use_normal_hets_for_phasing ? "True" : "False"
+        def tumor_hets_phasing = params.use_tumor_hets_for_phasing ? "True" : "False"
+        def hets_indels_phasing = params.use_het_indels_for_phasing ? "True" : "False"
+        """
+        pypy3 \$CLAIRS_PATH/clairs.py select_hetero_snp_for_phasing \\
             --tumor_vcf_fn tumor.vcf.gz \\
             --normal_vcf_fn normal.vcf.gz \\
             --output_folder split_folder/ \\
-            --ctg_name !{contig}
+            --ctg_name ${contig} \\
+            --use_heterozygous_snp_in_normal_sample_for_intermediate_phasing ${normal_hets_phasing} \\
+            --use_heterozygous_snp_in_tumor_sample_for_intermediate_phasing ${tumor_hets_phasing} \\
+            --use_heterozygous_indel_for_intermediate_phasing ${hets_indels_phasing}
 
-        bgzip -c split_folder/!{contig}.vcf > split_folder/!{contig}.vcf.gz
-        tabix split_folder/!{contig}.vcf.gz
-        '''
+        bgzip -c split_folder/${contig}.vcf > split_folder/${contig}.vcf.gz
+        tabix split_folder/${contig}.vcf.gz
+        """
+        
 }
 
 // Run variant phasing on each contig using either longphase or whatshap.
@@ -244,13 +251,14 @@ process clairs_phase {
             env(REF_PATH),
             emit: phased_data
     script:
+        def use_indels = params.use_het_indels_for_phasing ? "--indels" : ""
         if (params.use_longphase)
         """
         echo "Using longphase for phasing"
         # longphase needs decompressed 
         gzip -dc ${vcf} > variants.vcf
         longphase phase --ont -o phased_${meta.sample}_${meta.type}_${contig} \\
-            -s variants.vcf -b ${bam} -r ${ref} -t ${task.cpus}
+            -s variants.vcf -b ${bam} -r ${ref} -t ${task.cpus} ${use_indels}
         bgzip phased_${meta.sample}_${meta.type}_${contig}.vcf
         tabix -f -p vcf phased_${meta.sample}_${meta.type}_${contig}.vcf.gz
         """
@@ -293,16 +301,29 @@ process clairs_haplotag {
             path("${meta.sample}_${meta.type}_${contig}.bam.bai"), 
             val(meta),
             emit: phased_data
-    shell:
-        '''
+    script:
+    def threads = Math.max(1, task.cpus - 1)
+    if (params.use_longphase_haplotag)
+        """
+        longphase haplotag \
+            -o ${meta.sample}_${meta.type}_${contig} \
+            --reference ${ref} \
+            --region ${contig} \
+            -s ${vcf} \
+            -b ${bam} \
+            --threads ${task.cpus}
+        samtools index -@ ${threads} ${meta.sample}_${meta.type}_${contig}.bam
+        """
+    else
+        """
         whatshap haplotag \\
-            --reference !{ref} \\
-            --regions !{contig} \\
+            --reference ${ref} \\
+            --regions ${contig} \\
             --ignore-read-groups \\
-            !{vcf} \\
-            !{bam} \\
-        | samtools view -b -1 -@3 -o !{meta.sample}_!{meta.type}_!{contig}.bam##idx##!{meta.sample}_!{meta.type}_!{contig}.bam.bai --write-index --no-PG
-        '''
+            ${vcf} \\
+            ${bam} \\
+        | samtools view -b -1 -@3 -o ${meta.sample}_${meta.type}_${contig}.bam##idx##${meta.sample}_${meta.type}_${contig}.bam.bai --write-index --no-PG
+        """
 }
 
 
@@ -358,6 +379,10 @@ process clairs_extract_candidates {
         def select_indels = model.startsWith('ont_r10') ? "--select_indel_candidates True" : "--select_indel_candidates False"
         // Enable hybrid/genotyping mode if passed
         def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
+        // If the model is for liquid tumor, use specific settings
+        def liquid = model.endsWith("liquid") || params.liquid_tumor ? "--enable_params_for_liquid_tumor_sample True" : ""
+        // If min_bq provided, use it; otherwise, if HAC model set min_bq to 15. 
+        def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" ? "--min_bq 15" : ""
         """
         # Create output folder structure
         mkdir candidates indels hybrid
@@ -378,7 +403,9 @@ process clairs_extract_candidates {
             --candidates_folder candidates/ \\
             ${select_indels} \\
             --output_depth True \\
-            ${typing_mode} 
+            ${typing_mode} \\
+            ${liquid} \\
+            ${min_bq}
         for i in `ls candidates/INDEL_*`; do
             echo "Moved \$i"
             mv \$i indels/
@@ -434,6 +461,8 @@ process clairs_create_paired_tensors {
             path("tmp/pileup_tensor_can/")
             
     script:
+        // If min_bq provided, use it; otherwise, if HAC model set min_bq to 15. 
+        def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" ? "--min_bq 15" : ""
         """
         mkdir -p tmp/pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
@@ -444,7 +473,8 @@ process clairs_create_paired_tensors {
             --ctg_name ${region.contig} \\
             --candidates_bed_regions ${intervals} \\
             --tensor_can_fn tmp/pileup_tensor_can/${intervals.getName()} \\
-            --platform ont
+            --platform ont \\
+            ${min_bq}
         """
 }
 
@@ -1246,15 +1276,15 @@ process change_count {
             path(ref_cache), 
             env(REF_PATH)
     output:    
-        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: mutype_vcf
-        tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: mutype_tbi
+        tuple val(meta), path("${meta.sample}.wf-somatic-snv.vcf.gz"), emit: mutype_vcf
+        tuple val(meta), path("${meta.sample}.wf-somatic-snv.vcf.gz.tbi"), emit: mutype_tbi
         tuple val(meta), path("${meta.sample}_changes.csv"), emit: changes
         tuple val(meta), path("${meta.sample}_changes.json"), emit: changes_json
             
     script:
         """
-        workflow-glue annotate_mutations input.vcf.gz ${meta.sample}_somatic.vcf.gz --json -k 3 --genome ${ref}
-        tabix -p vcf ${meta.sample}_somatic.vcf.gz
+        workflow-glue annotate_mutations input.vcf.gz "${meta.sample}.wf-somatic-snv.vcf.gz" --json -k 3 --genome ${ref}
+        tabix -p vcf "${meta.sample}.wf-somatic-snv.vcf.gz"
         """
 }
 
