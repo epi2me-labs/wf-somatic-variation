@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [v1.2.2]
 ### Changed
 - Update to ClairS v0.2.0.
     - The workflow now uses normal heterozygote sites to haplotag reads.
@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The workflow now accepts a `--liquid_tumor` option, enabling presets and, where available, models specific for liquid tumors.
 - Update to Clair3 v1.0.8.
     - Added `--clair3_base_err` and `--clair3_gq_bin_size` options.
+- `modkit` now runs by contig.
+- `modkit` bedMethyl are now in the top level output directory.
 
 ## [v1.2.1]
 ### Added
@@ -23,8 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `ezcharts SeqCompare` to in QC report.
 - Memory usage of alignment report reduced by using histograms.
 - Retry process when `clairs.py predict` crashes with error 134.
-- `modkit` now runs by contig.
-- `modkit` bedMethyl are now in the top level output directory.
 
 ## [v1.2.0]
 ### Added
