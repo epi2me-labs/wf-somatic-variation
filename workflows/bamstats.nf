@@ -45,7 +45,11 @@ process mosdepth {
         export REF_PATH=${ref}
         export MOSDEPTH_PRECISION=3
         # Convert bed into windows of given size [CW-2015]
-        bedtools makewindows -b ${target_bed} -w ${params.depth_window_size} > cut.bed
+        # The workflow now sort the bed input, merge overlapping intervals and then build windows
+        # preventing crash in downstream tools.
+        sort -k 1,1 -k2,2n ${target_bed} | \
+            bedtools merge -i - | \
+            bedtools makewindows -b - -w ${params.depth_window_size} > cut.bed
         # Run mosdepth
         mosdepth \\
             -x \\
