@@ -57,9 +57,13 @@ process sortVCF {
     script:
     // Severus uses the input file name as sample ID. Fix this using meta.sample here.
     """
+    # CW-4313: some INV created by Severus have INFO/END smaller than
+    # POS. Exclude these from the final VCF file.
+    # https://github.com/epi2me-labs/wf-somatic-variation/issues/28
     echo "tumor\t${meta.sample}" > sample_rename.txt
     bcftools sort -m 2G -O v ${vcf} \
     | bcftools reheader -s sample_rename.txt - \
+    | bcftools filter --threads ${task.cpus} -e "INFO/END < POS & INFO/SVTYPE == 'INV'" \
     | bgzip -c > ${meta.sample}.wf-somatic-sv.vcf.gz 
     bcftools index --threads ${task.cpus} -t ${meta.sample}.wf-somatic-sv.vcf.gz
     """
