@@ -37,12 +37,12 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "liquid-model",
+                 "all", "unmap", "liquid-model",
                 "input-multibam-dirs", "snv-r10-no_annot",
                 "tumor-only", "tumor-only-fail", 
                 "snv-bed", "snv-gvcf", 
                 "wf-somatic-snv-r10-gt", "wf-somatic-snv-r10-hy",
-                "snv-r10-normal_vcf", "snv-r10-som_only", "all", 
+                "snv-r10-normal_vcf", "snv-r10-som_only", 
                 "snv-r10", "snv-r9", "snv-r10-fail",
                 "sv", "sv-full", "mod", 
                 "mod-strand", "mod-args"
@@ -61,6 +61,22 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --severus_threads 4 \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
+
+        - if: $MATRIX_NAME == "unmap"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
+              NF_WORKFLOW_OPTS: "--sv \
+                  --sample_name SAMPLE \
+                  --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
+                  --ubam_sort_threads 1 --ubam_map_threads 4 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829bl.ubam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829.ubam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"

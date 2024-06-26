@@ -209,6 +209,17 @@ workflow {
     qcdata = alignment_stats(all_bams, ref_channel, bed, versions, parameters)
     qc_outputs = qcdata.outputs
 
+    // populate output json with ingressed runids
+    ArrayList ingressed_run_ids = []
+    qcdata.runids.splitText().subscribe(
+        onNext: {
+            ingressed_run_ids += it.strip()
+        },
+        onComplete: {
+            params.wf["ingress.run_ids"] = ingressed_run_ids
+        }
+    )
+
     // Apply bam coverage hard threshold to the pair
     // The dataset will fail if at least one of the bam has
     // coverage below the specified values. To account for different 
