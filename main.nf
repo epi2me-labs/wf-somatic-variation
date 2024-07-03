@@ -28,6 +28,7 @@ include {
     output_qc; get_shared_region
 } from './workflows/bamstats.nf'
 include {snv} from './workflows/wf-somatic-snv'
+include {snv as snv_to} from './workflows/wf-somatic-snv-to'
 include {mod} from './workflows/mod.nf'
 
 
@@ -56,6 +57,7 @@ workflow {
         throw new Exception(colors.red + "Sorry, wf-human-variation is not compatible with --profile conda, please use --profile standard (Docker) or --profile singularity." + colors.reset)
     }
 
+    def run_tumor_only = !params.bam_normal 
     can_start = true
     if (!params.snv && !params.sv && !params.mod) {
         log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --mod]" + colors.reset)
@@ -65,9 +67,12 @@ workflow {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
         can_start = false
     }
-    if (!params.bam_normal && (params.snv || params.sv)) {
-        log.error (colors.red + "The tumor-only mode is only available with --mod" + colors.reset)
+    if (run_tumor_only && params.sv) {
+        log.error (colors.red + "The tumor-only mode is not available with --sv" + colors.reset)
         can_start = false
+    }
+    if (run_tumor_only && params.snv && params.liquid_tumor) {
+        log.warn "The SNV tumor-only mode currently has no specific presets for liquid tumors."
     }
     if (params.bam_normal && !file(params.bam_normal).exists()){
         log.error (colors.red + "The workflow cannot run without passing a valid bam normal file" + colors.reset)
@@ -224,8 +229,8 @@ workflow {
     // The dataset will fail if at least one of the bam has
     // coverage below the specified values. To account for different 
     // sequencing design, the two coverages are specified 
-    // independently. 
-    if (params.tumor_min_coverage > 0 || params.normal_min_coverage > 0){
+    // independently.
+    if (params.tumor_min_coverage > 0 || (params.bam_normal && params.normal_min_coverage > 0)){
         // Define if a dataset passes or not the filtering
         if (params.bed){
             // Filter out the data based on the individual region's coverage
@@ -239,18 +244,34 @@ workflow {
             }.set{branched_filtered_beds}
 
             // Then, we cross T/N based on the sample name
-            filt_bed = branched_filtered_beds.tumor
-                .map{
-                    meta, bed -> [meta.sample, bed]
-                }.combine(
-                    branched_filtered_beds.normal.map{
+            if (run_tumor_only){
+                // If no normal BAM is provided, use the tumor outputs only.
+                filt_bed = branched_filtered_beds.tumor
+                    .map{
                         meta, bed -> [meta.sample, bed]
-                    }, by: 0
-                ) | get_shared_region // and then process them to intersect the retained regions
+                    }
+                bed = branched_filtered_beds.tumor
+                    .map{
+                        meta, bed -> bed
+                    }
+            } else {
+                branched_filtered_beds.tumor
+                    .map{
+                        meta, bed -> [meta.sample, bed]
+                    }.combine(
+                        branched_filtered_beds.normal.map{
+                            meta, bed -> [meta.sample, bed]
+                        }, by: 0
+                    ) | get_shared_region // and then process them to intersect the retained regions
+                filt_bed = get_shared_region.out.bed_tuple
+                // Prepare the filtered bed.
+                bed = get_shared_region.out.bed_file
+            }
 
+            // Add more outputs
             qc_outputs
                 .mix(
-                    filt_bed.bed_tuple.map{
+                    filt_bed.map{
                         sample, fname -> [fname, "${sample}/qc/coverage"]
                     }
                 )
@@ -260,9 +281,6 @@ workflow {
                     }
                 )
                 .set{ qc_outputs }
-            
-            // Replace the bed with the filtered bed
-            bed = filt_bed.bed_file
         } else {
             // Define if a dataset passes or not the filtering
             coverage_check = get_coverage(qcdata.coverages)
@@ -275,23 +293,52 @@ workflow {
             normal: it[1].type == 'normal'
         } .set { branched_checks }
 
-        // Cross the values and apply filter 
-        branched_checks.normal
-            .cross(branched_checks.tumor)
-            .branch{
-                pass: it[0][2] == "true" && it[1][2] == "true"
-                not_pass: it[0][2] != "true" || it[1][2] != "true"
-            }
-            .set{ depth_filtered }
-
-        // Combine the bam and branch them by whether they
-        // pass the depth filter.
-        depth_filtered.pass
-            .map{normal, tumor -> normal[0]}
+        // Apply filters depending on the presence of normal or not
+        if (run_tumor_only){
+            // Apply filter
+            branched_checks.tumor
+                .branch{
+                    sample, meta, pass, value ->
+                    pass: pass == "true"
+                    fail: true
+                }
+                .set{ depth_filtered }
+            // Create temporary pass channel keeping only the sample name.
+            tmp_pass_ch = depth_filtered.pass.map{ sample, meta, pass, value -> sample }
+            // Define non-passing channel
+            // Tumor-only is not a nested tuple, so avoid flatmapping
+            fail_bam_channel = depth_filtered.fail
+        } else {
+            // Cross the values and apply filter.
+            // Crossing creates a nested tuple of [ normal, tumor ], where
+            // where normal is a tuple with structure:
+            //   [
+            //     sample ID,
+            //     meta,
+            //     boolean for whether the bam passes coverage check,
+            //     coverage value
+            //   ]
+            // When branching, we therefore check the normal and the tumor
+            // both pass the filtering threshold.
+            branched_checks.normal
+                .cross(branched_checks.tumor)
+                .branch{
+                    normal, tumor ->
+                    pass: normal[2] == "true" && tumor[2] == "true"
+                    fail: true
+                }
+                .set{ depth_filtered }
+            // Create temporary pass channel keeping only the sample name.
+            tmp_pass_ch = depth_filtered.pass.map{normal, tumor -> normal[0]}
+            // Define non-passing channel
+            // Being a nested tuple, we need to flatMap it first
+            fail_bam_channel = depth_filtered.fail.flatMap()
+        }
+        // Add the bam and branch them based on passing/failing
+        // the depth filter.
+        tmp_pass_ch
             .combine(all_bams.map{it -> [it[2].sample] + it}, by:0)
-            .map{it ->
-                it.size > 0 ? [it[1], it[2], it[3]] : it
-            }
+            .map{ sample, xam, xai, meta -> [xam, xai, meta] }
             .set{ pass_bam_channel }
 
         // If it doesn't pass the minimum depth required, 
@@ -299,8 +346,7 @@ workflow {
         // Log out an error of failed coverage.
         // The method is much more convoluted to print only the type that is 
         // failing, whether it is normal or tumor, and their respective thresholds.
-        depth_filtered.not_pass
-            .flatMap()
+        fail_bam_channel
             .map{
                 sample, meta, passing, coverage ->
                 def threshold = meta.type =='tumor' ? params.tumor_min_coverage as float : params.normal_min_coverage as float
@@ -324,28 +370,43 @@ workflow {
 
     // Run snv workflow if requested
     if (params.snv) {
-        // TODO: consider implementing custom modules in future releases.
-        // Import the table of ClairS models, retaining:
-        // 1. basecaller model name
-        // 2. ClairS model name
-        // 3. ClairS liquid model name
-        lookup_table = Channel
-            .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
-            .splitCsv(sep: '\t', header: true)
-            .map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override] }
-        // Check that the provided basecaller_cfg is in the table.
-        // If the user asks liquid_tumor, and the column has a valid model, then use that.
-        // Otherwise, use regular ClairS model.
-        clairs_model = Channel
-            .value(params.basecaller_cfg)
-            .cross(lookup_table) 
-            .filter{ caller, info -> info[1] != '-' }
-            .map{
-                caller, info -> 
-                model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
-            }
-
-        // TODO: consider implementing custom modules in future releases.
+        // TODO: consider implementing custom models in future releases.
+        if (run_tumor_only){
+            // Import the table of ClairS-TO models, retaining:
+            // 1. basecaller model name
+            // 2. ClairS-TO model name
+            lookup_table = Channel
+                                .fromPath("${projectDir}/data/clairs_models_to.tsv", checkIfExists: true)
+                                .splitCsv(sep: '\t', header: true)
+                                .map{ it -> [it.basecall_model_name, it.clairs_to_model_name] }
+            // Check that the provided basecaller_cfg is in the table.
+            clairs_model = Channel
+                                .value(params.basecaller_cfg)
+                                .cross(lookup_table) 
+                                .filter{ caller, info -> info[1] != '-' }
+                                .map{caller, info -> info[1] }
+        } else {
+            // Import the table of ClairS models, retaining:
+            // 1. basecaller model name
+            // 2. ClairS model name
+            // 3. ClairS liquid model name
+            lookup_table = Channel
+                .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
+                .splitCsv(sep: '\t', header: true)
+                .map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override] }
+            // Check that the provided basecaller_cfg is in the table.
+            // If the user requests liquid_tumor, and the column has a valid model, then use that.
+            // Otherwise, use regular ClairS model.
+            clairs_model = Channel
+                .value(params.basecaller_cfg)
+                .cross(lookup_table) 
+                .filter{ caller, info -> info[1] != '-' }
+                .map{
+                    caller, info -> 
+                    model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
+                }
+        }
+        // TODO: consider implementing custom models in future releases.
         // Import the table of ClairS models, retaining:
         // 1. basecaller model name
         // 2. Clair3 model name
@@ -361,16 +422,31 @@ workflow {
             .map{caller, info -> info[1] }
         // Log which models have been chosen.
         log.info "Models found:"
-        clair3_model.subscribe{ if (params.germline){ log.info " - Clair3 model: ${it}" }}
-        clairs_model.subscribe{ log.info " - ClairS model: ${it}" }
-
-        clair_vcf = snv(
-            pass_bam_channel,
-            bed,
-            ref_channel,
-            clairs_model,
-            clair3_model
-        )
+        clair3_model.subscribe{ if (params.germline && params.bam_normal){ log.info " - Clair3 model: ${it}" }}
+        clairs_model.subscribe{ 
+            if (run_tumor_only){
+                log.info " - ClairS-TO model: ${it}" 
+            } else {
+                log.info " - ClairS model: ${it}" 
+            }
+        }
+        if (run_tumor_only){
+            clair_vcf = snv_to(
+                pass_bam_channel,
+                bed,
+                ref_channel,
+                clairs_model,
+                clair3_model
+            )
+        } else {
+            clair_vcf = snv(
+                pass_bam_channel,
+                bed,
+                ref_channel,
+                clairs_model,
+                clair3_model
+            )
+        }
         
         // Publish outputs in the appropriate folder
         clair_vcf.outputs | output_snv

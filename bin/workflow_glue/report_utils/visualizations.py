@@ -6,14 +6,15 @@ from .utils import COLORS  # noqa: ABS101
 
 # Scatter plot
 def scatter_plot(
-        df, x, y, hue, title, add_mean=None, xaxis='', yaxis='',
+        df, x, y, hue, title, add_mean=None, xaxis='', yaxis='', color=None,
         min_x=None, max_x=None, min_y=None, max_y=None, tooltip_label=None):
     """Make a scatterplot."""
     plt = scatterplot(
         data=df,
         x=x,
         y=y,
-        hue=hue
+        hue=hue,
+        color=color
     )
     # Change axes names
     plt.xAxis.name = xaxis
@@ -55,8 +56,8 @@ def scatter_plot(
 # Histogram
 def hist_plot(
         df, col, title, xaxis='', yaxis='', rounding=None,
-        extra_metric=None, color=None, binwidth=None, binrange=None, bins='auto',
-        max_y=None, max_x=None, min_x=None, min_y=None, no_stats=False):
+        color=None, binwidth=None, binrange=None, bins='auto',
+        max_y=None, max_x=None, min_x=None, min_y=None, stats=True):
     """Make a histogram of given parameter."""
     histogram_data = df[col].values
 
@@ -73,31 +74,15 @@ def hist_plot(
         meanv = df[col].mean()
         medianv = df[col].median()
 
-    if isinstance(extra_metric, dict):
-        if len(extra_metric) > 1:
-            raise ValueError('Too many input extra metrics')
-        key = list(extra_metric.keys())[0]
-        val = list(extra_metric.values())[0]
-        plt.title = dict(
-            text=title,
-            subtext=(
-                f"Mean: {meanv}. "
-                f"Median: {medianv}. "
-                f"{key}: {val}."
-            ),
-        )
-    else:
-
-        plt.title = dict(
-            text=title,
-            subtext=(
-                f"Mean: {meanv}. "
-                f"Median: {medianv}. "
-            )
+    plt.title = dict(text=title, subtext=None)
+    if stats:
+        plt.title.subtext = (
+            f"Mean: {meanv}. "
+            f"Median: {medianv}. "
         )
 
     # Add mean and median values (Thanks Julian!)
-    if not no_stats:
+    if stats:
         plt.add_series(
             dict(
                 type="line",
@@ -116,18 +101,7 @@ def hist_plot(
                 symbolSize=0
             )
         )
-    # Add N50 if required
-    if isinstance(extra_metric, dict):
-        for key, val in extra_metric.items():
-            plt.add_series(
-                dict(
-                    type="line",
-                    name=f"{key}",
-                    data=[dict(value=[val, 0]), dict(value=[val, max_y])],
-                    itemStyle=(dict(color=COLORS.cinnabar)),
-                    symbolSize=0
-                )
-            )
+
     # Change color if requested
     if color is not None:
         plt.color = [color]

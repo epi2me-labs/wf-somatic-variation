@@ -67,6 +67,9 @@ SNVs called using the GRCh37 or GRCh38 genomes can be annotated using [SnpEff](h
 by setting `--annotation true`. Furthermore, the workflow will add annotations from
 the [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) database.
 
+The workflow can run the `snv` component in tumor-only mode.
+See [tumor-only mode](#6-tumor-only-mode) for more details.
+
 
 ### 4. Somatic structural variant (SV) calling with Severus.
 
@@ -99,9 +102,10 @@ of `modkit pileup`, checkout the software [documentation](https://nanoporetech.g
 ### 6. Tumor-only mode
 
 It is possible to run a reduced version of the workflow using only the tumor BAM files.
-Currently, the following components can run in tumor-only mode:
+Currently, only the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
+- `--snv`: the workflow will use [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO), instead of [ClairS](https://github.com/HKU-BAL/ClairS), to call SNVs.
 
 ### 7. Run the workflow on a region
 When sequencing specific regions or genes, the runtime can vary substantially.
@@ -113,4 +117,3 @@ All analyses are run using up to 128GB of RAM and 16 cores, computing `--sv` and
 |      1-10       |      200Kb-1Mb    |  ~2.0 |  8m-15m    |
 |     11-100      |       1Mb-6Mb     |  ~7.0 | 25m-45m    |
 |    100-1000     |      20Mb-60Mb    | ~14.0 | 45m-1h:30m |
-

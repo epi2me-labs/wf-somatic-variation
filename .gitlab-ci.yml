@@ -37,7 +37,9 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                 "all", "unmap", "liquid-model",
+                "fail_depth_tumor", "fail_depth_normal",
+                "fail_depth_both","fail_depth_tumor-only",
+                "all", "unmap", "liquid-model",
                 "input-multibam-dirs", "snv-r10-no_annot",
                 "tumor-only", "tumor-only-fail", 
                 "snv-bed", "snv-gvcf", 
@@ -307,7 +309,7 @@ docker-run:
         - if: $MATRIX_NAME == "tumor-only"
           variables:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
-              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--mod --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
@@ -328,7 +330,7 @@ docker-run:
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
               ASSERT_NEXTFLOW_FAILURE: "yes"
-              ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is only available with --mod"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is not available with --sv"
 
         - if: $MATRIX_NAME == "input-multibam-dirs"
           variables:
@@ -341,6 +343,57 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "fail_depth_tumor"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 1000 --normal_min_coverage 0 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+
+        - if: $MATRIX_NAME == "fail_depth_normal"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 1000 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+
+        - if: $MATRIX_NAME == "fail_depth_both"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 1000 --normal_min_coverage 1000 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+
+        - if: $MATRIX_NAME == "fail_depth_tumor-only"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 1000 \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
 
 aws-run:
     stage: test
@@ -380,7 +433,7 @@ aws-run:
         - if: $MATRIX_NAME == "wf-somatic-tumor-only"
           variables:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
-              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+              NF_WORKFLOW_OPTS: "--mod --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"

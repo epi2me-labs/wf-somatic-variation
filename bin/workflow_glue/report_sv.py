@@ -143,7 +143,7 @@ def sv_size_plots(vcf_data):
 
                     if inserts.shape[0] > 0:
                         plt = hist_plot(
-                            inserts, 'SVLEN', 'Insertion lengths', no_stats=True,
+                            inserts, 'SVLEN', 'Insertion lengths', stats=False,
                             xaxis='abs. Length', yaxis='Count',
                             binwidth=ins_binwidth, binrange=ins_binrange,
                             rounding=0, color=COLORS.cinnabar,
@@ -153,7 +153,7 @@ def sv_size_plots(vcf_data):
                         p('No insertions to show.')
                     if delets.shape[0] > 0:
                         plt = hist_plot(
-                            delets, 'SVLEN', 'Deletion lengths', no_stats=True,
+                            delets, 'SVLEN', 'Deletion lengths', stats=False,
                             xaxis='abs. Length', yaxis='Count', rounding=0,
                             color=COLORS.cerulean, binwidth=del_binwidth,
                             binrange=del_binrange, max_y=max_y)
@@ -252,7 +252,7 @@ def main(args):
                 else:
                     plt = hist_plot(
                         vcf_df.round(PRECISION), 'VAF', 'Variant allele frequency',
-                        no_stats=True, xaxis='Allele frequency', yaxis='Count',
+                        stats=False, xaxis='Allele frequency', yaxis='Count',
                         rounding=0, color=COLORS.cerulean)
                     EZChart(plt, 'epi2melabs')
 
