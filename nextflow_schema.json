@@ -376,6 +376,30 @@
                     "default": false,
                     "description": "Run ClairS in debug mode."
                 },
+                "clairs_to_min_bq": {
+                    "type": "number",
+                    "default": 20.0,
+                    "description": "Minimum base quality for ClairS-TO candidate selection.",
+                    "hidden": true
+                },
+                "clairs_to_qual": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 12,
+                    "description": "Minimum quality for intermediate steps in ClairS-TO."
+                },
+                "qual_cutoff_phaseable_region": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 14,
+                    "description": "Quality cut-off for phaseable regions in intermediate steps of ClairS-TO."
+                },
+                "qual_cutoff_unphaseable_region": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 20,
+                    "description": "Quality cut-off for unphaseable regions in intermediate steps of ClairS-TO."
+                },
                 "vcf_fn": {
                     "type": "string",
                     "default": "EMPTY",

@@ -33,6 +33,8 @@ process getVersions {
         """
         run_clairs --version | sed 's/ /,/' >> versions.txt
         bcftools --version | sed -n 1p | sed 's/ /,/' >> versions.txt
+        whatshap --version | awk '{print "whatshap,"\$0}' >> versions.txt
+        longphase --version | awk 'NR==1 {print "longphase,"\$2}' >> versions.txt
         """
 }
 
@@ -98,6 +100,7 @@ process makeReport {
         def germline = params.germline ? "" : "--no_germline"
         def normal_vcf = params.normal_vcf ? "--normal_vcf ${file(params.normal_vcf).name}" : ""
         def typing_vcf = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
+        def tumor_only = params.bam_normal ? "" : "--tumor_only"
         """
         workflow-glue report_snv \\
             $report_name \\
@@ -107,7 +110,7 @@ process makeReport {
             --vcf_stats vcfstats.txt \\
             --vcf $vcf \\
             --mut_spectra spectra.csv \\
-            ${clinvar} ${germline} ${normal_vcf} ${typing_vcf}
+            ${clinvar} ${germline} ${normal_vcf} ${typing_vcf} ${tumor_only}
         """
 }
 
@@ -224,7 +227,7 @@ process clairs_phase {
     cpus 4
     // Define memory from phasing tool and number of attempt
     memory { req_mem[task.attempt - 1] }
-    maxRetries 3
+    maxRetries 2
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 
@@ -482,7 +485,6 @@ process clairs_create_paired_tensors {
 // Perform pileup variant prediction using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_pileup {
     label "wf_somatic_snv"
-    label "avx2"
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
@@ -622,7 +624,6 @@ process clairs_create_fullalignment_paired_tensors {
 // Call variants using the full-alignment paired tensors 
 process clairs_predict_full {
     label "wf_somatic_snv"
-    label "avx2"
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
@@ -706,7 +707,6 @@ process clairs_merge_full {
 // Filter variants based on haplotype information.
 process clairs_full_hap_filter {
     label "wf_somatic_snv"
-    label "avx2"
     cpus params.haplotype_filter_threads
     memory { (2.GB * task.cpus) + 3.GB }
     input:
@@ -905,7 +905,6 @@ process clairs_create_paired_tensors_indels {
 // Perform pileup variant prediction of indels using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_pileup_indel {
     label "wf_somatic_snv"
-    label "avx2"
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
@@ -1043,7 +1042,6 @@ process clairs_create_fullalignment_paired_tensors_indels {
 // Perform full-alignment variant prediction of indels using the paired tensors from clairs_create_paired_tensors
 process clairs_predict_full_indels {
     label "wf_somatic_snv"
-    label "avx2"
     cpus 1
     memory { 4.GB * task.attempt }
     maxRetries 3
@@ -1185,7 +1183,7 @@ process getVariantType {
 
 // Concatenate SNVs and Indels in a single VCF file. 
 process clairs_merge_snv_and_indels {
-    cpus 2
+    cpus 3
     memory 4.GB
     input:
         tuple val(meta), path(vcfs, stageAs: 'VCFs/*'), path(tbis, stageAs: 'VCFs/*')
@@ -1198,14 +1196,14 @@ process clairs_merge_snv_and_indels {
     // ideal for this mode. bedtools doesn't have this issue, and therefore use this instead.
     if (params.genotyping_mode_vcf || params.hybrid_mode_vcf)
     """
-    bcftools concat --threads ${task.cpus} -O v -a VCFs/*.vcf.gz | \\
+    bcftools concat --threads 1 -O v -a VCFs/*.vcf.gz | \\
         bedtools sort -header -i - | \\
-            bcftools view --threads ${task.cpus} -O z > ${meta.sample}_somatic.vcf.gz && \\
+            bcftools view --threads 1 -O z > ${meta.sample}_somatic.vcf.gz && \\
         tabix -p vcf ${meta.sample}_somatic.vcf.gz
     """
     else
     """
-    bcftools concat --threads ${task.cpus} -a VCFs/*.vcf.gz | \\
+    bcftools concat --threads 2 -a VCFs/*.vcf.gz | \\
         bcftools sort -m 2G -T ./ -O z > ${meta.sample}_somatic.vcf.gz && \\
         tabix -p vcf ${meta.sample}_somatic.vcf.gz
     """

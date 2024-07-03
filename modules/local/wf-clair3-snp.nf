@@ -204,7 +204,7 @@ process phase_contig {
     cpus 4
     // Define memory from phasing tool and number of attempt
     memory { req_mem[task.attempt - 1] }
-    maxRetries 3
+    maxRetries 2
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta), 

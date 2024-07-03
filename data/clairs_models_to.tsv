@@ -1,0 +1,39 @@
+basecaller	basecall_model_name	clairs_to_model_name	clairs_to_nomodel_reason
+dorado	dna_r10.4.1_e8.2_400bps_fast@v4.2.0	-	data called with fast models is not suitable for variant calling
+dorado	dna_r10.4.1_e8.2_400bps_hac@v4.2.0	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r10.4.1_e8.2_400bps_sup@v4.2.0	ont_r10_dorado_sup_5khz	-
+dorado	dna_r10.4.1_e8.2_400bps_fast@v4.1.0	-	data called with fast models is not suitable for variant calling
+dorado	dna_r10.4.1_e8.2_400bps_hac@v4.1.0	ont_r10_dorado_hac_4khz	-
+dorado	dna_r10.4.1_e8.2_400bps_sup@v4.1.0	ont_r10_dorado_sup_4khz	-
+dorado	dna_r10.4.1_e8.2_260bps_fast@v4.1.0	-	data called with fast models is not suitable for variant calling
+dorado	dna_r10.4.1_e8.2_260bps_hac@v4.1.0	-	260bps models are not supported for variant calling with ClairS-TO
+dorado	dna_r10.4.1_e8.2_260bps_sup@v4.1.0	-	260bps models are not supported for variant calling with ClairS-TO
+dorado	dna_r10.4.1_e8.2_260bps_hac@v4.0.0	-	260bps models are not supported for variant calling with ClairS-TO
+dorado	dna_r10.4.1_e8.2_260bps_sup@v4.0.0	-	260bps models are not supported for variant calling with ClairS-TO
+dorado	dna_r10.4.1_e8.2_400bps_hac@v4.0.0	ont_r10_guppy_hac_5khz	-
+dorado	dna_r10.4.1_e8.2_400bps_sup@v4.0.0	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r10.4.1_e8.2_260bps_fast@v3.5.2	-	data called with fast models is not suitable for variant calling
+dorado	dna_r10.4.1_e8.2_260bps_hac@v3.5.2	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r10.4.1_e8.2_260bps_sup@v3.5.2	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r10.4.1_e8.2_400bps_fast@v3.5.2	-	data called with fast models is not suitable for variant calling
+dorado	dna_r10.4.1_e8.2_400bps_hac@v3.5.2	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r10.4.1_e8.2_400bps_sup@v3.5.2	ont_r10_guppy_sup_4khz	-
+dorado	dna_r9.4.1_e8_fast@v3.4	-	data called with fast models is not suitable for variant calling
+dorado	dna_r9.4.1_e8_hac@v3.3	-	ClairS-TO has not been trained on this basecalling configuration
+dorado	dna_r9.4.1_e8_sup@v3.3	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4.1_e8.2_400bps_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r9.4.1_450bps_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.3_450bps_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.3_450bps_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4.1_e8.2_260bps_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4.1_e8.2_260bps_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4.1_e8.2_400bps_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4_e8.1_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10.4_e8.1_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r10_450bps_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r9.4.1_450bps_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r9.4.1_e8.1_hac	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r9.4.1_e8.1_hac_prom	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	dna_r9.5_450bps	-	ClairS-TO has not been trained on this basecalling configuration
+guppy	rna_r9.4.1_70bps_hac	-	RNA data is not suitable for this workflow
+guppy	rna_r9.4.1_70bps_hac_prom	-	RNA data is not suitable for this workflow

@@ -15,6 +15,7 @@ import pandas as pd
 import pysam
 
 from .report_utils.utils import COLORS, display_alert, PRECISION  # noqa: ABS101
+from .report_utils.visualizations import hist_plot  # noqa: ABS101
 from .report_utils.visualizations import plot_profile  # noqa: ABS101
 from .report_utils.visualizations import plot_spectra  # noqa: ABS101
 from .report_utils.visualizations import scatter_plot  # noqa: ABS101
@@ -48,7 +49,8 @@ def vcf_parse(args):
             continue
         flt.append(rec.filter.keys()[0])
         vaf.append(rec.samples[samplename]['AF'])
-        naf.append(rec.samples[samplename]['NAF'])
+        if "NAF" in rec.samples[samplename]:
+            naf.append(rec.samples[samplename]['NAF'])
         if len(rec.alts[0]) == len(rec.ref) and len(rec.ref) == 1:
             vtype.append('SNV')
         else:
@@ -58,7 +60,11 @@ def vcf_parse(args):
 
 def filt_stats(filters, vaf, naf, noalt=0, thresholds=[0.2, 0.1, 0.05]):
     """Plot the filtering stats."""
-    df = pd.DataFrame({'Filter': filters, 'Tumor_AF': vaf, 'Normal_AF': naf})
+    if naf:
+        df = pd.DataFrame({'Filter': filters, 'Tumor_AF': vaf, 'Normal_AF': naf})
+    else:
+        df = pd.DataFrame({'Filter': filters, 'Tumor_AF': vaf})
+
     # Filtering table
     summary_table = {
         'N sites': [df.count()['Filter'],
@@ -71,9 +77,13 @@ def filt_stats(filters, vaf, naf, noalt=0, thresholds=[0.2, 0.1, 0.05]):
                      ""],
         'Type': ['Tumor', 'Normal']}
     for threshold in thresholds:
-        summary_table.update({'VAF > {:.2f}'.format(threshold): [
-            df.query(f'Tumor_AF >= {threshold}').shape[0],
-            df.query(f'Normal_AF >= {threshold}').shape[0]]})
+        if naf:
+            summary_table.update({'VAF > {:.2f}'.format(threshold): [
+                df.query(f'Tumor_AF >= {threshold}').shape[0],
+                df.query(f'Normal_AF >= {threshold}').shape[0]]})
+        else:
+            summary_table.update({'VAF > {:.2f}'.format(threshold): [
+                df.query(f'Tumor_AF >= {threshold}').shape[0], 'NA']})
 
     # Plot the histogram of the allele frequencies in the tumor and normal
     return pd.DataFrame(summary_table)
@@ -157,6 +167,14 @@ def main(args):
                 "Genotyping sites in VCF file provided by the user",
                 f": {args.genotyping_mode_vcf_fn}"
             )
+        if args.tumor_only:
+            display_alert(
+                "Workflow run in tumor-only mode; this mode uses ",
+                a('ClairS-TO', href="https://github.com/HKU-BAL/ClairS-TO"),
+                " instead of ",
+                a('ClairS', href="https://github.com/HKU-BAL/ClairS"),
+                " to detect somatic variants."
+            )
         tabs = Tabs()
         with tabs.add_tab(sample_id):
             if bcfstats['SN'].empty:
@@ -206,31 +224,55 @@ def main(args):
                 p('No variants are in the VCF file.')
             else:
                 DataTable.from_pandas(filtstats, use_index=False)
-                vcf_df = pd.DataFrame(
-                    data={
-                        'Filters': filters, 'VAF': var_af,
-                        'NVAF': nvar_af, 'TYPE': vtype})\
-                    .query('Filters=="PASS"')
+                if nvar_af:
+                    vcf_df = pd.DataFrame(
+                        data={
+                            'Filters': filters, 'VAF': var_af,
+                            'NVAF': nvar_af, 'TYPE': vtype})\
+                        .query('Filters=="PASS"')
+                else:
+                    vcf_df = pd.DataFrame(
+                        data={
+                            'Filters': filters, 'VAF': var_af,
+                            'TYPE': vtype})\
+                        .query('Filters=="PASS"')
                 with Grid():
                     for vt in ('SNV', 'Indel'):
                         sub_df = vcf_df.round(PRECISION).query(f'TYPE=="{vt}"')
                         if sub_df.empty:
                             p(f'No {vt}s to display.')
                             continue
-                        plt = scatter_plot(
-                            sub_df, 'NVAF', 'VAF', None,
-                            f'Filtered Tumor vs Normal VAF ({vt})',
-                            xaxis='Normal VAF', yaxis='Tumor VAF',
-                            min_x=0, max_x=1, min_y=0, max_y=1)
-                        plt.color = [
-                            COLORS.cerulean if vt == 'SNV' else COLORS.cinnabar
-                        ]
-                        for s in plt.series:
-                            s.symbolSize = 3
-                            s.encode = {
-                                'x': 'NVAF', 'y': 'VAF',
-                                'itemName': 'NVAF', 'tooltip': ['VAF']}
-                        # Add tooltip to facilitate reading
+                        # If tumor-only, make histograms.
+                        plt_color = COLORS.cerulean if vt == 'SNV' else COLORS.cinnabar
+                        if args.tumor_only:
+                            plt = hist_plot(
+                                sub_df, 'VAF',
+                                f'Filtered Tumor VAF ({vt})',
+                                xaxis='Tumor VAF',
+                                yaxis=f'Number of {vt}s',
+                                stats=False,
+                                rounding=PRECISION,
+                                bins=[i/100.0 for i in range(0, 105, 5)],
+                                color=plt_color
+                            )
+                        # Otherwise, compare the frequencies.
+                        else:
+                            plt = scatter_plot(
+                                sub_df, 'NVAF',
+                                'VAF', None,
+                                f'Filtered Tumor vs Normal VAF ({vt})',
+                                xaxis='Normal VAF',
+                                yaxis='Tumor VAF',
+                                min_x=0, max_x=1,
+                                min_y=0, max_y=1,
+                                color=plt_color
+                            )
+                            for s in plt.series:
+                                s.symbolSize = 3
+                                s.encode = {
+                                    'x': 'NVAF', 'y': 'VAF',
+                                    'itemName': 'NVAF', 'tooltip': ['VAF']}
+                            # Add tooltip to facilitate reading
                         plt.tooltip = dict({'trigger': 'item'})
                         EZChart(plt, 'epi2melabs')
 
@@ -326,6 +368,10 @@ def argparser():
     parser.add_argument(
         "--genotyping_mode_vcf_fn", type=str,
         help="workflow run genotyping with the given VCF")
+    parser.add_argument(
+        "--tumor_only",
+        action="store_true",
+        default=False)
     parser.add_argument(
         "--versions", required=True,
         help="directory containing CSVs containing name,version.")
