@@ -12,6 +12,7 @@ process bamstats {
         tuple val(xam_meta), path("hists_${xam_meta.sample}_${xam_meta.type}"), emit: hists
         // Unlike the other outputs, ignore the meta.
         path "${params.sample_name}.${xam_meta.type}.runids.txt", emit: runids
+        tuple val(xam_meta), path("${params.sample_name}.${xam_meta.type}.basecallers.txt"), emit: basecallers
     script:
     def cores = task.cpus > 1 ? task.cpus - 1 : 1
     """
@@ -19,14 +20,24 @@ process bamstats {
         -s ${xam_meta.sample} \\
         --threads ${cores} \\
         -i "${xam_meta.sample}.${xam_meta.type}.per-file-runids.txt" \\
+        -l "${xam_meta.sample}.${xam_meta.type}.basecallers.tsv" \\
         -u \\
         --histograms hists_${xam_meta.sample}_${xam_meta.type} \\
         -f ${xam_meta.sample}_${xam_meta.type}.flagstat.tsv \\
         | gzip > "${xam_meta.sample}_${xam_meta.type}.readstats.tsv.gz"
 
     # get unique run IDs
-    awk 'NR==1{for (i=1; i<=NF; i++) {ix[\$i] = i}} NR>1 {print \$ix["run_id"]}' \
-        ${xam_meta.sample}.${xam_meta.type}.per-file-runids.txt | sort | uniq > ${params.sample_name}.${xam_meta.type}.runids.txt
+    awk -F '\\t' '
+        NR==1 {for (i=1; i<=NF; i++) {ix[\$i] = i}}
+        # only print run_id if present
+        NR>1 && \$ix["run_id"] != "" {print \$ix["run_id"]}
+    ' ${xam_meta.sample}.${xam_meta.type}.per-file-runids.txt | sort | uniq > ${params.sample_name}.${xam_meta.type}.runids.txt
+    # get unique basecall models
+    awk -F '\\t' '
+        NR==1 {for (i=1; i<=NF; i++) {ix[\$i] = i}}
+        # only print basecall model if present
+        NR>1 && \$ix["basecaller"] != "" {print \$ix["basecaller"]}
+    ' ${xam_meta.sample}.${xam_meta.type}.basecallers.tsv | sort | uniq > ${params.sample_name}.${xam_meta.type}.basecallers.txt
     """
 }
 
@@ -251,6 +262,7 @@ workflow alignment_stats {
         stats = bamstats(bamfiles, ref.collect())
         depths = mosdepth(bamfiles, bed.collect(), ref.collect())
         bam_runids = stats.runids
+        bam_basecalls = stats.basecallers
 
         // Combine the outputs for the different statistics.
         // For the reporting we will need:
@@ -346,4 +358,5 @@ workflow alignment_stats {
             paired_qc = paired_samples
             report_qc = makeQCreport.out
             runids = bam_runids
+            basecallers = bam_basecalls
 }

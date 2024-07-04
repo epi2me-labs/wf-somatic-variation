@@ -66,6 +66,10 @@ workflow snv {
         clairs_model
         clair3_model
     main:
+        // Log the chosen models
+        clair3_model.subscribe{ log.info " - Clair3 model: ${it}" }
+        clairs_model.subscribe{ log.info " - ClairS model: ${it}" }
+
         // Define the presets for fast/normal mode once 
         def clair3_mode = [:]
         if (params.fast_mode){

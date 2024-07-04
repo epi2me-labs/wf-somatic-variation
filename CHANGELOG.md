@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Tumor-only mode for the base workflow, small variant calling with ClairS-TO, modified base aggregation and somatic SV calling.
 
+## Changed
+- If available `basecaller_cfg` will be inferred from the `basecall_model` DS key of input read groups.
+    - Providing `--basecaller_cfg` will not be required if `basecall_model` is present in the DS tag of the read groups of the input BAM.
+    - `basecaller_cfg` will be ignored if a `basecall_model` is found in the input BAM.
+    - The workflow will fail if the tumor and normal BAM files have not been called with the same `basecall_model`.
+
 ### Fixed
 - Workflow crashing when the input BED file has overlapping intervals.
 - Returning error in `annotate_sv` when `END` position smaller than `POS`.
