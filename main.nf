@@ -370,66 +370,137 @@ workflow {
 
     // Run snv workflow if requested
     if (params.snv) {
-        // TODO: consider implementing custom models in future releases.
+        // Add back basecaller models, if available.
+        // Combine each BAM channel with the appropriate basecaller file
+        // Fetch the unique basecaller models and, if these are more than the
+        // ones in the metadata, add them in there.
+        // We do it in the snv scope as it is the only workflow relying on the
+        // model, and given it has to wait for the readStats process, we try
+        // minimizing the waits
+        pass_bam_channel = pass_bam_channel 
+        | map{ xam, xai, meta -> [meta, xam, xai] }
+        | combine( qcdata.basecallers, by:0 )
+        | map{
+            meta, xam, xai, bc ->
+            def models = bc.splitText().collect { it.strip() }
+            [xam, xai, meta + [basecall_models: models]]
+        }
+    
+        // attempt to pull out basecaller_cfg from metadata, keeping unique values
+        metamap_basecaller_cfg = pass_bam_channel
+            | map { xam, bai, meta ->
+                meta["basecall_models"]
+            }
+            | flatten  // squash lists
+            | unique
+
+        // Ensure that the two BAM have the same basecaller configuration.
+        // Check that there is exactly one metamap.
+        // Specific for somvar: fail also with >1 metadata, as the two BAM need the
+        // same model.
+        metamap_basecaller_cfg
+                | count
+                | map { int n_models ->
+                    if (n_models == 0){
+                        if (params.basecaller_cfg) {
+                            log.warn "Found zero basecall_model in the input alignment header, falling back to the model provided with --basecaller_cfg: ${params.basecaller_cfg}"
+                        }
+                        else {
+                            String input_data_err_msg = '''\
+                            ################################################################################
+                            # INPUT DATA PROBLEM
+                            Your input alignments does not indicate the basecall model in the header and
+                            you did not provide an alternative with --basecaller_cfg.
+
+                            wf-somatic-variation requires the basecall model in order to automatically
+                            select an appropriate SNP calling model.
+
+                            ## Next steps
+                            You must re-run the workflow specifying the basecaller model with the
+                            --basecaller_cfg option.
+                            ################################################################################
+                            '''.stripIndent()
+                            error input_data_err_msg
+                        }
+                    } else if (n_models > 1){
+                        String input_data_err_msg = '''\
+                        ################################################################################
+                        # INPUT DATA PROBLEM
+                        Your input tumor and/or normal BAM files indicate two different basecall models
+                        in the header.
+
+                        wf-somatic-variation requires the basecall model used to call the tumor and 
+                        normal samples to be identical.
+
+                        ## Next steps
+                        You must re-run the workflow specifying the same basecaller model with the
+                        --basecaller_cfg option.
+                        ################################################################################
+                        '''.stripIndent()
+                        error input_data_err_msg
+                    }
+                }
+        
+        // Define basecaller config
+        basecaller_cfg = metamap_basecaller_cfg
+                | ifEmpty(params.basecaller_cfg)
+                | first  // unpack from list
+
         if (run_tumor_only){
             // Import the table of ClairS-TO models, retaining:
             // 1. basecaller model name
             // 2. ClairS-TO model name
-            lookup_table = Channel
+            lookup_table_cls = Channel
                                 .fromPath("${projectDir}/data/clairs_models_to.tsv", checkIfExists: true)
-                                .splitCsv(sep: '\t', header: true)
-                                .map{ it -> [it.basecall_model_name, it.clairs_to_model_name] }
-            // Check that the provided basecaller_cfg is in the table.
-            clairs_model = Channel
-                                .value(params.basecaller_cfg)
-                                .cross(lookup_table) 
-                                .filter{ caller, info -> info[1] != '-' }
-                                .map{caller, info -> info[1] }
+                                | splitCsv(sep: '\t', header: true)
+                                | map{ it -> [it.basecall_model_name, it.clairs_to_model_name, "-", it.clairs_to_nomodel_reason] }
         } else {
-            // Import the table of ClairS models, retaining:
-            // 1. basecaller model name
-            // 2. ClairS model name
-            // 3. ClairS liquid model name
-            lookup_table = Channel
+            lookup_table_cls = Channel
                 .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
-                .splitCsv(sep: '\t', header: true)
-                .map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override] }
-            // Check that the provided basecaller_cfg is in the table.
-            // If the user requests liquid_tumor, and the column has a valid model, then use that.
-            // Otherwise, use regular ClairS model.
-            clairs_model = Channel
-                .value(params.basecaller_cfg)
-                .cross(lookup_table) 
-                .filter{ caller, info -> info[1] != '-' }
-                .map{
-                    caller, info -> 
-                    model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
-                }
+                | splitCsv(sep: '\t', header: true)
+                | map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override, it.clairs_nomodel_reason] }
         }
-        // TODO: consider implementing custom models in future releases.
-        // Import the table of ClairS models, retaining:
-        // 1. basecaller model name
-        // 2. Clair3 model name
-        lookup_table = Channel
-            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
-            .splitCsv(sep: '\t', header: true)
-            .map{ it -> [it.basecall_model_name, it.clair3_model_name] }
         // Check that the provided basecaller_cfg is in the table.
-        clair3_model = Channel
-            .value(params.basecaller_cfg)
-            .cross(lookup_table) 
-            .filter{ caller, info -> info[1] != '-' }
-            .map{caller, info -> info[1] }
+        // If the user asks liquid_tumor, and the column has a valid model, then use that.
+        // Otherwise, use regular ClairS model.
+        clairs_model_ch = basecaller_cfg
+            | cross(lookup_table_cls)
+        clairs_model = clairs_model_ch
+            | filter{ caller, info -> info[1] != '-' }
+            | map{
+                caller, info -> 
+                model = params.liquid_tumor && info[2] != '-' && params.bam_normal ? info[2] : info[1]
+            }
         // Log which models have been chosen.
-        log.info "Models found:"
-        clair3_model.subscribe{ if (params.germline && params.bam_normal){ log.info " - Clair3 model: ${it}" }}
-        clairs_model.subscribe{ 
-            if (run_tumor_only){
-                log.info " - ClairS-TO model: ${it}" 
-            } else {
-                log.info " - ClairS model: ${it}" 
+        // If the model is not supported, throw error with informative message.
+        clairs_model_ch
+        | map {
+            caller, info -> 
+            clairs_model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
+            clairs_nomodel_msg = info[3]
+            [clairs_model, clairs_nomodel_msg]
+        }
+        | subscribe{
+            model, clairs_nomodel_reason -> 
+            if (clairs_nomodel_reason != '-'){
+                throw new Exception(colors.red + "${clairs_nomodel_reason}" + colors.reset)
             }
         }
+
+
+        // Import the table of Clair3 models, retaining:
+        // 1. basecaller model name
+        // 2. Clair3 model name
+        lookup_table_cl3 = Channel
+            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
+            | splitCsv(sep: '\t', header: true)
+            | map{ it -> [it.basecall_model_name, it.clair3_model_name, it.clair3_nomodel_reason] }
+        // Check that the provided basecaller_cfg is in the table.
+        clair3_model = basecaller_cfg
+            | cross(lookup_table_cl3)
+            | filter{ caller, info -> info[1] != '-' }
+            | map{caller, info -> info[1] }
+
         if (run_tumor_only){
             clair_vcf = snv_to(
                 pass_bam_channel,

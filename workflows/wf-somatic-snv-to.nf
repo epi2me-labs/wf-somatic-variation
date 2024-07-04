@@ -44,6 +44,9 @@ workflow snv {
         clairs_model
         clair3_model
     main:
+        // Log chosen model
+        clairs_model.subscribe{ log.info " - ClairS-TO model: ${it}" }
+
         // Prepare xam tuple to have the meta in front
         xam = xam_channel.map{xam, xam_idx, meta -> [meta, xam, xam_idx]}
 
