@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Providing `--basecaller_cfg` will not be required if `basecall_model` is present in the DS tag of the read groups of the input BAM.
     - `basecaller_cfg` will be ignored if a `basecall_model` is found in the input BAM.
     - The workflow will fail if the tumor and normal BAM files have not been called with the same `basecall_model`.
+- Updated to Severus v1.1.
 
 ### Fixed
 - Workflow crashing when the input BED file has overlapping intervals.
