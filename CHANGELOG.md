@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Workflow crashing when the input BED file has overlapping intervals.
 - Returning error in `annotate_sv` when `END` position smaller than `POS`.
+- Workflow not starting in nextflow v24.04.
 
 ## [v1.2.2]
 ### Changed

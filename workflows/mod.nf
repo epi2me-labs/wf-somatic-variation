@@ -347,7 +347,7 @@ process makeModReport {
         """
 }
 
-process output_modbase {
+process publish_modbase {
     // publish inputs to output directory
     publishDir (
         params.out_dir,
@@ -541,7 +541,7 @@ workflow mod {
             makeModReport.out.map{
                 meta, report -> [report, null]
             }
-        ) | output_modbase
+        ) | publish_modbase
 
     emit:
         modbam2bed = bedmethyl_split.out.mod_outputs
