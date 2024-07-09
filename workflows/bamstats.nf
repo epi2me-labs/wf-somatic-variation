@@ -233,7 +233,7 @@ process makeQCreport {
 }
 
 
-process output_qc {
+process publish_qc {
     // publish inputs to output directory
     publishDir (
         params.out_dir,

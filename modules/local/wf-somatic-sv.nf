@@ -136,7 +136,7 @@ process report {
 // See https://github.com/nextflow-io/nextflow/issues/1636
 // This is the only way to publish files from a workflow whilst
 // decoupling the publish from the process steps.
-process output_sv {
+process publish_sv {
     // publish inputs to output directory
     label "wf_somatic_sv"
     publishDir (

@@ -23,7 +23,7 @@ include {
 include {
     clairs_merge_snv_and_indels;
     vcfStats;
-    output_snv;
+    publish_snv;
     change_count;
     makeReport;
 } from "../modules/local/wf-somatic-snv.nf"

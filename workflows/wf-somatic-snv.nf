@@ -4,7 +4,7 @@ include {
     getVersions;
     vcfStats;
     makeReport;
-    output_snv;
+    publish_snv;
     clairs_select_het_snps;
     clairs_phase;
     clairs_haplotag;

@@ -6,7 +6,7 @@ include {
     getVersions;
     getParams;
     report;
-    output_sv;
+    publish_sv;
 } from "../modules/local/wf-somatic-sv.nf"
 include {
     decompress_ref as decompress;
@@ -116,7 +116,7 @@ workflow somatic_sv {
                     meta, it -> [it, null]
                 })
             .set{outputs}
-        outputs | output_sv
+        outputs | publish_sv
     emit:
         soma_sv = report.out.html.concat(
                 ch_vcf,

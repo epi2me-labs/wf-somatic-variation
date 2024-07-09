@@ -22,10 +22,10 @@ include {
     getGenome;
     report
     } from './modules/local/common'
-include {lookup_clair3_model; output_snv} from './modules/local/wf-somatic-snv'
+include {lookup_clair3_model; publish_snv} from './modules/local/wf-somatic-snv'
 include {
     alignment_stats; get_coverage; get_region_coverage; 
-    output_qc; get_shared_region
+    publish_qc; get_shared_region
 } from './workflows/bamstats.nf'
 include {snv} from './workflows/wf-somatic-snv'
 include {snv as snv_to} from './workflows/wf-somatic-snv-to'
@@ -34,7 +34,7 @@ include {mod} from './workflows/mod.nf'
 
 // This is the only way to publish files from a workflow whilst
 // decoupling the publish from the process steps.
-process output {
+process publish {
     // publish inputs to output directory
     publishDir "${params.out_dir}", mode: 'copy', pattern: "*"
     input:
@@ -363,7 +363,7 @@ workflow {
         all_bams.set{ pass_bam_channel }
     }
     // Output QC data
-    output_qc( qc_outputs )
+    publish_qc( qc_outputs )
 
     // Create minimal channel for joint report
     for_joint_report = qcdata.report_qc
@@ -520,7 +520,7 @@ workflow {
         }
         
         // Publish outputs in the appropriate folder
-        clair_vcf.outputs | output_snv
+        clair_vcf.outputs | publish_snv
         snv_joint_report = clair_vcf.report_snv
     } else {
         snv_joint_report = Channel.empty()
@@ -559,7 +559,7 @@ workflow {
         .combine(parameters) | report
 
     // Emit version and parameters
-    output(versions.concat(parameters).concat(report.out))
+    publish(versions.concat(parameters).concat(report.out))
 }
 
 workflow.onComplete {
