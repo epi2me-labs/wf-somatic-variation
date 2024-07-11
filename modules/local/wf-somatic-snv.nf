@@ -302,8 +302,7 @@ process clairs_haplotag {
             val(contig), 
             path("${meta.sample}_${meta.type}_${contig}.bam"), 
             path("${meta.sample}_${meta.type}_${contig}.bam.bai"), 
-            val(meta),
-            emit: phased_data
+            val(meta)
     script:
     def threads = Math.max(1, task.cpus - 1)
     if (params.use_longphase_haplotag)
@@ -354,12 +353,14 @@ process clairs_extract_candidates {
     output:
     tuple val(meta),
             val(region),
+            val('snv'),
             path('candidates/CANDIDATES_FILE_*'),
             path("candidates/${region.contig}.*"),
             emit: candidates_snvs,
             optional: true
     tuple val(meta),
             val(region),
+            val('indel'),
             path('indels/INDEL_CANDIDATES_FILE_*'),
             path("indels/${region.contig}.*_indel"),
             emit: candidates_indels,
@@ -441,9 +442,10 @@ process clairs_create_paired_tensors {
             path(split_beds),
             path(ref), 
             path(fai), 
-            path(ref_cache), 
+            path(ref_cache),
             env(REF_PATH),
             val(model),
+            val(variant_type),
             path(candidate),
             path(intervals)
     output:
@@ -459,13 +461,14 @@ process clairs_create_paired_tensors {
             path(ref_cache), 
             env(REF_PATH),
             val(model),
+            val(variant_type),
             path(candidate),
             path(intervals),
             path("tmp/pileup_tensor_can/")
             
     script:
-        // If min_bq provided, use it; otherwise, if HAC model set min_bq to 15. 
-        def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" ? "--min_bq 15" : ""
+        // If min_bq provided, use it; otherwise, if HAC model and is SNV then set min_bq to 15. 
+        def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" && variant_type == 'snv' ? "--min_bq 15" : ""
         """
         mkdir -p tmp/pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
@@ -507,11 +510,12 @@ process clairs_predict_pileup {
             path(ref_cache), 
             env(REF_PATH),
             val(model),
+            val(variant_type),
             path(candidate),
             path(intervals),
             path(tensor)
     output:
-        tuple val(meta), path("vcf_output/p_${intervals.getName()}.vcf"), optional: true
+        tuple val(meta), val(variant_type), path("vcf_output/*p_${intervals.getName()}.vcf"), optional: true
             
     script:
         // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
@@ -524,16 +528,26 @@ process clairs_predict_pileup {
             print_ger = "--show_germline"
         }
         def run_gpu = "--use_gpu False"
+        // Define SNV/Indel switched options
+        def pileup_pkl = "\${CLAIR_MODELS_PATH}/${model}/pileup.pkl"
+        def enable_indel = "False"
+        def p_prefix = "p"
+        if (variant_type == 'indel') {
+            pileup_pkl = "\${CLAIR_MODELS_PATH}/${model}/indel/pileup.pkl"
+            enable_indel = "True"
+            p_prefix = "indel_p"
+        }
         """
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
-            --call_fn vcf_output/p_${intervals.getName()}.vcf \\
-            --chkpnt_fn \${CLAIR_MODELS_PATH}/${model}/pileup.pkl \\
+            --call_fn vcf_output/${p_prefix}_${intervals.getName()}.vcf \\
+            --chkpnt_fn ${pileup_pkl} \\
             --platform ont \\
             ${run_gpu} \\
             --ctg_name ${region.contig} \\
             --pileup \\
+            --enable_indel_calling ${enable_indel} \\
             ${print_ref} \\
             ${print_ger}
         """
@@ -546,24 +560,26 @@ process clairs_merge_pileup {
     memory 4.GB
     input:
         tuple val(meta), 
+            val(variant_type),
             path(vcfs, stageAs: 'vcf_output/*'), 
-            path(contig_file)
-        tuple path(ref), 
+            path(contig_file),
+            path(ref), 
             path(fai), 
             path(ref_cache), 
             env(REF_PATH)
     output:
-        tuple val(meta), path("pileup.vcf"), emit: pileup_vcf
+        tuple val(meta), val(variant_type), path("pileup_${variant_type}.vcf")
             
-    shell:
-        '''
-        pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
-            --ref_fn !{ref} \\
-            --contigs_fn !{contig_file} \\
+    script:
+        def prefix = variant_type == 'indel' ? 'indel_p_' : 'p_'
+        """
+        pypy3 \$CLAIRS_PATH/clairs.py sort_vcf \\
+            --ref_fn ${ref} \\
+            --contigs_fn ${contig_file} \\
             --input_dir vcf_output/ \\
-            --vcf_fn_prefix p_ \\
-            --output_fn pileup.vcf
-        '''
+            --vcf_fn_prefix ${prefix} \\
+            --output_fn pileup_${variant_type}.vcf
+        """
 }
 
 
@@ -582,6 +598,7 @@ process clairs_create_fullalignment_paired_tensors {
             val(meta), 
             path(normal_bam, stageAs: "normal/*"), 
             path(normal_bai, stageAs: "normal/*"), 
+            val(variant_type),
             path(intervals),
             path(ref), 
             path(fai), 
@@ -590,6 +607,7 @@ process clairs_create_fullalignment_paired_tensors {
             val(model)
     output:
         tuple val(meta),
+            val(variant_type),
             val(contig),
             path(normal_bam),
             path(normal_bai),
@@ -635,6 +653,7 @@ process clairs_predict_full {
     errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     input:
         tuple val(meta),
+            val(variant_type),
             val(contig),
             path(normal_bam, stageAs: "normal/*"),
             path(normal_bai, stageAs: "normal/*"),
@@ -648,7 +667,7 @@ process clairs_predict_full {
             path(tensor),
             val(model)
     output:
-        tuple val(meta), path("vcf_output/fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
+        tuple val(meta), val(variant_type), path("vcf_output/*fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
             
     script:
         // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
@@ -661,15 +680,25 @@ process clairs_predict_full {
             print_ger = "--show_germline"
         }
         def run_gpu = "--use_gpu False"
+        // Define SNV/Indel switched options
+        def fa_pkl = "\${CLAIR_MODELS_PATH}/${model}/full_alignment.pkl"
+        def enable_indel = "False"
+        def fa_prefix = "fa"
+        if (variant_type == 'indel'){
+            fa_pkl = "\${CLAIR_MODELS_PATH}/${model}/indel/full_alignment.pkl"
+            enable_indel = "True"
+            fa_prefix = "indel_fa"
+        }
         """
         mkdir vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
-            --call_fn vcf_output/fa_${intervals.getName()}.vcf \\
-            --chkpnt_fn \${CLAIR_MODELS_PATH}/${model}/full_alignment.pkl \\
+            --call_fn vcf_output/${fa_prefix}_${intervals.getName()}.vcf \\
+            --chkpnt_fn ${fa_pkl} \\
             --platform ont \\
             ${run_gpu} \\
             --ctg_name ${contig} \\
+            --enable_indel_calling ${enable_indel} \\
             ${print_ref} ${print_ger}
         """
 }
@@ -683,7 +712,8 @@ process clairs_merge_full {
     maxRetries 1
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
-        tuple val(meta), 
+        tuple val(meta),
+            val(variant_type),
             path(vcfs, stageAs: 'vcf_output/*'), 
             path(contig_file), 
             path(ref), 
@@ -691,17 +721,18 @@ process clairs_merge_full {
             path(ref_cache), 
             env(REF_PATH)
     output:
-        tuple val(meta), path("full_alignment.vcf"), emit: full_vcf
+        tuple val(meta), val(variant_type), path("full_alignment_${variant_type}.vcf")
             
-    shell:
-        '''
-        pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
-            --ref_fn !{ref} \\
-            --contigs_fn !{contig_file} \\
+    script:
+        def prefix = variant_type == 'indel' ? 'indel_fa_' : 'fa_'
+        """
+        pypy3 \$CLAIRS_PATH/clairs.py sort_vcf \\
+            --ref_fn ${ref} \\
+            --contigs_fn ${contig_file} \\
             --input_dir vcf_output/ \\
-            --vcf_fn_prefix fa_ \\
-            --output_fn full_alignment.vcf
-        '''
+            --vcf_fn_prefix ${prefix} \\
+            --output_fn full_alignment_${variant_type}.vcf
+        """
 }
 
 // Filter variants based on haplotype information.
@@ -716,13 +747,13 @@ process clairs_full_hap_filter {
             path(tumor_bai, stageAs: "bams/*"),
             path("germline.vcf.gz"),
             path("germline.vcf.gz.tbi"),
+            val(variant_type),
             path("pileup.vcf"),
             path("full_alignment.vcf"),
             path(ref), 
             path(fai), 
             path(ref_cache), 
-            env(REF_PATH),
-            val(variant_type)
+            env(REF_PATH)
     output:
         tuple val(meta), 
             val(variant_type),
@@ -737,9 +768,9 @@ process clairs_full_hap_filter {
         // If reference calls are requested, or it is a hybrid/genotyping mode, then add --show_ref option.
         def show_ref = params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf ? "--show_ref" : ""
         // CW_2359: Define if it is indels.
-        def is_indels = variant_type == 'indels' ? "--is_indel" : ""
-        def pileup_output_fn = variant_type == 'indels' ? "indel_pileup_filter.vcf" : "pileup_filter.vcf"
-        def fa_output_fn = variant_type == 'indels' ? "indel_full_alignment_filter.vcf" : "full_alignment_filter.vcf"
+        def is_indels = variant_type == 'indel' ? "--is_indel" : ""
+        def pileup_output_fn = variant_type == 'indel' ? "indel_pileup_filter.vcf" : "pileup_filter.vcf"
+        def fa_output_fn = variant_type == 'indel' ? "indel_full_alignment_filter.vcf" : "full_alignment_filter.vcf"
         """
         mkdir vcf_output/
         pypy3 \$CLAIRS_PATH/clairs.py haplotype_filtering \\
@@ -778,6 +809,7 @@ process concat_hap_filtered_vcf {
 
     output:
         tuple val(meta), 
+            val(variant_type),
             path("${variant_type}_pileup_filter.vcf"),
             path("${variant_type}_full_alignment_filter.vcf"),
             path(ref), 
@@ -817,6 +849,7 @@ process clairs_merge_final {
     memory 4.GB
     input:
         tuple val(meta),
+            val(variant_type),
             path(pileup_filter),
             path(full_alignment_filter),
             path(ref), 
@@ -824,337 +857,29 @@ process clairs_merge_final {
             path(ref_cache), 
             env(REF_PATH)
     output:    
-        tuple val(meta), path("${meta.sample}_somatic_snv.vcf.gz"), emit: pileup_vcf
-        tuple val(meta), path("${meta.sample}_somatic_snv.vcf.gz.tbi"), emit: pileup_tbi
+        tuple val(meta),
+            val(variant_type),
+            path("${meta.sample}_somatic_${variant_type}.vcf.gz"),
+            path("${meta.sample}_somatic_${variant_type}.vcf.gz.tbi")
             
     script:
+        def indels = variant_type == 'indel' ? "--enable_indel_calling True --indel_calling" : ""
         """
         pypy3 \$CLAIRS_PATH/clairs.py merge_vcf \\
             --ref_fn ${ref} \\
             --pileup_vcf_fn ${pileup_filter} \\
             --full_alignment_vcf_fn ${full_alignment_filter} \\
-            --output_fn ${meta.sample}_somatic_snv.vcf \\
+            --output_fn ${meta.sample}_somatic_${variant_type}.vcf \\
             --platform ont \\
             --qual ${params.min_qual} \\
-            --sample_name ${meta.sample}
+            --sample_name ${meta.sample} ${indels}
 
         # Check if the number of variants is > 0
-        if [ "\$( bcftools index --threads ${task.cpus} -n ${meta.sample}_somatic_snv.vcf.gz )" -eq 0 ]; \\
+        if [ "\$( bcftools index --threads ${task.cpus} -n ${meta.sample}_somatic_${variant_type}.vcf.gz )" -eq 0 ]; \\
         then echo "[INFO] Exit in pileup variant calling"; exit 1; fi
         """
 }
 
-/*
-*  Add modules to call indels
-*/ 
-// TODO: Several of these modules can probably be replaced with a modified version of one module, then imported with several aliases and appropriate switches
-// Create paired tensors for the pileup variant calling of the indels 
-process clairs_create_paired_tensors_indels {
-    label "wf_somatic_snv"
-    cpus 2
-    memory { 4.GB * task.attempt }
-    maxRetries 1
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
-    input:
-        tuple val(meta),
-            val(region),
-            path(normal_bam, stageAs: "normal/*"),
-            path(normal_bai, stageAs: "normal/*"),
-            path(tumor_bam, stageAs: "tumor/*"),
-            path(tumor_bai, stageAs: "tumor/*"),
-            path(split_beds),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            val(model),
-            path(candidate),
-            path(intervals)
-    output:
-        tuple val(meta),
-            val(region),
-            path(normal_bam),
-            path(normal_bai),
-            path(tumor_bam),
-            path(tumor_bai),
-            path(split_beds),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            val(model),
-            path(candidate),
-            path(intervals),
-            path("tmp/indel_pileup_tensor_can/")
-            
-    script:
-        """
-        mkdir -p tmp/indel_pileup_tensor_can
-        pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
-            --normal_bam_fn ${normal_bam.getName()} \\
-            --tumor_bam_fn ${tumor_bam.getName()} \\
-            --ref_fn ${ref} \\
-            --samtools samtools \\
-            --ctg_name ${region.contig} \\
-            --candidates_bed_regions ${intervals} \\
-            --tensor_can_fn tmp/indel_pileup_tensor_can/${intervals.getName()} \\
-            --platform ont
-        """
-}
-
-// Perform pileup variant prediction of indels using the paired tensors from clairs_create_paired_tensors
-process clairs_predict_pileup_indel {
-    label "wf_somatic_snv"
-    cpus 1
-    memory { 4.GB * task.attempt }
-    maxRetries 3
-    // Add 134 as a possible error status. This is because currently ClairS fails with
-    // this error code when libomp.so is already instantiated. This error is rather mysterious
-    // in the sense that it occur spuriously in clusters, both using our own or the official
-    // ClairS container with singularity. Further investigations are ongoing, but being the issue
-    // unrelated with the workflow, add an exception.
-    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
-    input:
-        tuple val(meta),
-            val(region),
-            path(normal_bam, stageAs: "normal/*"),
-            path(normal_bai, stageAs: "normal/*"),
-            path(tumor_bam, stageAs: "tumor/*"),
-            path(tumor_bai, stageAs: "tumor/*"),
-            path(split_beds),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            val(model),
-            path(candidate),
-            path(intervals),
-            path(tensor)
-    output:
-        tuple val(meta), path("vcf_output/indel_p_${intervals.getName()}.vcf"), optional: true
-            
-    script:
-        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
-        def print_ref = ""
-        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
-            print_ref = "--show_ref"
-        } 
-        def print_ger = ""
-        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
-            print_ger = "--show_germline"
-        }
-        def run_gpu = "--use_gpu False"
-        """
-        mkdir vcf_output/
-        python3 \$CLAIRS_PATH/clairs.py predict \\
-            --tensor_fn ${tensor}/${intervals.getName()} \\
-            --call_fn vcf_output/indel_p_${intervals.getName()}.vcf \\
-            --chkpnt_fn \${CLAIR_MODELS_PATH}/${model}/indel/pileup.pkl \\
-            --platform ont \\
-            ${run_gpu} \\
-            --ctg_name ${region.contig} \\
-            --pileup \\
-            --enable_indel_calling True \\
-            ${print_ref} \\
-            ${print_ger}
-        """
-}
-
-// Merge single-contigs pileup indels in a single VCF file
-process clairs_merge_pileup_indels {
-    label "wf_somatic_snv"
-    cpus 1
-    memory 4.GB
-    input:
-        tuple val(meta), 
-            path(vcfs, stageAs: 'vcf_output/*'), 
-            path(contig_file)
-        tuple path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH)
-    output:
-        tuple val(meta), path("indels_pileup.vcf"), emit: pileup_vcf
-            
-    shell:
-        '''
-        pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
-            --ref_fn !{ref} \\
-            --contigs_fn !{contig_file} \\
-            --input_dir vcf_output/ \\
-            --vcf_fn_prefix indel_p_ \\
-            --output_fn indels_pileup.vcf
-        '''
-}
-
-// Create paired tensors for the full-alignment variant calling of the indels 
-process clairs_create_fullalignment_paired_tensors_indels {
-    label "wf_somatic_snv"
-    cpus 2
-    memory { 4.GB * task.attempt }
-    maxRetries 1
-    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
-    input:
-        tuple val(sample), 
-            val(contig), 
-            path(tumor_bam, stageAs: "tumor/*"), 
-            path(tumor_bai, stageAs: "tumor/*"),
-            val(meta), 
-            path(normal_bam, stageAs: "normal/*"), 
-            path(normal_bai, stageAs: "normal/*"), 
-            path(intervals),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            val(model)
-    output:
-        tuple val(meta),
-            val(contig),
-            path(normal_bam),
-            path(normal_bai),
-            path(tumor_bam),
-            path(tumor_bai),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            path(intervals),
-            path("fa_tensor_can_indels/"),
-            val(model),
-            emit: full_tensors
-            
-    script:
-        """
-        mkdir fa_tensor_can_indels
-        pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
-            --samtools samtools \\
-            --normal_bam_fn ${normal_bam.getName()} \\
-            --tumor_bam_fn ${tumor_bam.getName()} \\
-            --ref_fn ${ref} \\
-            --ctg_name ${contig} \\
-            --candidates_bed_regions ${intervals} \\
-            --tensor_can_fn fa_tensor_can_indels/${intervals.getName()} \\
-            --platform ont
-        """
-}
-
-// Perform full-alignment variant prediction of indels using the paired tensors from clairs_create_paired_tensors
-process clairs_predict_full_indels {
-    label "wf_somatic_snv"
-    cpus 1
-    memory { 4.GB * task.attempt }
-    maxRetries 3
-    // Add 134 as a possible error status. This is because currently ClairS fails with
-    // this error code when libomp.so is already instantiated. This error is rather mysterious
-    // in the sense that it occur spuriously in clusters, both using our own or the official
-    // ClairS container with singularity. Further investigations are ongoing, but being the issue
-    // unrelated with the workflow, add an exception.
-    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
-    input:
-        tuple val(meta),
-            val(contig),
-            path(normal_bam, stageAs: "normal/*"),
-            path(normal_bai, stageAs: "normal/*"),
-            path(tumor_bam, stageAs: "tumor/*"),
-            path(tumor_bai, stageAs: "tumor/*"),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH),
-            path(intervals),
-            path(tensor),
-            val(model)
-    output:
-        tuple val(meta), path("vcf_output/indels_fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
-            
-    script:
-        // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
-        def print_ref = ""
-        if (params.print_ref_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
-            print_ref = "--show_ref"
-        } 
-        def print_ger = ""
-        if (params.print_germline_calls || params.hybrid_mode_vcf || params.genotyping_mode_vcf || params.vcf_fn != 'EMPTY'){
-            print_ger = "--show_germline"
-        }
-        def run_gpu = "--use_gpu False"
-        """
-        mkdir vcf_output/
-        python3 \$CLAIRS_PATH/clairs.py predict \\
-            --tensor_fn ${tensor}/${intervals.getName()} \\
-            --call_fn vcf_output/indels_fa_${intervals.getName()}.vcf \\
-            --chkpnt_fn \${CLAIR_MODELS_PATH}/${model}/indel/full_alignment.pkl \\
-            --platform ont \\
-            ${run_gpu} \\
-            --ctg_name ${contig} \\
-            --enable_indel_calling True \\
-            ${print_ref} ${print_ger}
-        """
-}
-
-// Merge single-contigs full-alignment indels in a single VCF file
-process clairs_merge_full_indels {
-    label "wf_somatic_snv"
-    cpus 1
-    memory 4.GB
-    input:
-        tuple val(meta), 
-            path(vcfs, stageAs: 'vcf_output/*'), 
-            path(contig_file), 
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH)
-    output:
-        tuple val(meta), path("indels_full_alignment.vcf"), emit: full_vcf
-            
-    shell:
-        '''
-        pypy3 $CLAIRS_PATH/clairs.py sort_vcf \\
-            --ref_fn !{ref} \\
-            --contigs_fn !{contig_file} \\
-            --input_dir vcf_output/ \\
-            --vcf_fn_prefix indels_fa_ \\
-            --output_fn indels_full_alignment.vcf
-        '''
-}
-
-// Final merging of pileup and full-alignment indels.
-process clairs_merge_final_indels {
-    label "wf_somatic_snv"
-    cpus 2
-    memory 4.GB
-    input:
-        tuple val(meta),
-            path(pileup_indels),
-            path(full_alignment_indels),
-            path(ref), 
-            path(fai), 
-            path(ref_cache), 
-            env(REF_PATH)
-    output:    
-        tuple val(meta), path("${meta.sample}_somatic_indels.vcf.gz"), emit: indel_vcf
-        tuple val(meta), path("${meta.sample}_somatic_indels.vcf.gz.tbi"), emit: indel_tbi
-            
-    script:
-        """
-        pypy3 \$CLAIRS_PATH/clairs.py merge_vcf \\
-            --ref_fn ${ref} \\
-            --pileup_vcf_fn ${pileup_indels} \\
-            --full_alignment_vcf_fn ${full_alignment_indels} \\
-            --output_fn ${meta.sample}_somatic_indels.vcf \\
-            --platform ont \\
-            --qual ${params.min_qual} \\
-            --sample_name ${meta.sample} \\
-            --enable_indel_calling True \\
-            --indel_calling
-
-        # Check if the number of variants is > 0
-        if [ "\$( bcftools index --threads ${task.cpus} -n ${meta.sample}_somatic_indels.vcf.gz )" -eq 0 ]; \\
-        then echo "[INFO] Exit in pileup variant calling"; exit 1; fi
-        """
-}
 /*
  * Post-processing processes
  */
@@ -1169,13 +894,16 @@ process getVariantType {
     cpus 2
     memory 4.GB
     input:
-        tuple val(meta), path(vcf), path(tbi)
-        val variant_type
+        tuple val(meta), val(variant_type), path(vcf), path(tbi)
     output:
-        tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz"), emit: vcf
-        tuple val(meta), path("${vcf.simpleName}.subset.vcf.gz.tbi"), emit: tbi
+        tuple val(meta),
+            val(variant_type),
+            path("${vcf.simpleName}.subset.vcf.gz"),
+            path("${vcf.simpleName}.subset.vcf.gz.tbi")
+    script:
+    def vtype = variant_type == 'snv' ? 'snps' : 'indels'
     """
-    bcftools view --threads ${task.cpus} -O z -v ${variant_type} ${vcf} > ${vcf.simpleName}.subset.vcf.gz && \
+    bcftools view --threads ${task.cpus} -O z -v ${vtype} ${vcf} > ${vcf.simpleName}.subset.vcf.gz && \
         tabix -p vcf ${vcf.simpleName}.subset.vcf.gz
     """
 }
@@ -1188,8 +916,7 @@ process clairs_merge_snv_and_indels {
     input:
         tuple val(meta), path(vcfs, stageAs: 'VCFs/*'), path(tbis, stageAs: 'VCFs/*')
     output:
-        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), emit: pileup_vcf
-        tuple val(meta), path("${meta.sample}_somatic.vcf.gz.tbi"), emit: pileup_tbi
+        tuple val(meta), path("${meta.sample}_somatic.vcf.gz"), path("${meta.sample}_somatic.vcf.gz.tbi")
             
     script:
     // CW-1949: bcftools sort always drop sites without alleles/genotypes, which is not
@@ -1296,6 +1023,7 @@ process add_missing_vars {
     memory 4.GB
     input:
         tuple val(meta), 
+            val(variant_type),
             path(vcf), 
             path(tbi),
             path('candidates/*'),
@@ -1303,8 +1031,7 @@ process add_missing_vars {
         tuple path(typing_vcf), val(typing_opt)
             
     output:
-        tuple val(meta), path("${vcf.simpleName}.gt.vcf.gz"), emit: pileup_vcf
-        tuple val(meta), path("${vcf.simpleName}.gt.vcf.gz.tbi"), emit: pileup_tbi
+        tuple val(meta), val(variant_type), path("${vcf.simpleName}.gt.vcf.gz"), path("${vcf.simpleName}.gt.vcf.gz.tbi")
             
     script:
         // Enable hybrid/genotyping mode if passed
