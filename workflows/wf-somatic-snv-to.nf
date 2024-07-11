@@ -188,8 +188,7 @@ workflow snv {
         // Annotate the mutation type in the format XX[N>N]XX
         // where XX are the flanking regions of a given size 
         // For now, only K = 3 is provided.
-        final_vcf.pileup_vcf
-            | combine(final_vcf.pileup_tbi, by:0)
+        final_vcf
             | combine(ref)
             | change_count
         ch_vcf = change_count.out.mutype_vcf
