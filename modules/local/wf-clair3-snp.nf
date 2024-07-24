@@ -20,19 +20,18 @@ process make_chunks {
     script:
         def bedargs = params.bed ? "--bed_fn ${bed}" : ""
         def bedprnt = bed.name != 'OPTIONAL_FILE' ? "--bed_fn=${bed}" : ''
-        def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
         // Define calling parameters to reflect ClairS behaviour
         // Default is Clair3 fast mode
         """
         # CW-2456: save command line to add to VCF file (very long command...)
         mkdir -p clair_output/tmp
-        echo "run_clair3.sh --bam_fn=${bam} ${bedprnt} --ref_fn=${ref} --output=clair_output --platform=ont --sample_name=${params.sample_name} --model_path=\${CLAIR_MODELS_PATH}/clair3_models/${model}/ --ctg_name=${params.ctg_name} --include_all_ctgs=${params.include_all_ctgs} --chunk_num=0 --chunk_size=5000000 --qual=2 --var_pct_full=${params.clair3_var_pct_full} --ref_pct_full=${params.clair3_ref_pct_full} --snp_min_af=${clair3_mode.min_snps_af} --indel_min_af=${clair3_mode.min_indels_af} --min_contig_size=${params.min_contig_size}" > clair_output/tmp/CMD
+        echo "run_clair3.sh --bam_fn=${bam} ${bedprnt} --ref_fn=${ref} --output=clair_output --platform=ont --sample_name=${params.sample_name} --model_path=\${CLAIR_MODELS_PATH}/clair3_models/${model}/ --ctg_name=${params.ctg_name} --chunk_num=0 --chunk_size=5000000 --qual=2 --var_pct_full=${params.clair3_var_pct_full} --ref_pct_full=${params.clair3_ref_pct_full} --snp_min_af=${clair3_mode.min_snps_af} --indel_min_af=${clair3_mode.min_indels_af} --min_contig_size=${params.min_contig_size}" > clair_output/tmp/CMD
 
         # CW-2456: prepare other inputs normally
         mkdir -p clair_output
         CTG_LIST=\$( tr '\\n' ',' < ${contigs} )
         echo "Running on contigs: \$CTG_LIST"
-        python \$(which clair3.py) CheckEnvs ${include_ctgs} ${bedargs} \\
+        python \$(which clair3.py) CheckEnvs ${bedargs} \\
             --bam_fn ${bam} \\
             --output_fn_prefix clair_output_${meta.sample}_${meta.type} \\
             --ref_fn ${ref} \\
