@@ -3,7 +3,7 @@
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | snv | boolean | Call for somatic small variants. | If this option is selected, small variant calling will be carried out using ClairS. | False |
-| sv | boolean | Call for somatic structural variants. | If this option is selected, the workflow will call somatic structural variants using nanomonsv. | False |
+| sv | boolean | Call for somatic structural variants. | If this option is selected, the workflow will call somatic structural variants using severus. | False |
 | mod | boolean | Enable output of differentially modified sites and differentially modified regions [requires input BAMs with ML and MM tags]. | If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS. | False |
 
 
@@ -50,7 +50,7 @@
 
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
-| min_sv_length | integer | Minimum SV size to call. | Provide the minimum size of the structural variants to call with nanomonsv. | 50 |
+| min_sv_length | integer | Minimum SV size to call. | Provide the minimum size of the structural variants to call with severus. | 50 |
 
 
 ### Methylation calling options
