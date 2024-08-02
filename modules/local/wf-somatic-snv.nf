@@ -159,7 +159,7 @@ process wf_build_regions {
         def bedargs = params.bed ? "--bed_fn ${bed}" : ""
         def include_ctgs = params.include_all_ctgs ? "--include_all_ctgs" : ""
         def target_ctg = params.ctg_name == "EMPTY" ? "" : "--ctg_name ${params.ctg_name}"
-        def indels_call = params.basecaller_cfg.startsWith('dna_r10') ? "--enable_indel_calling" : ""
+        def indels_call = model.startsWith('dna_r10') ? "--enable_indel_calling" : ""
         // Enable hybrid/genotyping mode if passed
         def typing_mode = typing_opt ? "${typing_opt} ${typing_vcf}" : ""
         """

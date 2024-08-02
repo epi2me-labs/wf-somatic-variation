@@ -54,7 +54,7 @@ nextflow run epi2me-labs/wf-somatic-variation \
 	--bed 'wf-somatic-variation-demo/demo.bed' \
 	--bam_normal 'wf-somatic-variation-demo/demo_normal.bam' \
 	--bam_tumor 'wf-somatic-variation-demo/demo_tumor.bam' \
-	--basecaller_cfg 'dna_r10.4.1_e8.2_400bps_sup@v3.5.2' \
+	--override_basecaller_cfg 'dna_r10.4.1_e8.2_400bps_sup@v3.5.2' \
 	--normal_min_coverage 0 \
 	--tumor_min_coverage 0 \
 	-profile standard
