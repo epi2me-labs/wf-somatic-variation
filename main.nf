@@ -402,22 +402,22 @@ workflow {
                 | count
                 | map { int n_models ->
                     if (n_models == 0){
-                        if (params.basecaller_cfg) {
-                            log.warn "Found zero basecall_model in the input alignment header, falling back to the model provided with --basecaller_cfg: ${params.basecaller_cfg}"
+                        if (params.override_basecaller_cfg) {
+                            log.warn "No basecaller models found in the input alignment header, falling back to the model provided with --override_basecaller_cfg: ${params.override_basecaller_cfg}"
                         }
                         else {
                             String input_data_err_msg = '''\
                             ################################################################################
                             # INPUT DATA PROBLEM
                             Your input alignments does not indicate the basecall model in the header and
-                            you did not provide an alternative with --basecaller_cfg.
+                            you did not provide an alternative with --override_basecaller_cfg.
 
                             wf-somatic-variation requires the basecall model in order to automatically
                             select an appropriate SNP calling model.
 
                             ## Next steps
                             You must re-run the workflow specifying the basecaller model with the
-                            --basecaller_cfg option.
+                            --override_basecaller_cfg option.
                             ################################################################################
                             '''.stripIndent()
                             error input_data_err_msg
@@ -434,17 +434,33 @@ workflow {
 
                         ## Next steps
                         You must re-run the workflow specifying the same basecaller model with the
-                        --basecaller_cfg option.
+                        --override_basecaller_cfg option.
                         ################################################################################
                         '''.stripIndent()
                         error input_data_err_msg
                     }
                 }
         
-        // Define basecaller config
-        basecaller_cfg = metamap_basecaller_cfg
-                | ifEmpty(params.basecaller_cfg)
+        if (params.override_basecaller_cfg) {
+            metamap_basecaller_cfg.map {
+                log.info "Detected basecaller_model: ${it}"
+                log.warn "Overriding basecaller_model: ${params.override_basecaller_cfg}"
+            }
+            basecaller_cfg = Channel.of(params.override_basecaller_cfg)
+            // Update override basecall model in meta
+            pass_bam_channel = pass_bam_channel
+            | map{
+                xam, xai, meta ->
+                [xam, xai, meta + [basecall_models: [params.override_basecaller_cfg]]]
+            }
+        }
+        else {
+            basecaller_cfg = metamap_basecaller_cfg
+                | map { log.info "Detected basecaller_model: ${it}"; it }
+                | ifEmpty(params.override_basecaller_cfg)
+                | map { log.info "Using basecaller_model: ${it}"; it }
                 | first  // unpack from list
+        }
 
         if (run_tumor_only){
             // Import the table of ClairS-TO models, retaining:

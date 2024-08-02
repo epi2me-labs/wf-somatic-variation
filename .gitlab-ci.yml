@@ -11,6 +11,7 @@ variables:
             --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
             --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
             --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+            --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
             -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
     CI_FLAVOUR: "new" # set to "classic" for old-style CI
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
@@ -37,7 +38,7 @@ docker-run:
     parallel:
         matrix:
             - MATRIX_NAME: [
-                "snv-pass-model-v420",
+                "snv-no-model-found", "snv-pass-model-v420",
                 "snv-fail-model-v500", "snv-fail-model-mixed",
                 "fail_depth_tumor", "fail_depth_normal",
                 "fail_depth_both","fail_depth_tumor-only",
@@ -65,6 +66,7 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --severus_threads 4 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -157,7 +159,7 @@ docker-run:
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --basecaller_cfg dna_r9.4.1_e8_sup@v3.3 \
+                  --override_basecaller_cfg dna_r9.4.1_e8_sup@v3.3 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,\
                   clairs_create_fullalignment_paired_tensors_indels,clairs_create_paired_tensors_indels,clairs_merge_final_indels,\
@@ -172,10 +174,26 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,concat_hap_filtered_vcf,\
                   getVariantType,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels,add_missing_vars,clairs_full_hap_filter"
+
+        - if: $MATRIX_NAME == "snv-no-model-found"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
+              NF_WORKFLOW_OPTS: "--snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,concat_hap_filtered_vcf,\
+                  getVariantType,summariseReads,lookup_clair3_model,clairs_merge_snv_and_indels,add_missing_vars,clairs_full_hap_filter"
+              ASSERT_NEXTFLOW_FAILURE: "yes"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "INPUT DATA PROBLEM"
 
         - if: $MATRIX_NAME == "snv-r10-no_annot"
           variables:
@@ -185,6 +203,7 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --annotation false \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -199,6 +218,7 @@ docker-run:
                   --tumor_min_coverage 20 --normal_min_coverage 10 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --bed ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo.bed \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -213,6 +233,7 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 --GVCF \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
@@ -226,6 +247,7 @@ docker-run:
                   --tumor_min_coverage 40 --normal_min_coverage 40 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions,clairs_create_fullalignment_paired_tensors_indels,\
@@ -267,6 +289,7 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --germline false \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -284,6 +307,7 @@ docker-run:
                   --genotyping_mode_vcf https://bioinformatics.nygenome.org/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,\
@@ -300,6 +324,7 @@ docker-run:
                   --hybrid_mode_vcf https://bioinformatics.nygenome.org/wp-content/uploads/CancerCellLines/COLO-829-NovaSeq--COLO-829BL-NovaSeq.snv.indel.final.v6.annotated.vcf \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
@@ -314,6 +339,7 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --normal_vcf ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/normal.vcf.gz \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -327,8 +353,9 @@ docker-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  --liquid_tumor --basecaller_cfg dna_r10.4.1_e8.2_400bps_hac@v4.2.0 \
+                  --liquid_tumor --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_hac@v4.2.0 \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
                     clairs_merge_snv_and_indels,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
@@ -375,6 +402,7 @@ docker-run:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_WORKFLOW_OPTS: "--mod --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
@@ -387,6 +415,7 @@ docker-run:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
               NF_WORKFLOW_OPTS: "--mod --sv --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0  --min_sv_length 20 --min_support 2 --vaf_threshold 0.01 \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --severus_threads 4 \
@@ -500,6 +529,7 @@ aws-run:
               NF_WORKFLOW_OPTS: "--mod --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
@@ -512,6 +542,7 @@ aws-run:
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v3.5.2 \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   --min_sv_length 20 --vaf_threshold 0.01 --min_support 2 --tr_bed ./data/wf_str_repeats.bed.gz --severus_threads 4"
               NF_PROCESS_FILES: "workflows/mod.nf"

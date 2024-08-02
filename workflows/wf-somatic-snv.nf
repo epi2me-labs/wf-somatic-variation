@@ -422,7 +422,7 @@ workflow snv {
                     // If it is R9, ignore indel type
                     | filter{
                         meta, region, var_type, candidates, intervals ->
-                        params.basecaller_cfg.startsWith('dna_r10') || var_type == 'snv'
+                        meta.basecall_models[0].startsWith('dna_r10') || var_type == 'snv'
                     },
                 by: [0,1]
             )
@@ -489,9 +489,10 @@ workflow snv {
                     meta, region, var_type, candidate_list, candidate_file ->
                     [meta.sample, region.contig, var_type, candidate_file]}, by: [0,1]
             )
+            // If it is R9, ignore indel type
             | filter{
                 sample, contig, tbam, tbai, tmeta, nbam, nbai, var_type, intervals ->
-                params.basecaller_cfg.startsWith('dna_r10') || var_type == 'snv'
+                tmeta.basecall_models[0].startsWith('dna_r10') || var_type == 'snv'
             }
             | combine(ref)
             | combine(clairs_model)
@@ -511,9 +512,10 @@ workflow snv {
                     meta, region, var_type, candidate_list, candidate_file ->
                     [meta.sample, region.contig, var_type, candidate_file]}, by: [0,1]
             )
+            // If it is R9, ignore indel type
             | filter{
                 sample, contig, tbam, tbai, tmeta, nbam, nbai, var_type, intervals ->
-                params.basecaller_cfg.startsWith('dna_r10') || var_type == 'snv'
+                tmeta.basecall_models[0].startsWith('dna_r10') || var_type == 'snv'
             }
             | combine(ref)
             | combine(clairs_model)

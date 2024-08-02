@@ -5,11 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [unreleased]
+### Added
+- `--override_basecaller_cfg` parameter allows users to provide a basecall configuration name in cases where automatic basecall model detection fails.
+
 ### Changed
 - Updated `modkit` to v0.3.0.
 
 ### Fixed
 - `--snv` crashing with `--include_all_ctgs true`.
+- `--snv` always referring to model in `--override_basecaller_cfg` when deciding whether to call Indels.
+
+### Removed
+- `--basecaller_cfg` as the workflow now automatically detects the basecaller model from the input data.
 
 ## [v1.3.0]
 ### Added
