@@ -15,6 +15,7 @@ variables:
             -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
     CI_FLAVOUR: "new" # set to "classic" for old-style CI
     NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,wf_build_regions"
+    GIT_SUBMODULE_STRATEGY: recursive
 
 docker-run:
     # Exclude artifacts to speed up execution

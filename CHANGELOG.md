@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated `modkit` to v0.3.0.
+- Reconciled workflow `_ingress.nf` from wf-human-variation v2.3.0.
 
 ### Fixed
 - `--snv` crashing with `--include_all_ctgs true`.
