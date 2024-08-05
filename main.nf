@@ -153,6 +153,7 @@ workflow {
                 ref,
                 ref_index,
                 params.bam_normal,
+                params.sv ? Channel.of(['bam', 'bai']) : Channel.of(['cram', 'crai'])
             )
     } else {
         bam_normal = Channel.empty()
@@ -163,18 +164,19 @@ workflow {
             ref,
             ref_index,
             params.bam_tumor,
+            params.sv ? Channel.of(['bam', 'bai']) : Channel.of(['cram', 'crai'])
         )
 
     // Combine everything
     all_bams = bam_normal
                 .map{
-                    meta, bam, bai -> 
-                    [bam, bai, meta + [sample: params.sample_name, type: 'normal']]
+                    xam, xai, meta -> 
+                    [xam, xai, meta + [sample: params.sample_name, type: 'normal']]
                 }
                 .mix(
                     bam_tumor.map{
-                        meta, bam, bai -> 
-                        [bam, bai, meta + [sample: params.sample_name, type: 'tumor']]
+                        xam, xai, meta -> 
+                        [xam, xai, meta + [sample: params.sample_name, type: 'tumor']]
                         }
                     )
 
