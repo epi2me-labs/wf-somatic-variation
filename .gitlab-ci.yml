@@ -50,7 +50,8 @@ docker-run:
                 "wf-somatic-snv-r10-gt", "wf-somatic-snv-r10-hy",
                 "snv-r10-normal_vcf", "snv-r10-som_only", 
                 "snv-r10", "snv-r9", "snv-r10-fail",
-                "sv", "sv-full", "mod", 
+                "sv", "sv-full",
+                "mod", "mod-no-dss", 
                 "mod-strand", "mod-args"
             ]
     rules:
@@ -398,6 +399,19 @@ docker-run:
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 
+        - if: $MATRIX_NAME == "mod-no-dss"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  --diff_mod false \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,dss,bed2dss,lookup_clair3_model"
+
         - if: $MATRIX_NAME == "tumor-only"
           variables:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
@@ -409,7 +423,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-                    dss,makeModReport"
+                    dss,dml,dmr,makeModReport"
 
         - if: $MATRIX_NAME == "tumor-only-fail"
           variables:
@@ -449,7 +463,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,dml,dmr,makeModReport"
 
         - if: $MATRIX_NAME == "fail_depth_normal"
           variables:
@@ -462,7 +476,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,dml,dmr,makeModReport"
 
         - if: $MATRIX_NAME == "fail_depth_both"
           variables:
@@ -475,7 +489,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,dml,dmr,makeModReport"
 
         - if: $MATRIX_NAME == "fail_depth_tumor-only"
           variables:
@@ -487,7 +501,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model,\
-              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,makeModReport"
+              validate_modbam,sample_probs,modkit,concat_bedmethyl,bedmethyl_split,summary,bed2dss,dss,dml,dmr,makeModReport"
 
 aws-run:
     stage: test

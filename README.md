@@ -192,6 +192,7 @@ input_reads.bam     ─── input_directory
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | force_strand | boolean | Require modkit to call strand-aware modifications. |  | False |
+| diff_mod | boolean | Detect differentially modified loci and regions with DSS. |  | True |
 
 
 ### Multiprocessing Options
@@ -343,8 +344,7 @@ by setting `--annotation true`.
 ### 5. Modified base calling with modkit
 
 Modified base calling can be performed by specifying `--mod`. The workflow
-will aggregate the modified bases using [modkit](https://github.com/nanoporetech/modkit) and
-perform differential modification analyses using [DSS](https://bioconductor.org/packages/DSS/). 
+will aggregate the modified bases using [modkit](https://github.com/nanoporetech/modkit). 
 The default behaviour of the workflow is to run modkit with the 
 `--cpg --combine-strands` options set.
 It is possible to report strand-aware modifications by providing `--force_strand`.
@@ -352,6 +352,11 @@ Users can further change the behaviour of `modkit` by passing options directly
 to modkit via the `--modkit_args` option. This will override any preset,
 and allow full control over the run of modkit. For more details on the usage
 of `modkit pileup`, checkout the software [documentation](https://nanoporetech.github.io/modkit/).
+The workflow will perform differential modification analyses using [DSS](https://bioconductor.org/packages/DSS/)
+when the user provides both tumor and normal samples.
+The outputs for the differentially modified loci (DML) for each modification are saved in subfolders with the structure `{{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv`, where `alias` is the sample name provided with `--sample_name`, and `mod type` is the modification type analysed (e.g. 5mC). The differentially modified regions (DMR) can be found in a similar path: `{{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv`
+DSS is very resource intensive, and might easily run out of memory. Therefore, it is possible to skip this step by setting `--diff_mod false`, saving compute time and allowing the workflow to run to completion.
+
 
 ### 6. Tumor-only mode
 
@@ -360,6 +365,7 @@ Currently, only the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
 - `--snv`: the workflow will use [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO), instead of [ClairS](https://github.com/HKU-BAL/ClairS), to call SNVs.
+
 
 ### 7. Run the workflow on a region
 When sequencing specific regions or genes, the runtime can vary substantially.

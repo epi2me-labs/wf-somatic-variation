@@ -57,6 +57,7 @@
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | force_strand | boolean | Require modkit to call strand-aware modifications. |  | False |
+| diff_mod | boolean | Detect differentially modified loci and regions with DSS. |  | True |
 
 
 ### Multiprocessing Options

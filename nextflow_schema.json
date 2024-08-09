@@ -442,6 +442,13 @@
                     "description": "Require modkit to call strand-aware modifications.",
                     "help_test": "By default strand calls are collapsed (strand reported as '.'). Enabling this will force stranding to be considered when calling modifications, creating one output per modification per strand and the report will be tabulated by both modification and strand."
                 },
+                "diff_mod": {
+                    "title": "Run differential modified base analysis",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Detect differentially modified loci and regions with DSS.",
+                    "help_test": "By default the workflow will run DSS to detect differentially modified loci and regions. DSS can be computationally intensive and can therefore be disabled by setting this to false."
+                },
                 "modkit_args": {
                     "title": "Modkit additional arguments",
                     "type": "string",

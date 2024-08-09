@@ -129,7 +129,7 @@ process modkit {
     output:
         tuple val(meta),
             val(contig),
-            path("${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl.gz")
+            path("${meta.alias}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl.gz")
 
     script:
     def options = params.force_strand ? '':'--combine-strands --cpg'
@@ -139,14 +139,14 @@ process modkit {
     """
     modkit pileup \\
         ${alignment} \\
-        "${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl" \\
+        "${meta.alias}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl" \\
         --ref ${reference} \\
         --region ${contig} \\
         --interval-size 1000000 \\
         --log-filepath modkit.log \\
         ${probs} \\
         --threads ${task.cpus} ${options}
-    bgzip "${meta.sample}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl"
+    bgzip "${meta.alias}.wf-somatic-mod.${meta.type}.${contig}.bedmethyl"
     """
 }
 
@@ -169,7 +169,7 @@ process concat_bedmethyl {
     """
     zcat -f bedmethyls/* | \
         sort -k 1,1 -k 2,2n --parallel ${task.cpus} | \
-        bgzip -c -@ ${task.cpus} > ${meta.sample}.wf-somatic-mod.${meta.type}.bedmethyl.gz
+        bgzip -c -@ ${task.cpus} > "${meta.alias}.wf-somatic-mod.${meta.type}.bedmethyl.gz"
     """
 }
 
@@ -182,7 +182,7 @@ process bedmethyl_split {
             path(bed)
     output:
         tuple val(meta), 
-            path("*.${meta.sample}.wf-somatic-mod.${meta.type}.bedmethyl.gz"), 
+            path("*.${meta.alias}.wf-somatic-mod.${meta.type}.bedmethyl.gz"), 
             emit: mod_outputs
 
     script:
@@ -211,14 +211,14 @@ process summary {
             env(REF_PATH)
     output:
         tuple val(meta), 
-            path("${meta.sample}.${meta.type}.mod_summary.tsv"), 
+            path("${meta.alias}.${meta.type}.mod_summary.tsv"), 
             emit: mod_summary
 
     script:
     // Modkit summary prints out a progress bar that cannot be avoided
     """    
     modkit summary -t ${task.cpus} ${alignment} | \
-        awk 'BEGIN{OFS="\t"}; {print \$1,\$2,\$3,\$4,\$5,\$6}' > ${meta.sample}.${meta.type}.mod_summary.tsv
+        awk 'BEGIN{OFS="\t"}; {print \$1,\$2,\$3,\$4,\$5,\$6}' > "${meta.alias}.${meta.type}.mod_summary.tsv"
     """
 }
 
@@ -235,12 +235,11 @@ process bed2dss {
     output:
         tuple val(meta), 
             val(mod),
-            path("*.${meta.sample}_${meta.type}.dss.tsv"), 
-            emit: dss_outputs
+            path("*.${meta.alias}_${meta.type}.dss.tsv")
 
     shell:
     '''
-    zcat modified.bed.gz | awk -v OFS='\t' 'BEGIN{{print "chr","pos","N","X"}}{{print $1,$2,$10,$12}}' > !{mod}.!{meta.sample}_!{meta.type}.dss.tsv
+    zcat modified.bed.gz | awk -v OFS='\t' 'BEGIN{{print "chr","pos","N","X"}}{{print $1,$2,$10,$12}}' > "!{mod}.!{meta.alias}_!{meta.type}.dss.tsv"
     '''
 }
 
@@ -261,11 +260,11 @@ process dss {
     output:
         tuple val(meta), 
             val(mod),
-            path("${meta.sample}.${mod}.dml.tsv"), 
+            path("${meta.alias}.${mod}.dml.tsv"), 
             emit: dml
         tuple val(meta), 
             val(mod),
-            path("${meta.sample}.${mod}.dmr.tsv"), 
+            path("${meta.alias}.${mod}.dmr.tsv"), 
             emit: dmr
 
     script:
@@ -277,12 +276,14 @@ process dss {
     # Disable scientific notation
     options(scipen=999)
 
-    # Import data
-    tumor = fread("tumor.bed", sep = '\t', header = T)
-    normal = fread("normal.bed", sep = '\t', header = T)
-    # Create BSobject
-    BSobj = makeBSseqData( list(tumor, normal),
-        c("Tumor", "Normal") )
+    # Import data and create input structure
+    BSobj <- makeBSseqData( 
+        list(
+            fread("tumor.bed", sep = '\\t', header = T),
+            fread("normal.bed", sep = '\\t', header = T)
+        ), c("Tumor", "Normal")
+    )
+
     # DML testing
     dmlTest = DMLtest(BSobj, 
         group1=c("Tumor"), 
@@ -304,11 +305,10 @@ process dss {
         dis.merge=1500,
         pct.sig=0.5)
     # Write output files
-    write.table(dmls, '${meta.sample}.${mod}.dml.tsv', sep='\\t', quote=F, col.names=T, row.names=F)
-    write.table(dmrs, '${meta.sample}.${mod}.dmr.tsv', sep='\\t', quote=F, col.names=T, row.names=F)
+    write.table(dmls, '${meta.alias}.${mod}.dml.tsv', sep='\\t', quote=F, col.names=T, row.names=F)
+    write.table(dmrs, '${meta.alias}.${mod}.dmr.tsv', sep='\\t', quote=F, col.names=T, row.names=F)
     """
 }
-
 
 // Make report.
 process makeModReport {
@@ -328,19 +328,19 @@ process makeModReport {
             path("params.json")
 
     output:
-        tuple val(meta), path("${meta.sample}.wf-somatic-mod-report.html")
+        tuple val(meta), path("${meta.alias}.wf-somatic-mod-report.html")
 
     script:
         def genome = meta.genome_build ? "--genome ${meta.genome_build} " : ""
         """
         workflow-glue report_mod \\
-            ${meta.sample}.wf-somatic-mod-report.html \\
+            ${meta.alias}.wf-somatic-mod-report.html \\
             --normal_summary normal_summary/ \\
             --tumor_summary tumor_summary/ \\
             --dml DML/ \\
             --dmr DMR/ \\
             --reference_fai ref.fa.fai \\
-            --sample_name ${meta.sample} \\
+            --sample_name ${meta.alias} \\
             --versions versions.txt \\
             --params params.json ${genome} \\
             --workflow_version ${workflow.manifest.version}
@@ -424,128 +424,154 @@ workflow mod {
         // Compute summary stats
         alignment.combine( reference ) | summary
 
-        // Convert to DSS
-        modbed | bed2dss
-        
-        // Combine the outputs to perform DMR analyses
-        bed2dss.out.dss_outputs.branch{
-            tumor: it[0].type == 'tumor'
-            normal: it[0].type == 'normal'
-        }.set{forked_mb}
+        // If required, compute the differentially modified regions/loci with DSS
+        if (params.diff_mod){
+            // Convert to DSS
+            dss_inputs = modbed | bed2dss
+            
+            // Combine the outputs to perform DMR analyses
+            dss_inputs.branch{
+                tumor: it[0].type == 'tumor'
+                normal: it[0].type == 'normal'
+            }.set{forked_mb}
 
-        // Output methylation data
-        forked_mb.normal
-            .map{it -> [it[0].sample, it[1], it[2], it[0]]}
-            .combine(
-                forked_mb.tumor.map{it -> [it[0].sample, it[1], it[2], it[0]]}, 
-                by:[0,1]
-            )
-            .map{sample, mod, norm_bed, norm_meta, tum_bed, tum_meta -> [tum_meta, mod, norm_bed, tum_bed ] }
-            .set{ paired_beds }
-        paired_beds | dss 
+            // Output methylation data
+            forked_mb.normal
+                .map{it -> [it[0].sample, it[1], it[2], it[0]]}
+                .combine(
+                    forked_mb.tumor.map{it -> [it[0].sample, it[1], it[2], it[0]]}, 
+                    by:[0,1]
+                )
+                .map{sample, mod, norm_bed, norm_meta, tum_bed, tum_meta -> [tum_meta, mod, norm_bed, tum_bed ] }
+                .set{ paired_beds }
+            paired_beds | dss
+            dml_ch = dss.out.dml
+            dmr_ch = dss.out.dmr
+        } else {
+            dss_inputs = Channel.empty()
+        }
 
         // Get versions and params
         software_versions = getVersions() | rVersions
         workflow_params = getParams()
 
         // Make report
-        summary.out.mod_summary.branch{
+        forked_sum = summary.out.mod_summary.branch{
             tumor: it[0].type == 'tumor'
             normal: it[0].type == 'normal'
-        }.set{forked_sum}
+        }
+
         // If the normal bam is provided, pass the normal output to the reporting process.
         if (params.bam_normal){
             // Combine the summaries first.
             forked_sum.normal
-                .map{meta, summary -> [meta.sample, summary, meta]}
-                .combine(
-                    forked_sum.tumor.map{meta, summary -> [meta.sample, summary, meta]}, 
-                    by:0
+                | map{meta, summary -> [meta.alias, summary, meta]}
+                | combine(
+                    forked_sum.tumor.map{
+                        meta, summary ->
+                        [meta.alias, summary, meta]
+                    }, by:0
                 )
-                .map{sample, norm_summary, norm_meta, tum_summary, tum_meta -> [tum_meta, norm_summary, tum_summary ] }
-                .set{combined_summaries}
-            // Then, combine the DSS outputs (DML and DMR) with the summaries.
-            dss.out.dml
-                .combine(dss.out.dmr, by: [0,1])
-                .groupTuple(by:0)
-                .combine(combined_summaries, by: 0)
-                .combine(reference)
-                // Remove unnecessary inputs (reference sequences/cache and modification names).
-                .map{
-                    meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
-                    [meta, sum_n, sum_t, dms, dmr, fai]
+                | map{
+                    sample, norm_summary, norm_meta, tum_summary, tum_meta ->
+                    [tum_meta, norm_summary, tum_summary]
                 }
-                .set{ for_report }
-            makeModReport(
-                    for_report.combine(software_versions).combine(workflow_params)
-                )
+                | set{combined_summaries}
         // Otherwise, pass OPTIONAL_FILE
         } else {
             // Combine the summaries first.
             forked_sum.tumor
-                .map{t_meta, t_summary ->
-                    def n_meta = [:]
-                    n_meta.type = 'normal'
-                    n_meta.sample = t_meta.sample
-                    [t_meta.sample, file("$projectDir/data/OPTIONAL_FILE"), n_meta, t_summary, t_meta]
-                    }
-                .set{combined_summaries}
-            // Use only the one summary, and replace the DSS outputs and normal summary with OPTIONAL_FILE.
-            forked_sum.tumor
-                .combine(reference)
-                .map{
-                    meta, summary, ref, fai, cache, ref_path ->                     
-                    [meta, file("$projectDir/data/OPTIONAL_FILE"), summary, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE"), fai]
+                | map{
+                    t_meta, t_summary ->
+                    [t_meta, file("$projectDir/data/OPTIONAL_FILE"), t_summary]
                 }
-                .set{ for_report }
-            makeModReport(
-                    for_report.combine(software_versions).combine(workflow_params)
-                )
+                | set{combined_summaries}
         }
+
+        // If DSS is run, create a channel with the results in it for the report.
+        if (params.diff_mod && params.bam_normal){
+            dml_ch
+                | combine(dmr_ch, by: [0,1])
+                | groupTuple(by:0)
+                | combine(combined_summaries, by: 0)
+                | combine(reference)
+                | map{
+                    meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
+                    [meta, sum_n, sum_t, dms, dmr, fai]
+                }
+                | set{ for_report }
+        // Otherwise, ignore DSS outputs and pass the summaries (or OPTIONAL_FILE) to the report.
+        } else {
+            combined_summaries
+                | combine(reference)
+                | map{
+                    meta, n_summary, t_summary, ref, fai, cache, ref_path ->                     
+                    [meta, n_summary, t_summary, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE"), fai]
+                }
+                | set{ for_report }
+        }
+
+        // Create output report
+        for_report
+        | combine(software_versions)
+        | combine(workflow_params)
+        | makeModReport
 
         // Create output directory
         // Save raw bedMethyl and summaries in main folder,
         // and the rest in the {{ sample }}/mod directory.
-        modkit_outputs.map{
+        artifacts = modkit_outputs
+        | map{
                 meta, file -> [file, null]
-        }.mix(
+        }
+        | mix(
             modbed.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/bedMethyl/"]
+                meta, mod, file -> [file, "${meta.alias}/mod/${mod}/bedMethyl/"]
             }
-        ).mix(
+        )
+        | mix(
             summary.out.mod_summary.map{
                 meta, summary -> [summary, null]
             }
-        ).mix(
-            bed2dss.out.dss_outputs.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DSS/"]
-            }
-        ).mix(
-            dss.out.dml.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DML"]
-            }
-        ).mix(
-            dss.out.dmr.map{
-                meta, mod, file -> [file, "${meta.sample}/mod/${mod}/DMR"]
+        )
+        | mix(
+            dss_inputs.map{
+                meta, mod, file -> [file, "${meta.alias}/mod/${mod}/DSS/"]
             }
         ) 
-        .mix(
+        | mix(
             workflow_params.map{
                 params -> [params, "info/mod/"]
             }
-        ).mix(
+        )
+        | mix(
             software_versions.map{
                 versions -> [versions, "info/mod/"]
             }
-        ).mix(
+        )
+        | mix(
             makeModReport.out.map{
                 meta, report -> [report, null]
             }
-        ) | publish_modbase
+        )
+        if (params.diff_mod){
+            artifacts = artifacts
+            | mix(
+                dml_ch.map{
+                    meta, mod, file -> [file, "${meta.alias}/mod/${mod}/DML"]
+                }
+            )
+            | mix(
+                dmr_ch.map{
+                    meta, mod, file -> [file, "${meta.alias}/mod/${mod}/DMR"]
+                }
+            )
+        }
+        artifacts | publish_modbase
 
     emit:
         modbam2bed = bedmethyl_split.out.mod_outputs
-        dss = bed2dss.out.dss_outputs
+        dss = dss_inputs
         mod_summaries = combined_summaries
         report_mod = makeModReport.out
 }
