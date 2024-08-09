@@ -4,17 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [v1.3.1]
 ### Added
 - `--override_basecaller_cfg` parameter allows users to provide a basecall configuration name in cases where automatic basecall model detection fails.
+- `--diff_mod` option to allow users to turn off differential modified loci (DMR) and regions (DMR) analysis with [DSS](https://bioconductor.org/packages/DSS) by setting `--diff_mod false`.
 
 ### Changed
 - Updated `modkit` to v0.3.0.
-- Reconciled workflow `_ingress.nf` from wf-human-variation v2.3.0.
+- Reconciled workflow `_ingress.nf` from wf-human-variation v2.3.1.
 
 ### Fixed
 - `--snv` crashing with `--include_all_ctgs true`.
 - `--snv` always referring to model in `--override_basecaller_cfg` when deciding whether to call Indels.
+- Automated basecaller detection not finding a basecaller model.
 
 ### Removed
 - `--basecaller_cfg` as the workflow now automatically detects the basecaller model from the input data.
