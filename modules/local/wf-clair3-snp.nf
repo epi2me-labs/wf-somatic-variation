@@ -180,7 +180,7 @@ process select_het_snps {
         tuple path("split_folder_${meta.sample}_${meta.type}/${contig}.vcf.gz"), path("split_folder_${meta.sample}_${meta.type}/${contig}.vcf.gz.tbi"), val(meta), val(contig), emit: het_snps_vcf
     shell:
         '''
-        mkdir split_folder_!{meta.sample}_!{meta.type}/
+        mkdir -p split_folder_!{meta.sample}_!{meta.type}/
         cp phase_qual split_folder_!{meta.sample}_!{meta.type}/
         pypy $(which clair3.py) SelectHetSnp \
             --vcf_fn !{pileup_vcf} \
@@ -258,7 +258,7 @@ process get_qual_filter {
     shell:
         '''
         echo "[INFO] 5/7 Select candidates for full-alignment calling"
-        mkdir output_!{meta.sample}_!{meta.type}
+        mkdir -p output_!{meta.sample}_!{meta.type}
         bgzip -fdc pileup.vcf.gz | \
         pypy $(which clair3.py) SelectQual \
                 --output_fn output_!{meta.sample}_!{meta.type} \
@@ -301,7 +301,7 @@ process create_candidates {
         // TODO: would be nice to control the number of BEDs produced to enable
         // better parallelism.
         '''
-        mkdir candidate_bed_!{meta.sample}_!{meta.type}/
+        mkdir -p candidate_bed_!{meta.sample}_!{meta.type}/
         cp qual candidate_bed_!{meta.sample}_!{meta.type}/
         pypy $(which clair3.py) SelectCandidates \
             --pileup_vcf_fn pileup.vcf.gz \
@@ -336,7 +336,7 @@ process evaluate_candidates {
         filename = candidate_bed.name
         // Define calling parameters to reflect ClairS behaviour
         """
-        mkdir output_${meta.sample}_${meta.type}
+        mkdir -p output_${meta.sample}_${meta.type}
         echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
         python \$(which clair3.py) CallVariantsFromCffi \
             --chkpnt_fn \${CLAIR_MODELS_PATH}/clair3_models/${model}/full_alignment \
@@ -439,7 +439,7 @@ process merge_pileup_and_full_vars{
 
     shell:
         '''
-        mkdir output
+        mkdir -p output
         echo "[INFO] 7/7 Merge pileup VCF and full-alignment VCF"
         pypy $(which clair3.py) MergeVcf \
             --pileup_vcf_fn !{pile_up_vcf} \

@@ -153,7 +153,7 @@ process clairs_to_extract_candidates {
             if [ -e \$dir_name ]; then
                 rm -r dir_name
             fi
-            mkdir \$dir_name
+            mkdir -p \$dir_name
         done
         # Create candidates
         pypy3 \${CLAIRS_PATH}/clairs_to.py extract_candidates_calling \\
@@ -209,7 +209,7 @@ process clairs_to_create_affirmative_model_tensors {
     script:
         """
         if [ -e pileup_tensor_can_affirmative ]; then rm -r pileup_tensor_can_affirmative; fi
-        mkdir pileup_tensor_can_affirmative
+        mkdir -p pileup_tensor_can_affirmative
         pypy3 \${CLAIRS_PATH}/clairs_to.py create_tensor_pileup_calling \\
             --tumor_bam_fn ${tumor_bam} \\
             --ref_fn ${ref} \\
@@ -253,7 +253,7 @@ process clairs_to_create_negational_model_tensors {
     script:
         """
         if [ -e pileup_tensor_can_negational ]; then rm -r pileup_tensor_can_negational; fi
-        mkdir pileup_tensor_can_negational
+        mkdir -p pileup_tensor_can_negational
         pypy3 \${CLAIRS_PATH}/clairs_to.py create_tensor_pileup_calling \\
             --tumor_bam_fn ${tumor_bam} \\
             --ref_fn ${ref} \\
@@ -306,7 +306,7 @@ process clairs_to_predict_pileup {
         def model_path = variant_type == "indel" ? "${model}/indel" : "${model}"
         """
         if [ -e predict ]; then rm -r predict; fi
-        mkdir predict/
+        mkdir -p predict/
         python3 \${CLAIRS_PATH}/clairs_to.py predict \\
             --tensor_fn_acgt pileup_tensor_can_affirmative/${candidate.getName()} \\
             --tensor_fn_nacgt pileup_tensor_can_negational/${candidate.getName()} \\
@@ -356,7 +356,7 @@ process clairs_to_pileup {
         def likelihood_mat_path = variant_type == "indel" ? "${model}/indel" : "${model}"
         """
         if [ -e vcf_output ]; then rm -r vcf_output; fi
-        mkdir vcf_output
+        mkdir -p vcf_output
         python3 \${CLAIRS_PATH}/clairs_to.py call_variants \\
             --predict_fn predicted/${candidate.getName()} \\
             --call_fn vcf_output/p_${candidate.getName()}.vcf \\

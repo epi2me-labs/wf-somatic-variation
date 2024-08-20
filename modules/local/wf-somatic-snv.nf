@@ -389,7 +389,7 @@ process clairs_extract_candidates {
         def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" ? "--min_bq 15" : ""
         """
         # Create output folder structure
-        mkdir candidates indels hybrid
+        mkdir -p candidates indels hybrid
         # Create candidates
         pypy3 \$CLAIRS_PATH/clairs.py extract_pair_candidates \\
             --tumor_bam_fn ${tumor_bam.getName()} \\
@@ -538,7 +538,7 @@ process clairs_predict_pileup {
             p_prefix = "indel_p"
         }
         """
-        mkdir vcf_output/
+        mkdir -p vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
             --call_fn vcf_output/${p_prefix}_${intervals.getName()}.vcf \\
@@ -624,7 +624,7 @@ process clairs_create_fullalignment_paired_tensors {
             
     script:
         """
-        mkdir fa_tensor_can
+        mkdir -p fa_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor \\
             --samtools samtools \\
             --normal_bam_fn ${normal_bam.getName()} \\
@@ -690,7 +690,7 @@ process clairs_predict_full {
             fa_prefix = "indel_fa"
         }
         """
-        mkdir vcf_output/
+        mkdir -p vcf_output/
         python3 \$CLAIRS_PATH/clairs.py predict \\
             --tensor_fn ${tensor}/${intervals.getName()} \\
             --call_fn vcf_output/${fa_prefix}_${intervals.getName()}.vcf \\
@@ -772,7 +772,7 @@ process clairs_full_hap_filter {
         def pileup_output_fn = variant_type == 'indel' ? "indel_pileup_filter.vcf" : "pileup_filter.vcf"
         def fa_output_fn = variant_type == 'indel' ? "indel_full_alignment_filter.vcf" : "full_alignment_filter.vcf"
         """
-        mkdir vcf_output/
+        mkdir -p vcf_output/
         pypy3 \$CLAIRS_PATH/clairs.py haplotype_filtering \\
             --tumor_bam_fn bams/${meta.sample}_${meta.type}_ \\
             --ref_fn ${ref} \\
