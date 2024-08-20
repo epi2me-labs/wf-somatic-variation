@@ -9,7 +9,7 @@ include {
     publish_sv;
 } from "../modules/local/wf-somatic-sv.nf"
 include {
-    decompress_ref as decompress;
+    decompress;
     bgzipper;
     tabixer;
     annotate_vcf as annotate_sv;
