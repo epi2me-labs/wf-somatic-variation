@@ -4,6 +4,9 @@ nextflow.enable.dsl = 2
 
 // Load base modules
 include {
+    prepare_reference
+    } from './lib/reference.nf'
+include {
     ingress as ingress_normal;
     ingress as ingress_tumor
     } from './lib/_ingress.nf'
@@ -11,10 +14,6 @@ include {
     somatic_sv as sv
     } from './workflows/wf-somatic-sv.nf'
 include {
-    index_ref_gzi;
-    index_ref_fai;
-    cram_cache;
-    decompress_ref;
     getAllChromosomesBed;
     getVersions;
     getVersions_somvar;
@@ -94,20 +93,22 @@ workflow {
         throw new Exception("Can run --hybrid_mode_vcf or --genotyping_mode_vcf, not both. Choose one and try again.")
     }
 
-    // Check ref and decompress if needed
-    ref = null
-    ref_index = null
-    if (params.ref.toLowerCase().endsWith("gz")) {
-        // gzipped ref not supported by some downstream tools (pyfaidx, cram_cache)
-        // easier to just decompress and pass it around rather than confusing the user
-        decompress_ref(file(params.ref))
-        ref = decompress_ref.out.decompressed_ref
-        ref_index = file("${ref}.fai").exists() ? Channel.of(file("${ref}.fai")) : index_ref_fai(ref).reference_index // Create fai index channel
-    }
-    else {
-        ref = Channel.fromPath(params.ref, checkIfExists: true)
-        ref_index = file(params.ref + ".fai").exists() ? Channel.of(file(params.ref + ".fai")) : index_ref_fai(ref).reference_index // Create fai index channel
-    }
+    reference = prepare_reference([
+        "input_ref": params.ref,
+        "output_cache": true,
+        "output_mmi": false
+    ])
+    ref = reference.ref
+    ref_index = reference.ref_idx
+    ref_cache = reference.ref_cache
+
+    // canonical ref and BAM channels to pass around to all processes
+    ref_channel = ref
+    | concat(ref_index)
+    | concat(ref_cache)
+    | flatten
+    | buffer(size: 4)
+
 
     // ************************************************************************
     // Bail from the workflow for a reason we should have already specified
@@ -129,13 +130,6 @@ workflow {
     }
 
     Pinguscript.ping_start(nextflow, workflow, params)
-
-    // Build ref cache for CRAM steps that do not take a reference
-    ref_cache = cram_cache(ref)
-    ref_cache = cram_cache.out.ref_cache
-    ref_path = cram_cache.out.ref_path
-    // canonical ref and BAM channels to pass around to all processes
-    ref_channel = ref.concat(ref_index).concat(ref_cache).concat(ref_path).buffer(size: 4)
 
     // Get software versions
     versions = getVersions() | getVersions_somvar
