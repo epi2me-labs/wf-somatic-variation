@@ -426,7 +426,7 @@
                     "type": "string",
                     "description": "The additional options for `Severus`.",
                     "hidden": true,
-                    "help_text": "This is an advanced option to allow running `Severus` with custom [settings](https://github.com/KolmogorovLab/Severus?tab=readme-ov-file#inputs-and-parameters). To provide custom arguments to `Severus` from command line proceed as follow: `--severus_args=\"--preset traditional\"`"
+                    "help_text": "This is an advanced option to allow running `Severus` with custom [settings](https://github.com/KolmogorovLab/Severus?tab=readme-ov-file#inputs-and-parameters). The arguments specified in this option will fully override all options set by the workflow. To provide custom arguments to `Severus` from command line proceed as follow: `--severus_args=\"--preset traditional\"`"
                 }
             }
         },
@@ -454,7 +454,7 @@
                     "type": "string",
                     "description": "The additional options for modkit.",
                     "hidden": true,
-                    "help_text": "This is an advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow. . To provide custom arguments to `modkit` from command line proceed as follow: `--modkit_args=\"--preset traditional\"`"
+                    "help_text": "This is an advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow. To provide custom arguments to `modkit` from command line proceed as follow: `--modkit_args=\"--preset traditional\"`"
                 }
             }
         },
