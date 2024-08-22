@@ -24,13 +24,31 @@ process severus {
         tuple val(meta), path("severus-output/somatic_SVs/severus_somatic.vcf"), emit: vcf
 
     script:
-    def vntr = tr_bed.name != "OPTIONAL_FILE" ? "--vntr-bed ${tr_bed}" : "" 
-    def options = params.severus_args ? "${params.severus_args}" : ""
-    def vaf_thr = params.vaf_threshold ? "--vaf-thr ${params.vaf_threshold}" : ""
+    // Define tandem repeat file.
+    def tr_arg = ""
+    if (tr_bed.name != 'OPTIONAL_FILE'){
+        tr_arg = "--vntr-bed ${tr_bed}"
+    }
+    else if (meta.genome_build) {
+        log.warn "Automatically selecting TR BED: ${meta.genome_build}.trf.bed"
+        tr_arg = "--vntr-bed \${WFSV_TRBED_PATH}/${meta.genome_build}.trf.bed"
+    }
+    // Define options.
+    String options
+    if (params.severus_args){
+        log.warn "Overriding severus presets with --severus_args: ${params.severus_args}."
+        options = "${params.severus_args}"
+    }
+    else {
+        options = "--single-bp --resolve-overlaps --between-junction-ins"
+    }
+    options += params.vaf_threshold ? " --vaf-thr ${params.vaf_threshold}" : ""
+    options += params.min_sv_length ? " --min-sv-size ${params.min_sv_length}" : ""
+    options += params.min_support ? " --min-support ${params.min_support}" : ""
     // Severus takes the sample ID for the VCF from the file name.
     // To be consistent with ClairS, rename:
-    // - tumor BAM file > {meta.sample}.{bam|cram} > meta.sample becomes the name in the VCF
-    // - normal BAM file > {meta.sample}_normal.{bam|cram}
+    // - tumor BAM file > {meta.alias}.{bam|cram} > meta.alias becomes the name in the VCF
+    // - normal BAM file > {meta.alias}_normal.{bam|cram}
     """
     # Run severus
     severus \
@@ -38,9 +56,8 @@ process severus {
         --control-bam normal.bam \
         --out-dir ./severus-output \
         --threads ${task.cpus} \
-        --min-sv-size ${params.min_sv_length} \
-        --min-support ${params.min_support} \
-        ${vaf_thr} ${vntr} ${options}
+        ${tr_arg} \
+        ${options}
     """
 }
 
@@ -52,20 +69,20 @@ process sortVCF {
     input:
         tuple val(meta), path(vcf)
     output:
-        tuple val(meta), path("${meta.sample}.wf-somatic-sv.vcf.gz"), emit: vcf_gz
-        tuple val(meta), path("${meta.sample}.wf-somatic-sv.vcf.gz.tbi"), emit: vcf_tbi
+        tuple val(meta), path("${meta.alias}.wf-somatic-sv.vcf.gz"), emit: vcf_gz
+        tuple val(meta), path("${meta.alias}.wf-somatic-sv.vcf.gz.tbi"), emit: vcf_tbi
     script:
-    // Severus uses the input file name as sample ID. Fix this using meta.sample here.
+    // Severus uses the input file name as sample ID. Fix this using meta.alias here.
     """
     # CW-4313: some INV created by Severus have INFO/END smaller than
     # POS. Exclude these from the final VCF file.
     # https://github.com/epi2me-labs/wf-somatic-variation/issues/28
-    echo "tumor\t${meta.sample}" > sample_rename.txt
+    echo "tumor\t${meta.alias}" > sample_rename.txt
     bcftools sort -m 2G -O v ${vcf} \
     | bcftools reheader -s sample_rename.txt - \
     | bcftools filter --threads ${task.cpus} -e "INFO/END < POS & INFO/SVTYPE == 'INV'" \
-    | bgzip -c > ${meta.sample}.wf-somatic-sv.vcf.gz 
-    bcftools index --threads ${task.cpus} -t ${meta.sample}.wf-somatic-sv.vcf.gz
+    | bgzip -c > ${meta.alias}.wf-somatic-sv.vcf.gz 
+    bcftools index --threads ${task.cpus} -t ${meta.alias}.wf-somatic-sv.vcf.gz
     """
 }
 
@@ -111,9 +128,9 @@ process report {
         file versions
         path "params.json"
     output:
-        tuple val(meta), path("${meta.sample}.wf-somatic-sv-report.html"), emit: html
+        tuple val(meta), path("${meta.alias}.wf-somatic-sv-report.html"), emit: html
     script:
-        def report_name = "${meta.sample}.wf-somatic-sv-report.html"
+        def report_name = "${meta.alias}.wf-somatic-sv-report.html"
         // can't use `path.name` here
         // (https://github.com/nextflow-io/nextflow/issues/3574); needs to be
         // `path.fileName.name` instead

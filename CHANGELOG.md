@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [unreleased]
+### Added
+- BED files for the VNTR regions in hg19/hg38 from [Severus](https://github.com/KolmogorovLab/Severus/tree/main/vntrs).
+    - The appropriate file will be automatically selected for the appropriate genome, unless a user provides a custom bed with `--tr_bed`.
+
+### Changed
+- Tweaked parameters for Severus to refine SV calling.
+
 ### Fixed
 - `-resume` failing for some `snv` processes.
 
