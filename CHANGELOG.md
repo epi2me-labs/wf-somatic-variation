@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Tweaked parameters for Severus to refine SV calling.
+- More informative log when a BAM called with an invalid basecaller model is provided.
 
 ### Fixed
 - `-resume` failing for some `snv` processes.

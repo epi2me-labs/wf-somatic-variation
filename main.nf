@@ -490,12 +490,12 @@ workflow {
             caller, info -> 
             clairs_model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
             clairs_nomodel_msg = info[3]
-            [clairs_model, clairs_nomodel_msg]
+            [caller, clairs_model, clairs_nomodel_msg]
         }
         | subscribe{
-            model, clairs_nomodel_reason -> 
+            caller, model, clairs_nomodel_reason -> 
             if (clairs_nomodel_reason != '-'){
-                throw new Exception(colors.red + "${clairs_nomodel_reason}" + colors.reset)
+                throw new Exception(colors.red + "${caller} - ${clairs_nomodel_reason}" + colors.reset)
             }
         }
 
