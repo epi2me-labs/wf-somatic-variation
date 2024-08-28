@@ -51,7 +51,7 @@ docker-run:
                 "snv-r10-normal_vcf", "snv-r10-som_only", 
                 "snv-r10", "snv-r9", "snv-r10-fail",
                 "sv", "sv-args", "sv-full",
-                "mod", "mod-no-dss", 
+                "mod", "mod-no-dss", "mod-fail-dss", 
                 "mod-strand", "mod-args"
             ]
     rules:
@@ -409,6 +409,18 @@ docker-run:
                   --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+
+        - if: $MATRIX_NAME == "mod-fail-dss"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/fail_dss.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/fail_dss.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0 \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_normal.bam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/demo_tumor.bam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/fail_dss.nextflow.config"
               NF_PROCESS_FILES: "workflows/mod.nf"
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
 

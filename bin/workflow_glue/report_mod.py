@@ -23,7 +23,7 @@ import sigfig as sg
 # Ignoring F401 for CHROMOSOMES since used within eval expressions
 from .report_utils.utils import CHROM_RENAME, CHROMOSOMES  # noqa: ABS101, F401
 from .report_utils.utils import PRECISION  # noqa: ABS101
-from .report_utils.utils import display_alert  # noqa: ABS101
+from .report_utils.utils import display_alert, display_error  # noqa: ABS101
 from .report_utils.visualizations import line_plot  # noqa: ABS101
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 
@@ -332,6 +332,14 @@ def main(args):
                         )
                         # Prepare the plot.
                         EZChart(plt, theme="epi2melabs")
+        elif args.normal_summary and args.diff_mod:
+            display_error(
+                "It was not possible to compute differentially modified loci.\n"
+                "The analysis relies on the ",
+                a("DSS", href=dss_url),
+                " R package, that can present unexpectedly high memory "
+                "usage with some datasets and cause the analysis not to complete."
+            )
         else:
             display_alert("Differentially modified loci were not computed.")
 
@@ -364,7 +372,7 @@ def main(args):
     # Generate the report, multiple tabs per sample, one option per mod
     # for each sample in a drop-down menu.
     with report.add_section("Differentially modified regions", "DMR"):
-        if dmls:
+        if dmrs:
             p(
                 "Differentially modified regions computed by ",
                 a("DSS", href=dss_url),
@@ -421,6 +429,14 @@ def main(args):
                             " size, areaStat and diff.Methy.",
                         )
                         DataTable.from_pandas(datatable, use_index=False)
+        elif args.normal_summary and args.diff_mod:
+            display_error(
+                "It was not possible to compute differentially modified regions.\n"
+                "The analysis relies on the ",
+                a("DSS", href=dss_url),
+                " R package, that can present unexpectedly high memory "
+                "usage with some datasets and cause the analysis not to complete."
+            )
         else:
             display_alert("Differentially modified regions were not computed.")
 
@@ -467,6 +483,11 @@ def argparser():
         required=False,
         help="DSS differentially modified regions",
         type=lambda x: path_check(x),
+    )
+    parser.add_argument(
+        "--diff_mod",
+        help="The workflow tried to detect differentially modified loci/regions",
+        action="store_true"
     )
     parser.add_argument(
         "--reference_fai",

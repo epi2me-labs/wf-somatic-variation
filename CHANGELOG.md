@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Tweaked parameters for Severus to refine SV calling.
 - More informative log when a BAM called with an invalid basecaller model is provided.
+- Failures of processes involved in differentially modified loci and regions detection will not cause workflow to fail.
 
 ### Fixed
 - `-resume` failing for some `snv` processes.

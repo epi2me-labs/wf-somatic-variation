@@ -26,6 +26,12 @@ def display_alert(*argv):
         p(argv)
 
 
+def display_error(*argv):
+    """Display error in report."""
+    with div(cls="alert alert-danger"):
+        p(argv)
+
+
 def hist_max(variable_data, binwidth=None, bins='auto'):
     """Compute max value to set in a plot."""
     estimate_kws = dict(
