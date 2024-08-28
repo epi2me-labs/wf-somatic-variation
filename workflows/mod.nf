@@ -249,8 +249,9 @@ process dss {
     cpus { params.dss_threads <= 4 ? params.dss_threads : 4 }
     // Set memory to 16G/core + 2GB for buffer.
     // Benchmark shows that DSS ends up using more memory than predicted,
-    // with spikes up to >74GB with 4 cores.
+    // with spikes up to >74GB with 4 cores. In these cases we ignore the raised errors.
     memory { (task.cpus * 19.GB) }
+    errorStrategy 'ignore'
     input:
         tuple val(meta), 
             val(mod),
@@ -261,11 +262,13 @@ process dss {
         tuple val(meta), 
             val(mod),
             path("${meta.alias}.${mod}.dml.tsv"), 
-            emit: dml
+            emit: dml,
+            optional: true
         tuple val(meta), 
             val(mod),
             path("${meta.alias}.${mod}.dmr.tsv"), 
-            emit: dmr
+            emit: dmr,
+            optional: true
 
     script:
     """
@@ -332,6 +335,7 @@ process makeModReport {
 
     script:
         def genome = meta.genome_build ? "--genome ${meta.genome_build} " : ""
+        def diff_mod = params.diff_mod && params.bam_normal ? "--diff_mod" : ""
         """
         workflow-glue report_mod \\
             ${meta.alias}.wf-somatic-mod-report.html \\
@@ -339,6 +343,7 @@ process makeModReport {
             --tumor_summary tumor_summary/ \\
             --dml DML/ \\
             --dmr DMR/ \\
+            ${diff_mod} \\
             --reference_fai ref.fa.fai \\
             --sample_name ${meta.alias} \\
             --versions versions.txt \\
@@ -368,6 +373,7 @@ workflow mod {
         reference
         chromosome_codes
     main:
+        OPTIONAL = file("$projectDir/data/OPTIONAL_FILE")
         // Check for conflicting parameters
         if (params.force_strand && params.modkit_args){
             throw new Exception(colors.red + "You cannot use --force_strand with --modkit_args." + colors.reset)
@@ -483,18 +489,26 @@ workflow mod {
             forked_sum.tumor
                 | map{
                     t_meta, t_summary ->
-                    [t_meta, file("$projectDir/data/OPTIONAL_FILE"), t_summary]
+                    [t_meta, OPTIONAL, t_summary]
                 }
                 | set{combined_summaries}
         }
 
         // If DSS is run, create a channel with the results in it for the report.
         if (params.diff_mod && params.bam_normal){
-            dml_ch
+            dss_outputs = dml_ch
                 | combine(dmr_ch, by: [0,1])
-                | groupTuple(by:0)
-                | combine(combined_summaries, by: 0)
+                | groupTuple(by:0)            
+                // Allow remainder to enable merging an empty tuple with the summaries
+                // allowing to then generate the report at the end
+                | join(combined_summaries, by: 0, remainder: true)
                 | combine(reference)
+                // if all DSS processes fail, the tuple will start with a metadata, have
+                // a null value, and then the rest of the tuple. Here we check if that is
+                // the case, and if so add optional files to fill in the gaps.
+                | map{
+                    it[1] ? it : [it[0], null, OPTIONAL, OPTIONAL] + it[2..-1]
+                }
                 | map{
                     meta, mod, dms, dmr, sum_n, sum_t, ref, fai, cache, ref_path -> 
                     [meta, sum_n, sum_t, dms, dmr, fai]
@@ -506,7 +520,7 @@ workflow mod {
                 | combine(reference)
                 | map{
                     meta, n_summary, t_summary, ref, fai, cache, ref_path ->                     
-                    [meta, n_summary, t_summary, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE"), fai]
+                    [meta, n_summary, t_summary, OPTIONAL, OPTIONAL, fai]
                 }
                 | set{ for_report }
         }
