@@ -13,9 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tweaked parameters for Severus to refine SV calling.
 - More informative log when a BAM called with an invalid basecaller model is provided.
 - Failures of processes involved in differentially modified loci and regions detection will not cause workflow to fail.
+- Updated `modkit` to v0.3.3.
 
 ### Fixed
 - `-resume` failing for some `snv` processes.
+- Excessive memory usage for sample_probs process when using --mod leading to exit code 137.
 
 ## [v1.3.1]
 ### Added
