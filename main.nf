@@ -29,6 +29,7 @@ include {
 include {snv} from './workflows/wf-somatic-snv'
 include {snv as snv_to} from './workflows/wf-somatic-snv-to'
 include {mod} from './workflows/mod.nf'
+include { detect_basecall_model } from './lib/model.nf'
 
 
 // This is the only way to publish files from a workflow whilst
@@ -366,98 +367,12 @@ workflow {
 
     // Run snv workflow if requested
     if (params.snv) {
-        // Add back basecaller models, if available.
-        // Combine each BAM channel with the appropriate basecaller file
-        // Fetch the unique basecaller models and, if these are more than the
-        // ones in the metadata, add them in there.
-        // We do it in the snv scope as it is the only workflow relying on the
-        // model, and given it has to wait for the readStats process, we try
-        // minimizing the waits
-        pass_bam_channel = pass_bam_channel 
-        | map{ xam, xai, meta -> [meta, xam, xai] }
-        | combine( qcdata.basecallers, by:0 )
-        | map{
-            meta, xam, xai, bc ->
-            def models = bc.splitText().collect { it.strip() }
-            [xam, xai, meta + [basecall_models: models]]
-        }
-    
-        // attempt to pull out basecaller_cfg from metadata, keeping unique values
-        metamap_basecaller_cfg = pass_bam_channel
-            | map { xam, bai, meta ->
-                meta["basecall_models"]
-            }
-            | flatten  // squash lists
-            | unique
+        // Use the new wf-human-variation library to define basecaller model.
+        detect_basecall_model(pass_bam_channel, qcdata.basecallers)
+        basecaller_cfg = detect_basecall_model.out.basecaller_cfg
+        pass_bam_channel = detect_basecall_model.out.bam_channel
 
-        // Ensure that the two BAM have the same basecaller configuration.
-        // Check that there is exactly one metamap.
-        // Specific for somvar: fail also with >1 metadata, as the two BAM need the
-        // same model.
-        metamap_basecaller_cfg
-                | count
-                | map { int n_models ->
-                    if (n_models == 0){
-                        if (params.override_basecaller_cfg) {
-                            log.warn "No basecaller models found in the input alignment header, falling back to the model provided with --override_basecaller_cfg: ${params.override_basecaller_cfg}"
-                        }
-                        else {
-                            String input_data_err_msg = '''\
-                            ################################################################################
-                            # INPUT DATA PROBLEM
-                            Your input alignments does not indicate the basecall model in the header and
-                            you did not provide an alternative with --override_basecaller_cfg.
-
-                            wf-somatic-variation requires the basecall model in order to automatically
-                            select an appropriate SNP calling model.
-
-                            ## Next steps
-                            You must re-run the workflow specifying the basecaller model with the
-                            --override_basecaller_cfg option.
-                            ################################################################################
-                            '''.stripIndent()
-                            error input_data_err_msg
-                        }
-                    } else if (n_models > 1){
-                        String input_data_err_msg = '''\
-                        ################################################################################
-                        # INPUT DATA PROBLEM
-                        Your input tumor and/or normal BAM files indicate two different basecall models
-                        in the header.
-
-                        wf-somatic-variation requires the basecall model used to call the tumor and 
-                        normal samples to be identical.
-
-                        ## Next steps
-                        You must re-run the workflow specifying the same basecaller model with the
-                        --override_basecaller_cfg option.
-                        ################################################################################
-                        '''.stripIndent()
-                        error input_data_err_msg
-                    }
-                }
-        
-        if (params.override_basecaller_cfg) {
-            metamap_basecaller_cfg.map {
-                log.info "Detected basecaller_model: ${it}"
-                log.warn "Overriding basecaller_model: ${params.override_basecaller_cfg}"
-            }
-            basecaller_cfg = Channel.of(params.override_basecaller_cfg)
-            // Update override basecall model in meta
-            pass_bam_channel = pass_bam_channel
-            | map{
-                xam, xai, meta ->
-                [xam, xai, meta + [basecall_models: [params.override_basecaller_cfg]]]
-            }
-        }
-        else {
-            basecaller_cfg = metamap_basecaller_cfg
-                | map { log.info "Detected basecaller_model: ${it}"; it }
-                | ifEmpty(params.override_basecaller_cfg)
-                | map { log.info "Using basecaller_model: ${it}"; it }
-                | first  // unpack from list
-        }
-
+        // Lookup models
         if (run_tumor_only){
             // Import the table of ClairS-TO models, retaining:
             // 1. basecaller model name
@@ -560,15 +475,21 @@ workflow {
 
     // Collect all the reports
     for_joint_report
-        .mix(snv_joint_report)
-        .mix(sv_joint_report)
-        .mix(mod_joint_report)
+        | mix(snv_joint_report)
+        | mix(sv_joint_report)
+        | mix(mod_joint_report)
+        // Extract the alias as the combining key,
+        // as the meta can change throughout the wfs.
+        | map{
+            meta, report -> [meta.alias, report]
+        }
         // Remove the null values for the missing reports
         // Create a nested tuple with all the reports in it
-        .groupTuple(by:0)
+        | groupTuple(by:0)
         // Add additional data types
-        .combine(versions)
-        .combine(parameters) | report
+        | combine(versions)
+        | combine(parameters)
+        | report
 
     // Emit version and parameters
     publish(versions.concat(parameters).concat(report.out))

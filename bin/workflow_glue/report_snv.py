@@ -3,6 +3,7 @@
 
 import os
 
+from bokeh.models import HoverTool
 from dominate.tags import a, h6, p
 from ezcharts.components.bcfstats import load_bcfstats
 from ezcharts.components.clinvar import load_clinvar_vcf
@@ -267,13 +268,9 @@ def main(args):
                                 min_y=0, max_y=1,
                                 color=plt_color
                             )
-                            for s in plt.series:
-                                s.symbolSize = 3
-                                s.encode = {
-                                    'x': 'NVAF', 'y': 'VAF',
-                                    'itemName': 'NVAF', 'tooltip': ['VAF']}
-                            # Add tooltip to facilitate reading
-                        plt.tooltip = dict({'trigger': 'item'})
+                        # Tooltips
+                        hover = plt._fig.select(dict(type=HoverTool))
+                        hover.tooltips = [('Normal VAF', "@x"), ('Tumor VAF', "@y")]
                         EZChart(plt, 'epi2melabs')
 
     # Plot mutation spectra if provided

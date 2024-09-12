@@ -409,8 +409,6 @@ def main(args):
                             xaxis="Cumulative Position",
                             yaxis="Area Statistic",
                         )
-                        for s in plt.series:
-                            s.symbolSize = 3
                         p("Differentially modified regions along the genome.")
                         EZChart(plt, theme="epi2melabs")
 
