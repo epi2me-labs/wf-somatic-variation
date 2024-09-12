@@ -114,13 +114,13 @@ docker-run:
                   --ubam_sort_threads 1 --ubam_map_threads 4 \
                   --tumor_min_coverage 0 --normal_min_coverage 0 \
                   --annotation false \
-                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829bl.SUPv420.ubam \
-                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829.ubam \
+                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829bl.SUPv410.ubam \
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829.SUPv420.ubam \
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
               ASSERT_NEXTFLOW_FAILURE: "yes"
-              ASSERT_NEXTFLOW_FAILURE_REXP : "Your input tumor and/or normal BAM files indicate two different basecall models"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "Your input BAM file(s) indicate two or more different basecall models in the"
 
         - if: $MATRIX_NAME == "snv-pass-model-v420"
           variables:

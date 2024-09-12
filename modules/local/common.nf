@@ -234,21 +234,21 @@ process getGenome {
 process report {
     label "wf_common"
     input:
-        tuple val(meta), 
+        tuple val(alias), 
             path(reports),
             path('versions.txt'),
             path('params.json')
     output:
-        path "${params.sample_name}.wf-somatic-variation-report.html", emit: html
+        path "${alias}.wf-somatic-variation-report.html", emit: html
     script:
         // Define report name.
-        def report_name = "${params.sample_name}.wf-somatic-variation-report.html"
+        def report_name = "${alias}.wf-somatic-variation-report.html"
         def output_dir = file(params.out_dir)
         """
         workflow-glue report \\
             $report_name \\
             --outdir_path ${output_dir} \\
-            --sample_id ${params.sample_name} \\
+            --sample_id ${alias} \\
             --versions versions.txt \\
             --params params.json \\
             --workflow_version ${workflow.manifest.version}

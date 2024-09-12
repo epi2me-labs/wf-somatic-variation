@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `-resume` failing for some `snv` processes.
 - Excessive memory usage for sample_probs process when using --mod leading to exit code 137.
+- Erroneous handling of inputs for the joint report.
 
 ## [v1.3.1]
 ### Added

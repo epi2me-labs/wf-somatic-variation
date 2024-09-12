@@ -1,7 +1,7 @@
 """Commonly used code in visualizations."""
+from bokeh.models import HoverTool, Title
 from ezcharts import barplot, histplot
 from ezcharts import lineplot, scatterplot
-from .utils import COLORS  # noqa: ABS101
 
 
 # Scatter plot
@@ -17,39 +17,28 @@ def scatter_plot(
         color=color
     )
     # Change axes names
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    # Set y limit
-    if min_y is not None:
-        plt.yAxis.min = min_y
-    if max_y is not None:
-        plt.yAxis.max = max_y
-    if min_x is not None:
-        plt.xAxis.min = min_x
+    plt._fig.xaxis.axis_label = xaxis
+    plt._fig.yaxis.axis_label = yaxis
+    # Customize X-axis
     if max_x is not None:
-        plt.xAxis.max = max_x
-    # Remove markers
-    for s in plt.series:
-        s.showSymbol = True
-    # Change title and add mean as subtitle and horiz. line, if provided
-    if add_mean is not None:
-        plt.title = {
-            "text": title,
-            "subtext": f"Mean coverage: {round(add_mean, 2)}."
-            }
-        max_x_val = df.max()[x]
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean coverage",
-                data=[dict(value=[0, add_mean]), dict(value=[max_x_val, add_mean])],
-                itemStyle=(dict(color=COLORS.black)),
-                lineStyle=(dict(type='dashed')),
-                symbolSize=0
-            )
+        plt._fig.x_range.end = max_x
+    if min_x is not None:
+        plt._fig.x_range.start = min_x
+    if max_y is not None:
+        plt._fig.y_range.end = max_y
+    if min_y is not None:
+        plt._fig.y_range.start = min_y
+    if add_mean:
+        plt._fig.add_layout(
+            Title(
+                text=f"Mean: {round(add_mean, 2)}",
+                text_font_size="0.8em"),
+            'above'
         )
-    else:
-        plt.title = {"text": title}
+    plt._fig.add_layout(
+        Title(text=title, text_font_size="1.5em"),
+        'above'
+    )
     return plt
 
 
@@ -67,6 +56,11 @@ def hist_plot(
         binwidth=binwidth,
         binrange=binrange,
         color=color)
+
+    # Change axes names
+    plt._fig.xaxis.axis_label = xaxis
+    plt._fig.yaxis.axis_label = yaxis
+    # Change title and add mean as subtitle and horiz. line, if provided
     if isinstance(rounding, int):
         meanv = df[col].mean().round(rounding)
         medianv = df[col].median().round(rounding)
@@ -74,49 +68,31 @@ def hist_plot(
         meanv = df[col].mean()
         medianv = df[col].median()
 
-    plt.title = dict(text=title, subtext=None)
     if stats:
-        plt.title.subtext = (
-            f"Mean: {meanv}. "
-            f"Median: {medianv}. "
+        plt._fig.add_layout(
+            Title(
+                text=f"Mean: {round(meanv, 2)}. Median: {round(medianv, 2)}",
+                text_font_size="0.8em"),
+            'above'
         )
+    plt._fig.add_layout(
+        Title(text=title, text_font_size="1.5em"),
+        'above'
+    )
 
-    # Add mean and median values (Thanks Julian!)
-    if stats:
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean",
-                data=[dict(value=[meanv, 0]), dict(value=[meanv, max_y])],
-                itemStyle=(dict(color=COLORS.sandstorm)),
-                symbolSize=0
-            )
-        )
-        plt.add_series(
-            dict(
-                type="line",
-                name="Median",
-                data=[dict(value=[medianv, 0]), dict(value=[medianv, max_y])],
-                itemStyle=(dict(color=COLORS.fandango)),
-                symbolSize=0
-            )
-        )
-
-    # Change color if requested
-    if color is not None:
-        plt.color = [color]
     # Customize X-axis
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    plt.yAxis.nameGap = 0
     if max_x is not None:
-        plt.xAxis.max = max_x
+        plt._fig.x_range.end = max_x
     if min_x is not None:
-        plt.xAxis.min = min_x
+        plt._fig.x_range.start = min_x
     if max_y is not None:
-        plt.yAxis.max = max_y
+        plt._fig.y_range.end = max_y
     if min_y is not None:
-        plt.yAxis.min = min_y
+        plt._fig.y_range.start = min_y
+
+    # Tooltips
+    hover = plt._fig.select(dict(type=HoverTool))
+    hover.tooltips = [(yaxis, "@top")]
     return plt
 
 
@@ -129,37 +105,30 @@ def line_plot(
         data=df,
         x=x,
         y=y,
-        hue=hue
+        hue=hue,
+        marker=False
     )
     # Change axes names
-    plt.xAxis.name = xaxis
-    plt.yAxis.name = yaxis
-    plt.yAxis.nameGap = 0
+    plt._fig.xaxis.axis_label = xaxis
+    plt._fig.yaxis.axis_label = yaxis
     # Set y limit
     if max_y is not None:
-        plt.yAxis.max = max_y
-    # Remove markers
-    for s in plt.series:
-        s.showSymbol = False
+        plt._fig.y_range.end = max_y
     # Change title and add mean as subtitle and horiz. line, if provided
     if add_mean is not None:
-        plt.title = {
-            "text": title,
-            "subtext": f"Mean coverage: {round(add_mean, 2)}."
-            }
-        max_x_val = df.max()[x]
-        plt.add_series(
-            dict(
-                type="line",
-                name="Mean coverage",
-                data=[dict(value=[0, add_mean]), dict(value=[max_x_val, add_mean])],
-                itemStyle=(dict(color=COLORS.black)),
-                lineStyle=(dict(type='dashed')),
-                symbolSize=0
-            )
+        plt._fig.add_layout(
+            Title(
+                text=f"Mean: {round(add_mean, 2)}.",
+                text_font_size="0.8em"),
+            'above'
         )
-    else:
-        plt.title = {"text": title}
+    plt._fig.add_layout(
+        Title(text=title, text_font_size="1.5em"),
+        'above'
+    )
+    # Tooltips
+    hover = plt._fig.select(dict(type=HoverTool))
+    hover.tooltips = [(yaxis, "@y")]
     return plt
 
 
@@ -183,6 +152,9 @@ def plot_spectra(spectra, sample, cmap=None):
         y=sample,
         palette=palette
     )
+    # Tooltips
+    hover = plot._fig.select(dict(type=HoverTool))
+    hover.tooltips = [("Number of sites", "@top")]
     return plot
 
 
@@ -209,5 +181,8 @@ def plot_profile(df, sample, cmap=None):
 
     # Sort out axis
     plt._fig.xaxis.major_label_orientation = 1.2
+    # Tooltips
+    hover = plt._fig.select(dict(type=HoverTool))
+    hover.tooltips = [('Number of sites', "@y")]
 
     return plt
