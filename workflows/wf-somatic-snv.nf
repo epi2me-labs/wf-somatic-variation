@@ -748,4 +748,6 @@ workflow snv {
        outputs = outputs
        snv_stats = vcfStats.out[0].combine(change_count.out.changes, by: 0)
        report_snv = makeReport.out.html
+       vcf_ch = ch_vcf.combine(ch_tbi, by: 0)
+       tagged_bams = tagged_bams
 }

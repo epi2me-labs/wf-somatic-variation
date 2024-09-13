@@ -20,6 +20,10 @@ Output files may be aggregated including information for all samples or provided
 | Single-change DSS input file (tumor) | {{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_tumor.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
 | Differentially modified loci (DML) per change type | {{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv | Differentially modified loci from DSS for a single modification type (e.g. 5mc). | per-sample |
 | Differentially modified regions (DMR) per change type | {{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv | Differentially modified regions from DSS for a single modification type (e.g. 5mc). | per-sample |
+| Alignment file (normal) | {{ alias }}/bam/normal/reads.bam | BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
+| Alignment file index (normal) | {{ alias }}/bam/normal/reads.bam.bai | The index of the resulting BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
+| Alignment file (tumor) | {{ alias }}/bam/tumor/reads.bam | BAM or CRAM file with the aligned reads for the tumor sample. | per-sample |
+| Alignment file index (tumor) | {{ alias }}/bam/tumor/reads.bam.bai | The index of the resulting BAM or CRAM file with the aligned reads for the tumor sample. | per-sample |
 | Haplotagged alignment file (normal) | {{ alias }}_normal.ht.bam | BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
 | Haplotagged alignment file index (normal) | {{ alias }}_normal.ht.bam.bai | The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
 | Haplotagged alignment file (tumor) | {{ alias }}_tumor.ht.bam | BAM or CRAM file with the haplotagged reads for the tumor sample. | per-sample |

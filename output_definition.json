@@ -144,6 +144,38 @@
       "optional": true,
       "type": "per-sample"
     },
+    "alignment-normal": {
+      "filepath": "{{ alias }}/bam/normal/reads.bam",
+      "title": "Alignment file (normal)",
+      "description": "BAM or CRAM file with the aligned reads for the normal sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "alignment-index-normal": {
+      "filepath": "{{ alias }}/bam/normal/reads.bam.bai",
+      "title": "Alignment file index (normal)",
+      "description": "The index of the resulting BAM or CRAM file with the aligned reads for the normal sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "alignment-tumor": {
+      "filepath": "{{ alias }}/bam/tumor/reads.bam",
+      "title": "Alignment file (tumor)",
+      "description": "BAM or CRAM file with the aligned reads for the tumor sample.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "alignment-index-tumor": {
+      "filepath": "{{ alias }}/bam/tumor/reads.bam.bai",
+      "title": "Alignment file index (tumor)",
+      "description": "The index of the resulting BAM or CRAM file with the aligned reads for the tumor sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
     "haplotagged-alignment-normal": {
       "filepath": "{{ alias }}_normal.ht.bam",
       "title": "Haplotagged alignment file (normal)",

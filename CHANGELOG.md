@@ -4,21 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [v1.4.0]
 ### Added
 - BED files for the VNTR regions in hg19/hg38 from [Severus](https://github.com/KolmogorovLab/Severus/tree/main/vntrs).
     - The appropriate file will be automatically selected for the appropriate genome, unless a user provides a custom bed with `--tr_bed`.
+- IGV configuration supporting VCF files from `--snv` and `--sv`.
+- Aligned BAM to the output, when re-alignment is required.
 
 ### Changed
 - Tweaked parameters for Severus to refine SV calling.
 - More informative log when a BAM called with an invalid basecaller model is provided.
 - Failures of processes involved in differentially modified loci and regions detection will not cause workflow to fail.
 - Updated `modkit` to v0.3.3.
+- Reconciled workflow `_ingress.nf` from wf-human-variation v2.4.0 and wf-template v5.2.5.
 
 ### Fixed
 - `-resume` failing for some `snv` processes.
-- Excessive memory usage for sample_probs process when using --mod leading to exit code 137.
+- Excessive memory usage for sample_probs process when using `--mod` leading to exit code 137.
 - Erroneous handling of inputs for the joint report.
+- Missing re-aligned XAM files in the output directory.
 
 ## [v1.3.1]
 ### Added

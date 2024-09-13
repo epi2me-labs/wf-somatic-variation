@@ -122,6 +122,13 @@
                     "default": false,
                     "description": "Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y,MT}.",
                     "help_text": "Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
+                },
+                "igv": {
+                    "title": "Show in IGV",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Visualize outputs in the EPI2ME IGV visualizer.",
+                    "help_text": "Enabling this option will visualize the output VCF files in the EPI2ME desktop app IGV visualizer."
                 }
             },
             "required": [

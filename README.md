@@ -155,6 +155,7 @@ input_reads.bam     ─── input_directory
 | out_dir | string | Directory for output of all workflow results. |  | output |
 | annotation | boolean | Perform SnpEff annotation. | If this option is deselected, VCFs will not be annotated with [SnpEff](https://pcingola.github.io/SnpEff/). | True |
 | include_all_ctgs | boolean | Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y,MT}. | Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases. | False |
+| igv | boolean | Visualize outputs in the EPI2ME IGV visualizer. | Enabling this option will visualize the output VCF files in the EPI2ME desktop app IGV visualizer. | False |
 
 
 ### Quality Control Options
@@ -243,6 +244,10 @@ Output files may be aggregated including information for all samples or provided
 | Single-change DSS input file (tumor) | {{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_tumor.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
 | Differentially modified loci (DML) per change type | {{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv | Differentially modified loci from DSS for a single modification type (e.g. 5mc). | per-sample |
 | Differentially modified regions (DMR) per change type | {{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv | Differentially modified regions from DSS for a single modification type (e.g. 5mc). | per-sample |
+| Alignment file (normal) | {{ alias }}/bam/normal/reads.bam | BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
+| Alignment file index (normal) | {{ alias }}/bam/normal/reads.bam.bai | The index of the resulting BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
+| Alignment file (tumor) | {{ alias }}/bam/tumor/reads.bam | BAM or CRAM file with the aligned reads for the tumor sample. | per-sample |
+| Alignment file index (tumor) | {{ alias }}/bam/tumor/reads.bam.bai | The index of the resulting BAM or CRAM file with the aligned reads for the tumor sample. | per-sample |
 | Haplotagged alignment file (normal) | {{ alias }}_normal.ht.bam | BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
 | Haplotagged alignment file index (normal) | {{ alias }}_normal.ht.bam.bai | The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample. | per-sample |
 | Haplotagged alignment file (tumor) | {{ alias }}_tumor.ht.bam | BAM or CRAM file with the haplotagged reads for the tumor sample. | per-sample |
@@ -389,6 +394,8 @@ All analyses are run using up to 128GB of RAM and 16 cores, computing `--sv` and
     * EPI2ME Desktop Application: disable the `Annotation` option. 
     * Command line: set `--annotation false`.
 + Short somatic Indel calling is supported only for `dna_r10` basecalling models.
++ Renaming, moving or deleting the input BAM, reference genome or the output directory from the location provided at runtime will cause IGV not to load.
++ The workflow expects either an uncompressed or bgzip-compressed reference. If the user provides a reference compressed not with bgzip, the workflow will run to completion, but won't be able to generate the necessary indexes to visualize the outputs in IGV.
 
 
 
