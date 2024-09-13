@@ -21,6 +21,7 @@ include {
     getGenome;
     report
     } from './modules/local/common'
+include { igv } from './lib/igv.nf'
 include {lookup_clair3_model; publish_snv} from './modules/local/wf-somatic-snv'
 include {
     alignment_stats; get_coverage; get_region_coverage; 
@@ -34,15 +35,17 @@ include { detect_basecall_model } from './lib/model.nf'
 
 // This is the only way to publish files from a workflow whilst
 // decoupling the publish from the process steps.
-process publish {
-    // publish inputs to output directory
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*"
+process publish {    // publish inputs to output directory
+    publishDir (
+        params.out_dir,
+        mode: "copy",
+        saveAs: { dirname ? "$dirname/$fname" : fname }
+    )
     input:
-        path fname
+        tuple path(fname), val(dirname)
     output:
         path fname
     """
-    echo "Writing output files."
     """
 }
 
@@ -102,6 +105,7 @@ workflow {
     ref = reference.ref
     ref_index = reference.ref_idx
     ref_cache = reference.ref_cache
+    ref_gzindex = reference.ref_gzidx
 
     // canonical ref and BAM channels to pass around to all processes
     ref_channel = ref
@@ -449,16 +453,20 @@ workflow {
         // Publish outputs in the appropriate folder
         clair_vcf.outputs | publish_snv
         snv_joint_report = clair_vcf.report_snv
+        snv_vcf = clair_vcf.vcf_ch
     } else {
         snv_joint_report = Channel.empty()
+        snv_vcf = Channel.empty()
     }
     
     // Start SV calling workflow
     if (params.sv){
         sv_result = sv(pass_bam_channel, ref_channel, OPTIONAL)
         sv_joint_report = sv_result.report_sv
+        sv_vcf = sv_result.sv_vcf
     } else {
         sv_joint_report = Channel.empty()
+        sv_vcf = Channel.empty()
     }
 
     // Extract modified bases
@@ -491,8 +499,56 @@ workflow {
         | combine(parameters)
         | report
 
-    // Emit version and parameters
-    publish(versions.concat(parameters).concat(report.out))
+    // Add BAM to output if it has been realigned
+    artifacts_ch = all_bams
+        // Create the candidate output files to begin with. Given that ingress renames all files
+        // to `read.bam`, we need to manually place them in different dirs.
+        | map { xam, xai, meta -> [ [xam, xai], "${meta.alias}/bam/${meta.type}", meta ] }
+        // Transpose to have a single file per tuple
+        | transpose
+        // Emit only BAMs that are processed by the wf (`src_xam` is set to null).
+        | filter( { it[2].to_align || !it[2].src_xam } )
+        // Drop the metadata; avoid literals to allow for empty channels
+        | map{ it[0..1] }
+        | concat(
+            versions | map { fname -> [fname, null] },
+            parameters | map { fname -> [fname, null] },
+            report.out | map { fname -> [fname, null] }
+        )
+
+    // Create IGV configuration
+    // To avoid saving the reference as an output (we just recently removed it),
+    // We instead pass it as a string of params.ref. Given the following assumptions:
+    // 1. the igv.json is only relevant in the desktop app, and
+    // 2. the desktop app only passes absolute paths
+    // The IGV configuration should work even when passing the input variable as file name.
+    if (params.igv){
+        // Prepare appropriate BAM files for IGV
+        // The workflow can have the following scenarios:
+        // 1. input BAMs > use absolute paths
+        // 2. re-aligned input BAMs > use emitted aligned BAMs
+        
+        // Define output files
+        igv_out = ref_channel
+            // Add gzipped reference indexes
+            | combine(ref_gzindex | ifEmpty([null, null, null]))
+            | map {
+                fasta, fai, cache, path_env, gzref, gzfai, gzi ->
+                if (gzref){
+                    [gzref, gzfai, gzi]
+                } else {
+                    [fasta, fai]
+                }
+            }
+            | mix(
+                snv_vcf | map { meta, vcf, tbi -> [vcf, tbi] },
+                sv_vcf | map { meta, vcf, tbi -> [vcf, tbi] },
+            )
+            | igv
+    }
+
+    // Emit final set of outputs.
+    artifacts_ch | publish
 }
 
 workflow.onComplete {
