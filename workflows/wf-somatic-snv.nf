@@ -55,6 +55,16 @@ workflow snv {
         clairs_model
         clair3_model
     main:
+        // Create a new bam channel with a copy of meta
+        // This way, if the metadata for the input channels are changed by
+        // other components, this should not be impacted.
+        input_bam_ch = bam_channel
+        | map {
+            xam, xai, meta ->
+            def new_meta = meta.clone()
+            [xam, xai, new_meta]
+        }
+
         // Log the chosen models
         clair3_model.subscribe{ log.info " - Clair3 model: ${it}" }
         clairs_model.subscribe{ log.info " - ClairS model: ${it}" }
@@ -75,7 +85,7 @@ workflow snv {
         }.collect()  // Use collect to create a value channel
 
         // Branch tumor and normal for downstream works
-        forked_channel = bam_channel
+        forked_channel = input_bam_ch
         | branch{
             tumor: it[2].type == 'tumor'
             normal: it[2].type == 'normal'
@@ -93,20 +103,20 @@ workflow snv {
         wf_build_regions( paired_samples, ref.collect(), clairs_model, bed, typing_ch )
         
         // Define default and placeholder channels for downstream processes.
-        bam_for_germline = params.germline ? bam_channel : Channel.empty()
+        bam_for_germline = params.germline ? input_bam_ch : Channel.empty()
         paired_vcfs = Channel.empty()
-        aggregated_vcfs = bam_channel.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
+        aggregated_vcfs = input_bam_ch.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
         forked_vcfs = Channel.empty()
         
         // If a normal vcf is provided, skip clair3 calling for the normal sample.
         if (params.normal_vcf){
             // Use the metadata from the bam channel
             // Use the vcf for the normal channel.
-            normal_vcf = bam_channel
+            normal_vcf = input_bam_ch
                 .filter{bam, bai, meta -> meta.type == 'normal'}
                 .map{ bam, bai, meta -> [meta, file("${params.normal_vcf}"), file("${params.normal_vcf}.tbi")] }
             // Prepare the channel for Clair3 to contain only normal samples.
-            bam_for_germline = bam_channel
+            bam_for_germline = input_bam_ch
                 .filter{bam, bai, meta -> meta.type != 'normal'}
         } 
 
@@ -324,7 +334,7 @@ workflow snv {
         // If skip phasing, set channel for downstream compatibility.
         if (!params.germline){
             paired_vcfs = Channel.empty()
-            aggregated_vcfs = bam_channel.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
+            aggregated_vcfs = input_bam_ch.map { bam, bai, meta -> [meta, file("$projectDir/data/OPTIONAL_FILE"), file("$projectDir/data/OPTIONAL_FILE")] }
         } else{
             aggregated_vcfs = aggregate_all_variants.out.final_vcf
         }
@@ -522,7 +532,7 @@ workflow snv {
 
             // Create tagged reads channel for downstream analyses.
             // Set contigs to all to avoid issues of duplicated file names.
-            tagged = bam_channel
+            tagged = input_bam_ch
             | map{bam, bai, meta -> [meta.sample, 'all', bam, bai, meta]}
         }
 
@@ -557,7 +567,7 @@ workflow snv {
                 xam_for_hap_filter = tagged
                 | map{ samp, ctg, xam, xai, meta -> [meta, ctg, xam, xai] }
             } else {
-                xam_for_hap_filter = bam_channel
+                xam_for_hap_filter = input_bam_ch
                     | map{xam, xai, meta -> [meta, xam, xai]}
                     | combine(clairs_contigs, by:0)
                     | map{meta, xam, xai, ctg -> [meta, ctg, xam, xai]}

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - More informative log when a BAM called with an invalid basecaller model is provided.
 - Failures of processes involved in differentially modified loci and regions detection will not cause workflow to fail.
 - Updated `modkit` to v0.3.3.
-- Reconciled workflow `_ingress.nf` from wf-human-variation v2.4.0 and wf-template v5.2.5.
+- Reconciled workflow `_ingress.nf` from wf-human-variation v2.4.0 and wf-template v5.2.6.
 
 ### Fixed
 - `-resume` failing for some `snv` processes.
