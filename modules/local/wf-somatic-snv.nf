@@ -85,7 +85,7 @@ process makeReport {
             path(typing_vcf),
             val(typing_opt)
     output:
-        tuple val(meta), path("*report.html"), emit: html
+        tuple val(meta), path("${params.sample_name}.wf-somatic-snv-report.html"), emit: html
     script:
         // Define report name.
         def report_name = "${params.sample_name}.wf-somatic-snv-report.html"
@@ -464,13 +464,13 @@ process clairs_create_paired_tensors {
             val(variant_type),
             path(candidate),
             path(intervals),
-            path("tmp/pileup_tensor_can/")
+            path("pileup_tensor_can/")
             
     script:
         // If min_bq provided, use it; otherwise, if HAC model and is SNV then set min_bq to 15. 
         def min_bq = params.min_bq ? "--min_bq ${params.min_bq}" : model =~ "hac" && variant_type == 'snv' ? "--min_bq 15" : ""
         """
-        mkdir -p tmp/pileup_tensor_can
+        mkdir -p pileup_tensor_can
         pypy3 \$CLAIRS_PATH/clairs.py create_pair_tensor_pileup \\
             --normal_bam_fn ${normal_bam.getName()} \\
             --tumor_bam_fn ${tumor_bam.getName()} \\
@@ -478,7 +478,7 @@ process clairs_create_paired_tensors {
             --samtools samtools \\
             --ctg_name ${region.contig} \\
             --candidates_bed_regions ${intervals} \\
-            --tensor_can_fn tmp/pileup_tensor_can/${intervals.getName()} \\
+            --tensor_can_fn pileup_tensor_can/${intervals.getName()} \\
             --platform ont \\
             ${min_bq}
         """
@@ -515,7 +515,10 @@ process clairs_predict_pileup {
             path(intervals),
             path(tensor)
     output:
-        tuple val(meta), val(variant_type), path("vcf_output/*p_${intervals.getName()}.vcf"), optional: true
+        tuple val(meta),
+            val(variant_type),
+            path("vcf_output/${variant_type == 'indel' ? 'indel_p' : 'p'}_${intervals.getName()}.vcf"),
+            optional: true
             
     script:
         // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
@@ -667,7 +670,11 @@ process clairs_predict_full {
             path(tensor),
             val(model)
     output:
-        tuple val(meta), val(variant_type), path("vcf_output/*fa_${intervals.getName()}.vcf"), emit: full_vcfs, optional: true
+        tuple val(meta),
+            val(variant_type),
+            path("vcf_output/${variant_type == 'indel' ? 'indel_fa' : 'fa'}_${intervals.getName()}.vcf"),
+            emit: full_vcfs,
+            optional: true
             
     script:
         // If requested, hybrid/genotyping mode, or vcf_fn are provided, then call also reference sites and germline sites.
@@ -757,8 +764,8 @@ process clairs_full_hap_filter {
     output:
         tuple val(meta), 
             val(variant_type),
-            path("vcf_output/*pileup_filter.vcf"),
-            path("vcf_output/*full_alignment_filter.vcf"),
+            path("vcf_output/${ctg}_${variant_type == 'indel' ? 'indel_pileup_filter.vcf' : 'pileup_filter.vcf'}"),
+            path("vcf_output/${ctg}_${variant_type == 'indel' ? 'indel_full_alignment_filter.vcf' : 'full_alignment_filter.vcf'}"),
             emit: filtered_vcfs
             
     script:
