@@ -1,6 +1,6 @@
 # Somatic variation workflow
 
-Nextflow workflow to identify somatic variation.
+Human (somatic) SNV, SV, and modified base calling.
 
 
 
