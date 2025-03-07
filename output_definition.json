@@ -81,7 +81,7 @@
       "type": "per-sample"
     },
     "per-mod-type-bedmethyl-normal": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/bedMethyl/{{ mod_type }}.{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz",
       "title": "Single-change BEDMethyl (normal)",
       "description": "BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the normal sample.",
       "mime-type": "application/gzip",
@@ -89,7 +89,7 @@
       "type": "per-sample"
     },
     "per-mod-type-dss-normal": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_normal.dss.tsv",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/DSS/{{ mod_type }}.{{ alias }}_normal.dss.tsv",
       "title": "Single-change DSS input file (normal)",
       "description": "Input text file for DSS for a single modification type (e.g. 5mc) for the normal sample.",
       "mime-type": "text/txt",
@@ -113,7 +113,7 @@
       "type": "per-sample"
     },
     "per-mod-type-bedmethyl-tumor": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/bedMethyl/{{ mod_type }}.{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz",
       "title": "Single-change BEDMethyl (tumor)",
       "description": "BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the tumor sample.",
       "mime-type": "application/gzip",
@@ -121,7 +121,7 @@
       "type": "per-sample"
     },
     "per-mod-type-dss-tumor": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_tumor.dss.tsv",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/DSS/{{ mod_type }}.{{ alias }}_tumor.dss.tsv",
       "title": "Single-change DSS input file (tumor)",
       "description": "Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample.",
       "mime-type": "text/txt",
@@ -129,7 +129,7 @@
       "type": "per-sample"
     },
     "per-mod-type-differentially-modified-loci": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/DML/{{ alias }}.{{ mod_type }}.dml.tsv",
       "title": "Differentially modified loci (DML) per change type",
       "description": "Differentially modified loci from DSS for a single modification type (e.g. 5mc).",
       "mime-type": "text/txt",
@@ -137,7 +137,7 @@
       "type": "per-sample"
     },
     "per-mod-type-differentially-modified-region": {
-      "filepath": "{{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv",
+      "filepath": "{{ alias }}/mod/{{ mod_type }}/DMR/{{ alias }}.{{ mod_type }}.dmr.tsv",
       "title": "Differentially modified regions (DMR) per change type",
       "description": "Differentially modified regions from DSS for a single modification type (e.g. 5mc).",
       "mime-type": "text/txt",
