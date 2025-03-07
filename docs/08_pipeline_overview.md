@@ -99,7 +99,6 @@ and allow full control over the run of modkit. For more details on the usage
 of `modkit pileup`, checkout the software [documentation](https://nanoporetech.github.io/modkit/).
 The workflow will perform differential modification analyses using [DSS](https://bioconductor.org/packages/DSS/)
 when the user provides both tumor and normal samples.
-The outputs for the differentially modified loci (DML) for each modification are saved in subfolders with the structure `{{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv`, where `alias` is the sample name provided with `--sample_name`, and `mod type` is the modification type analysed (e.g. 5mC). The differentially modified regions (DMR) can be found in a similar path: `{{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv`
 DSS is very resource intensive, and might easily run out of memory. Therefore, it is possible to skip this step by setting `--diff_mod false`, saving compute time and allowing the workflow to run to completion.
 
 

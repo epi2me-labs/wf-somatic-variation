@@ -236,14 +236,14 @@ Output files may be aggregated including information for all samples or provided
 | Somatic structural variant VCF index | {{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
 | Modified bases BEDMethyl (normal) | {{ alias }}.wf-somatic-mod.normal.bedmethyl.gz | BED file with the aggregated modification counts for the normal sample. | per-sample |
 | Modified bases summary (normal) | {{ alias }}.normal.mod_summary.tsv | Summary modification stats for the normal sample. | per-sample |
-| Single-change BEDMethyl (normal) | {{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz | BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the normal sample. | per-sample |
-| Single-change DSS input file (normal) | {{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_normal.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the normal sample. | per-sample |
+| Single-change BEDMethyl (normal) | {{ alias }}/mod/{{ mod_type }}/bedMethyl/{{ mod_type }}.{{ alias }}.wf-somatic-mod.normal.bedmethyl.gz | BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the normal sample. | per-sample |
+| Single-change DSS input file (normal) | {{ alias }}/mod/{{ mod_type }}/DSS/{{ mod_type }}.{{ alias }}_normal.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the normal sample. | per-sample |
 | Modified bases BEDMethyl (tumor) | {{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz | BED file with the aggregated modification counts for the tumor sample. | per-sample |
 | Modified bases summary (tumor) | {{ alias }}.normal.mod_summary.tsv | Summary modification stats for the tumor sample. | per-sample |
-| Single-change BEDMethyl (tumor) | {{ alias }}/mod/{{ mod type }}/bedMethyl/{{ mod type }}.{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz | BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
-| Single-change DSS input file (tumor) | {{ alias }}/mod/{{ mod type }}/DSS/{{ mod type }}.{{ alias }}_tumor.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
-| Differentially modified loci (DML) per change type | {{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv | Differentially modified loci from DSS for a single modification type (e.g. 5mc). | per-sample |
-| Differentially modified regions (DMR) per change type | {{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv | Differentially modified regions from DSS for a single modification type (e.g. 5mc). | per-sample |
+| Single-change BEDMethyl (tumor) | {{ alias }}/mod/{{ mod_type }}/bedMethyl/{{ mod_type }}.{{ alias }}.wf-somatic-mod.tumor.bedmethyl.gz | BED file with the aggregated modification counts for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
+| Single-change DSS input file (tumor) | {{ alias }}/mod/{{ mod_type }}/DSS/{{ mod_type }}.{{ alias }}_tumor.dss.tsv | Input text file for DSS for a single modification type (e.g. 5mc) for the tumor sample. | per-sample |
+| Differentially modified loci (DML) per change type | {{ alias }}/mod/{{ mod_type }}/DML/{{ alias }}.{{ mod_type }}.dml.tsv | Differentially modified loci from DSS for a single modification type (e.g. 5mc). | per-sample |
+| Differentially modified regions (DMR) per change type | {{ alias }}/mod/{{ mod_type }}/DMR/{{ alias }}.{{ mod_type }}.dmr.tsv | Differentially modified regions from DSS for a single modification type (e.g. 5mc). | per-sample |
 | Alignment file (normal) | {{ alias }}/bam/normal/reads.bam | BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
 | Alignment file index (normal) | {{ alias }}/bam/normal/reads.bam.bai | The index of the resulting BAM or CRAM file with the aligned reads for the normal sample. | per-sample |
 | Alignment file (tumor) | {{ alias }}/bam/tumor/reads.bam | BAM or CRAM file with the aligned reads for the tumor sample. | per-sample |
@@ -359,7 +359,6 @@ and allow full control over the run of modkit. For more details on the usage
 of `modkit pileup`, checkout the software [documentation](https://nanoporetech.github.io/modkit/).
 The workflow will perform differential modification analyses using [DSS](https://bioconductor.org/packages/DSS/)
 when the user provides both tumor and normal samples.
-The outputs for the differentially modified loci (DML) for each modification are saved in subfolders with the structure `{{ alias }}/mod/{{ mod type }}/DML/{{ alias }}.{{ mod type }}.dml.tsv`, where `alias` is the sample name provided with `--sample_name`, and `mod type` is the modification type analysed (e.g. 5mC). The differentially modified regions (DMR) can be found in a similar path: `{{ alias }}/mod/{{ mod type }}/DMR/{{ alias }}.{{ mod type }}.dmr.tsv`
 DSS is very resource intensive, and might easily run out of memory. Therefore, it is possible to skip this step by setting `--diff_mod false`, saving compute time and allowing the workflow to run to completion.
 
 
