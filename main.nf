@@ -22,7 +22,11 @@ include {
     report
     } from './modules/local/common'
 include { igv } from './lib/igv.nf'
-include {lookup_clair3_model; publish_snv} from './modules/local/wf-somatic-snv'
+include {
+    lookup_clair3_model;
+    lookup_clair3_model as lookup_clairS_model;
+    publish_snv
+} from './modules/local/wf-somatic-snv'
 include {
     alignment_stats; get_coverage; get_region_coverage; 
     publish_qc; get_shared_region
@@ -376,76 +380,40 @@ workflow {
         basecaller_cfg = detect_basecall_model.out.basecaller_cfg
         pass_bam_channel = detect_basecall_model.out.bam_channel
 
-        // Lookup models
+        // Get Clair3 model
+        clair3_model = lookup_clair3_model(
+            Channel.fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true),
+            basecaller_cfg,
+            "Clair3",
+            false
+        )
+        
         if (run_tumor_only){
-            // Import the table of ClairS-TO models, retaining:
-            // 1. basecaller model name
-            // 2. ClairS-TO model name
-            lookup_table_cls = Channel
-                                .fromPath("${projectDir}/data/clairs_models_to.tsv", checkIfExists: true)
-                                | splitCsv(sep: '\t', header: true)
-                                | map{ it -> [it.basecall_model_name, it.clairs_to_model_name, "-", it.clairs_to_nomodel_reason] }
-        } else {
-            lookup_table_cls = Channel
-                .fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true)
-                | splitCsv(sep: '\t', header: true)
-                | map{ it -> [it.basecall_model_name, it.clairs_model_name, it.liquid_model_name_override, it.clairs_nomodel_reason] }
-        }
-        // Check that the provided basecaller_cfg is in the table.
-        // If the user asks liquid_tumor, and the column has a valid model, then use that.
-        // Otherwise, use regular ClairS model.
-        clairs_model_ch = basecaller_cfg
-            | cross(lookup_table_cls)
-        clairs_model = clairs_model_ch
-            | filter{ caller, info -> info[1] != '-' }
-            | map{
-                caller, info -> 
-                model = params.liquid_tumor && info[2] != '-' && params.bam_normal ? info[2] : info[1]
-            }
-        // Log which models have been chosen.
-        // If the model is not supported, throw error with informative message.
-        clairs_model_ch
-        | map {
-            caller, info -> 
-            clairs_model = params.liquid_tumor && info[2] != '-' ? info[2] : info[1]
-            clairs_nomodel_msg = info[3]
-            [caller, clairs_model, clairs_nomodel_msg]
-        }
-        | subscribe{
-            caller, model, clairs_nomodel_reason -> 
-            if (clairs_nomodel_reason != '-'){
-                throw new Exception(colors.red + "${caller} - ${clairs_nomodel_reason}" + colors.reset)
-            }
-        }
-
-
-        // Import the table of Clair3 models, retaining:
-        // 1. basecaller model name
-        // 2. Clair3 model name
-        lookup_table_cl3 = Channel
-            .fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
-            | splitCsv(sep: '\t', header: true)
-            | map{ it -> [it.basecall_model_name, it.clair3_model_name, it.clair3_nomodel_reason] }
-        // Check that the provided basecaller_cfg is in the table.
-        clair3_model = basecaller_cfg
-            | cross(lookup_table_cl3)
-            | filter{ caller, info -> info[1] != '-' }
-            | map{caller, info -> info[1] }
-
-        if (run_tumor_only){
+            clairS_model = lookup_clairS_model(
+                Channel.fromPath("${projectDir}/data/clairs_models_to.tsv", checkIfExists: true),
+                basecaller_cfg,
+                "ClairS_TO",
+                false
+            )
             clair_vcf = snv_to(
                 pass_bam_channel,
                 bed,
                 ref_channel,
-                clairs_model,
+                clairS_model,
                 clair3_model
             )
         } else {
+            clairS_model = lookup_clairS_model(
+                Channel.fromPath("${projectDir}/data/clairs_models.tsv", checkIfExists: true),
+                basecaller_cfg,
+                "ClairS",
+                params.liquid_tumor
+            )
             clair_vcf = snv(
                 pass_bam_channel,
                 bed,
                 ref_channel,
-                clairs_model,
+                clairS_model,
                 clair3_model
             )
         }

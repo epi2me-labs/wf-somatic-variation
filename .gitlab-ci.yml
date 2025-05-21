@@ -46,14 +46,15 @@ docker-run:
                 "all", "all-igv",
                 "unmap", "liquid-model",
                 "input-multibam-dirs", "snv-r10-no_annot",
-                "tumor-only", "tumor-only-fail", 
+                "tumor-only", "tumor-only-fail",
                 "snv-bed", "snv-gvcf", 
                 "wf-somatic-snv-r10-gt", "wf-somatic-snv-r10-hy",
                 "snv-r10-normal_vcf", "snv-r10-som_only", 
                 "snv-r10", "snv-r9", "snv-r10-fail",
                 "sv", "sv-args", "sv-full",
                 "mod", "mod-no-dss", "mod-fail-dss", 
-                "mod-strand", "mod-args"
+                "mod-strand", "mod-args",
+                "unknown-basecaller-fail"
             ]
     rules:
         # NOTE As we're overriding the rules block for the included docker-run
@@ -109,7 +110,7 @@ docker-run:
         - if: $MATRIX_NAME == "snv-fail-model-v500"
           variables:
               NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
-              NF_PROCESS_FILES: "modules/local/wf-somatic-sv.nf"
+              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
               NF_WORKFLOW_OPTS: "--snv \
                   --sample_name SAMPLE \
                   --ubam_sort_threads 1 --ubam_map_threads 4 \
@@ -120,7 +121,7 @@ docker-run:
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
               ASSERT_NEXTFLOW_FAILURE: "yes"
-              ASSERT_NEXTFLOW_FAILURE_REXP : "ClairS has not been trained on this basecalling configuration"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "ClairS has not been trained on this"
 
         - if: $MATRIX_NAME == "snv-fail-model-mixed"
           variables:
@@ -151,22 +152,6 @@ docker-run:
                   --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
                   -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
               NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
-
-        - if: $MATRIX_NAME == "invalid-model"
-          variables:
-              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
-              NF_PROCESS_FILES: "modules/local/wf-somatic-snv.nf"
-              NF_WORKFLOW_OPTS: "--snv \
-                  --sample_name SAMPLE \
-                  --ubam_sort_threads 1 --ubam_map_threads 4 \
-                  --tumor_min_coverage 0 --normal_min_coverage 0 \
-                  --bam_normal ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829bl.ubam \
-                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/colo829.ubam \
-                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
-                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
-              NF_IGNORE_PROCESSES: "lookup_clair3_model,add_missing_vars,getVariantType,clairs_full_hap_filter,concat_hap_filtered_vcf"
-              ASSERT_NEXTFLOW_FAILURE: "yes"
-              ASSERT_NEXTFLOW_FAILURE_REXP : "ClairS has not been trained on this basecalling configuration"
 
         - if: $MATRIX_NAME == "snv-r9"
           variables:
@@ -480,6 +465,19 @@ docker-run:
               NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
               ASSERT_NEXTFLOW_FAILURE: "yes"
               ASSERT_NEXTFLOW_FAILURE_REXP : "The tumor-only mode is not available with --sv"
+
+        - if: $MATRIX_NAME == "unknown-basecaller-fail"
+          variables:
+              NF_BEFORE_SCRIPT: "mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/demo_data.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/demo_data.tar.gz -C ${CI_PROJECT_NAME}/data/; wget -O ${CI_PROJECT_NAME}/data/demo.nextflow.config https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/demo.nextflow.config"
+              NF_WORKFLOW_OPTS: "--mod --snv --sample_name SAMPLE --ubam_sort_threads 1 --ubam_map_threads 2 \
+                  --tumor_min_coverage 0 --normal_min_coverage 0
+                  --bam_tumor ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/unknown_basecaller.ubam \
+                  --ref ${CI_PROJECT_NAME}/data/wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna \
+                  -c ${CI_PROJECT_NAME}/data/demo.nextflow.config"
+              NF_PROCESS_FILES: "workflows/mod.nf"
+              NF_IGNORE_PROCESSES: "getAllChromosomesBed,minimap2_ubam,getParams,getVersions,makeReport,summariseReads,lookup_clair3_model"
+              ASSERT_NEXTFLOW_FAILURE: "yes"
+              ASSERT_NEXTFLOW_FAILURE_REXP : "Unknown basecaller configuration"
 
         - if: $MATRIX_NAME == "input-multibam-dirs"
           variables:
