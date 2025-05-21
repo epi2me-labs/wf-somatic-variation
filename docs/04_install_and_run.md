@@ -50,7 +50,7 @@ nextflow run epi2me-labs/wf-somatic-variation \
 	--sv \
 	--mod \
 	--sample_name 'MYSAMPLE' \
-	 --ref 'wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna' \
+	--ref 'wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna' \
 	--bed 'wf-somatic-variation-demo/demo.bed' \
 	--bam_normal 'wf-somatic-variation-demo/demo_normal.bam' \
 	--bam_tumor 'wf-somatic-variation-demo/demo_tumor.bam' \

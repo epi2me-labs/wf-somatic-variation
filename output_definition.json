@@ -51,7 +51,7 @@
     "sv-vcf": {
       "filepath": "{{ alias }}.wf-somatic-sv.vcf.gz",
       "title": "Somatic structural variant VCF",
-      "description": "VCF file with the somatic SVs for the sample.",
+      "description": "VCF file with the somatic SVs for the sample. In tumor-only mode the VCF file is annotated with HG38 segmental duplication regions under the SegDup heading.",
       "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"

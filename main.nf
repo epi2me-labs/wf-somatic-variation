@@ -74,10 +74,6 @@ workflow {
         log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
         can_start = false
     }
-    if (run_tumor_only && params.sv) {
-        log.error (colors.red + "The tumor-only mode is not available with --sv" + colors.reset)
-        can_start = false
-    }
     if (run_tumor_only && params.snv && params.liquid_tumor) {
         log.warn "The SNV tumor-only mode currently has no specific presets for liquid tumors."
     }

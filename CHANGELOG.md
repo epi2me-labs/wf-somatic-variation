@@ -5,11 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v1.5.0]
+This version of wf-somatic-variation updates Severus to allow for tumor-only structural variant calling.
+With this update, the workflow can be run in its entirety with paired tumour and normal samples or with just the tumour sample.
+
+### Added
+- Tumor-only mode for `--sv`, meaning all three subworkflows can now be run with tumor data only.
+    - This relies on [`Severus v1.2`](https://github.com/KolmogorovLab/Severus/).
+    - Structural variants called in this mode are further annotated with GIAB's segmental duplication annotations.
+    - Users can provide their own panel of normals (PoN) files, otherwise a default is chosen for them (only available for HG38). 
+
 ### Changed
 - Updated to wf-human-variation v2.7.0.
-- Alignment uses the high quality long read preset (-x lr:hq) to reduce mapping time. This is the minimap2 preset already used by MinKNOW and Dorado.
-- To avoid misspelled parameters not having the intended effect, unexpected parameters will now cause the workflow to error.
-    - Users must correct or remove unexpected parameters from their workflow command.
+    - Alignment uses the high quality long read preset (-x lr:hq) to reduce mapping time. This is the minimap2 preset already used by MinKNOW and Dorado.
+    - To avoid misspelled parameters not having the intended effect, unexpected parameters will now cause the workflow to error.
+        - Users must correct or remove unexpected parameters from their workflow command.
 - Updated to wf-template v5.6.1, changing:
     - Reduce verbosity of debug logging from fastcat which can occasionally occlude errors found in FASTQ files during ingress.
     - Log banner art to say "EPI2ME" instead of "EPI2ME Labs" to match current branding. This has no effect on the workflow outputs.
@@ -21,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Sequence summary read length N50 incorrectly displayed minimum read length, it now correctly shows the N50.
     - Sequence summary component alignment and coverage plots failed to plot under some conditions.
 - The workflow will exit with an error if a basecaller model is unsupported, instead of silently skipping analysis.
-
 
 ## [v1.4.1]
 ### Changed

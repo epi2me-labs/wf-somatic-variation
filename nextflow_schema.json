@@ -101,7 +101,14 @@
                     "type": "string",
                     "format": "file-path",
                     "description": "An optional BED file enumerating simple repeat regions.",
-                    "help_text": "This option provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
+                    "help_text": "This parameter provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
+                },
+                "pon_file": {
+                    "title": "Panel of Normals file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional Panel of Normals file enumerating normal expected structural variants.",
+                    "help_text": "This parameter provides a TSV file specifying the location of expected structural variations in the genome of choice. [Severus](https://github.com/KolmogorovLab/Severus/blob/main/scripts/pon_from_vcf.py) includes a script to generate these from a VCF file. A default is used for HG38, generated from the 1000 genomes project."
                 },
                 "out_dir": {
                     "title": "Output directory",
