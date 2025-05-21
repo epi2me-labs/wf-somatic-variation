@@ -1,4 +1,4 @@
-This workflow calls variants from the alignment files of a paired tumor/normal sample.
+This workflow calls variants from the alignment files of a paired tumor/normal, or tumor-only sample.
 
 This workflow can be used for the following: 
 

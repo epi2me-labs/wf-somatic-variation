@@ -80,7 +80,7 @@ The behaviour of Severus can be tweaked with the options:
 1. `--min_sv_length`: minimum size of SVs to call
 1. `--min_support`: minimum number of reads to support an SV call
 1. `--vaf_threshold`: sites with variant allele frequency (VAF) below this value will be filtered out 
-1. `--severus_args`: additional arguments for Severus
+1. `--severus_args`: additional arguments for Severus; note this will override the default options used (`--single-bp --resolve-overlaps --between-junction-ins`).
 
 SVs called using the GRCh37 or GRCh38 genomes can be annotated using [SnpEff](https://pcingola.github.io/SnpEff/) 
 by setting `--annotation true`.
@@ -105,11 +105,36 @@ DSS is very resource intensive, and might easily run out of memory. Therefore, i
 ### 6. Tumor-only mode
 
 It is possible to run a reduced version of the workflow using only the tumor BAM files.
-Currently, only the following components can run in tumor-only mode:
+Currently, the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
 - `--snv`: the workflow will use [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO), instead of [ClairS](https://github.com/HKU-BAL/ClairS), to call SNVs.
+- `--sv`: The workflow will execute `Severus` with only the tumor file. The resultant VCF file is annotated using the Genome in a Bottle segmental duplication regions for hg38.
 
+When running in tumor-only mode, the absence of a matched normal sample means certain structural variant calls require extra scrutiny:
+
+- **Segmental-duplication overlaps (SEG_DUP)**
+
+    SVs annotated as overlapping GIAB segmental-duplication regions tend to fall in low‐complexity, highly‐repetitive blocks.
+    These highly repetitive regions are difficult to represent reliably in a Panel of Normals (PoN), so somatic/non-somatic discrimination tends to break down here.
+    Treat any variant annotated with INFO/SEG_DUP more cautiously.
+
+- **Variable number tandem repeat (VNTR) insertions**
+
+    Breakpoints inside known VNTR loci (flagged by INSIDE_VNTR if both breakpoints are inside the same VNTR) are likewise prone to false positives due to confounding alignments.
+    Apparent insertions in VNTRs should be confirmed by repeat-aware callers or inspected in a genome browser.
+
+- **False positives from PoN gaps**
+
+    In tumor-only mode, structural variant analysis relies on a Panel of Normals (PoN) to filter expected/common germline SVs.
+    Any false positive call that passes filtering but isn’t in the PoN often represents either:
+    - A true germline or population-level variant absent from your PoN
+    - An alignment-based discrepancy (e.g. mapping quirks around indels, segmental duplications, or low-complexity sequence). In a matched tumor/normal analysis these would be removed as “non-somatic” due to their presence in the normal.
+
+In conclusion, when in tumor-only mode, consider:
+- Checking repeats in VNTR or SEG_DUP regions against population databases (e.g. gnomAD SV, dbVar).
+- Manually inspecting reads in IGV or using a secondary SV caller.
+- Expanding your PoN with additional normal samples to capture cohort-specific variation.
 
 ### 7. Run the workflow on a region
 When sequencing specific regions or genes, the runtime can vary substantially.

@@ -6,7 +6,7 @@ Human (somatic) SNV, SV, and modified base calling.
 
 ## Introduction
 
-This workflow calls variants from the alignment files of a paired tumor/normal sample.
+This workflow calls variants from the alignment files of a paired tumor/normal, or tumor-only sample.
 
 This workflow can be used for the following: 
 
@@ -91,7 +91,7 @@ nextflow run epi2me-labs/wf-somatic-variation \
 	--sv \
 	--mod \
 	--sample_name 'MYSAMPLE' \
-	 --ref 'wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna' \
+	--ref 'wf-somatic-variation-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set_chr20.fna' \
 	--bed 'wf-somatic-variation-demo/demo.bed' \
 	--bam_normal 'wf-somatic-variation-demo/demo_normal.bam' \
 	--bam_tumor 'wf-somatic-variation-demo/demo_tumor.bam' \
@@ -120,7 +120,7 @@ Find related protocols in the [Nanopore community](https://community.nanoporetec
 <!---Example of input directory structure, delete and edit as appropriate per workflow.--->
 This workflow accepts BAM files (aligned or unaligned) as input.
 
-The `--bam_tumor` and `--bam_normal` input parameters for this workflow accept the path to a single BAM file or folder containing multiple BAM files for the tumor sample and the normal sample, respectively. The normal sample is optional for some components. A sample name can be supplied with `--sample_name`.
+The `--bam_tumor` and `--bam_normal` input parameters for this workflow accept the path to a single BAM file or folder containing multiple BAM files for the tumor sample and the normal sample, respectively. The normal sample is optional. A sample name can be supplied with `--sample_name`.
 
 ```
 (i)                     (ii)    
@@ -151,7 +151,8 @@ input_reads.bam     ─── input_directory
 | bam_tumor | string | BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`. |  |
 | ref | string | Path to a reference FASTA file. | Reference against which to compare reads for variant calling. |  |
 | bed | string | An optional BED file enumerating regions to process for variant calling. |  |  |
-| tr_bed | string | An optional BED file enumerating simple repeat regions. | This option provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1). |  |
+| tr_bed | string | An optional BED file enumerating simple repeat regions. | This parameter provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1). |  |
+| pon_file | string | An optional Panel of Normals file enumerating normal expected structural variants. | This parameter provides a TSV file specifying the location of expected structural variations in the genome of choice. [Severus](https://github.com/KolmogorovLab/Severus/blob/main/scripts/pon_from_vcf.py) includes a script to generate these from a VCF file. A default is used for HG38, generated from the 1000 genomes project. |  |
 | out_dir | string | Directory for output of all workflow results. |  | output |
 | annotation | boolean | Perform SnpEff annotation. | If this option is deselected, VCFs will not be annotated with [SnpEff](https://pcingola.github.io/SnpEff/). | True |
 | include_all_ctgs | boolean | Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y,MT}. | Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases. | False |
@@ -232,7 +233,7 @@ Output files may be aggregated including information for all samples or provided
 | Workflow MOD report | {{ alias }}.wf-somatic-mod-report.html | Report of the modified bases for each tumor/normal paired sample. | per-sample |
 | Somatic short variant VCF | {{ alias }}.wf-somatic-snv.vcf.gz | VCF file with the somatic SNVs for the sample. | per-sample |
 | Somatic short variant VCF index | {{ alias }}.wf-somatic-snv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SNVs for the sample. | per-sample |
-| Somatic structural variant VCF | {{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. | per-sample |
+| Somatic structural variant VCF | {{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. In tumor-only mode the VCF file is annotated with HG38 segmental duplication regions under the SegDup heading. | per-sample |
 | Somatic structural variant VCF index | {{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
 | Modified bases BEDMethyl (normal) | {{ alias }}.wf-somatic-mod.normal.bedmethyl.gz | BED file with the aggregated modification counts for the normal sample. | per-sample |
 | Modified bases summary (normal) | {{ alias }}.normal.mod_summary.tsv | Summary modification stats for the normal sample. | per-sample |
@@ -340,7 +341,7 @@ The behaviour of Severus can be tweaked with the options:
 1. `--min_sv_length`: minimum size of SVs to call
 1. `--min_support`: minimum number of reads to support an SV call
 1. `--vaf_threshold`: sites with variant allele frequency (VAF) below this value will be filtered out 
-1. `--severus_args`: additional arguments for Severus
+1. `--severus_args`: additional arguments for Severus; note this will override the default options used (`--single-bp --resolve-overlaps --between-junction-ins`).
 
 SVs called using the GRCh37 or GRCh38 genomes can be annotated using [SnpEff](https://pcingola.github.io/SnpEff/) 
 by setting `--annotation true`.
@@ -365,11 +366,36 @@ DSS is very resource intensive, and might easily run out of memory. Therefore, i
 ### 6. Tumor-only mode
 
 It is possible to run a reduced version of the workflow using only the tumor BAM files.
-Currently, only the following components can run in tumor-only mode:
+Currently, the following components can run in tumor-only mode:
 - base workflow: BAM coverage and QC statistics
 - `--mod`: the workflow will run modkit on the tumor BAM file, but will skip the differentially modified region and loci detection
 - `--snv`: the workflow will use [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO), instead of [ClairS](https://github.com/HKU-BAL/ClairS), to call SNVs.
+- `--sv`: The workflow will execute `Severus` with only the tumor file. The resultant VCF file is annotated using the Genome in a Bottle segmental duplication regions for hg38.
 
+When running in tumor-only mode, the absence of a matched normal sample means certain structural variant calls require extra scrutiny:
+
+- **Segmental-duplication overlaps (SEG_DUP)**
+
+    SVs annotated as overlapping GIAB segmental-duplication regions tend to fall in low‐complexity, highly‐repetitive blocks.
+    These highly repetitive regions are difficult to represent reliably in a Panel of Normals (PoN), so somatic/non-somatic discrimination tends to break down here.
+    Treat any variant annotated with INFO/SEG_DUP more cautiously.
+
+- **Variable number tandem repeat (VNTR) insertions**
+
+    Breakpoints inside known VNTR loci (flagged by INSIDE_VNTR if both breakpoints are inside the same VNTR) are likewise prone to false positives due to confounding alignments.
+    Apparent insertions in VNTRs should be confirmed by repeat-aware callers or inspected in a genome browser.
+
+- **False positives from PoN gaps**
+
+    In tumor-only mode, structural variant analysis relies on a Panel of Normals (PoN) to filter expected/common germline SVs.
+    Any false positive call that passes filtering but isn’t in the PoN often represents either:
+    - A true germline or population-level variant absent from your PoN
+    - An alignment-based discrepancy (e.g. mapping quirks around indels, segmental duplications, or low-complexity sequence). In a matched tumor/normal analysis these would be removed as “non-somatic” due to their presence in the normal.
+
+In conclusion, when in tumor-only mode, consider:
+- Checking repeats in VNTR or SEG_DUP regions against population databases (e.g. gnomAD SV, dbVar).
+- Manually inspecting reads in IGV or using a secondary SV caller.
+- Expanding your PoN with additional normal samples to capture cohort-specific variation.
 
 ### 7. Run the workflow on a region
 When sequencing specific regions or genes, the runtime can vary substantially.
@@ -401,8 +427,6 @@ All analyses are run using up to 128GB of RAM and 16 cores, computing `--sv` and
 ## FAQ's
 
 + *Does the workflow calls 5hmC, on top of 5mC?* - Yes, the workflow does call 5hmC, but only if you performed the basecalling with the appropriate module; for more details, check out the [dorado github page](https://github.com/nanoporetech/dorado#dna-models).
-
-+ *Can I run the workflow in tumor-only mode?* - Yes, but currently this mode is only available for `--mod` and `--snv`.
 
 
 

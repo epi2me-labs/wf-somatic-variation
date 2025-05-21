@@ -2,7 +2,7 @@ import groovy.json.JsonBuilder
 
 include {
     severus;
-    sortVCF;
+    finaliseVCF;
     getVersions;
     getParams;
     report;
@@ -33,6 +33,13 @@ workflow somatic_sv {
             tr_bed = Channel.fromPath("$projectDir/data/OPTIONAL_FILE")
         }
 
+        // User provided PoN file
+        if (params.pon_file) {
+            pon_file = Channel.fromPath(params.pon_file, checkIfExists: true)
+        } else {
+            pon_file = Channel.fromPath("$projectDir/data/OPTIONAL_FILE")
+        }
+        boolean tumor_only = !params.bam_normal 
         // Create input channel of paired BAMs
         input_xam
             | map{xam, xai, meta -> [meta.sample, meta, xam, xai]}
@@ -41,11 +48,23 @@ workflow somatic_sv {
                 normal: it[1].type == 'normal'
             }
             | set{forked_xam}
-        paired_xam = forked_xam.normal
-        | combine(forked_xam.tumor, by: 0)
-        | map{
-            sample, meta_n, xam_n, xai_n, meta_t, xam_t, xai_t ->
-            [meta_t, xam_n, xai_n, xam_t, xai_t]
+
+        // split out the two bam streams for readability
+        def normals = forked_xam.normal
+        def tumors  = forked_xam.tumor
+
+        if (tumor_only) {
+            paired_xam = tumors.map{
+                _sample, meta_t, xam_t, xai_t-> 
+                [meta_t, optional_file, optional_file, xam_t, xai_t]
+            }
+        } else {
+            paired_xam = normals
+            | combine(tumors, by: 0)
+            | map{
+                _sample, _meta_n, xam_n, xai_n, meta_t, xam_t, xai_t ->
+                [meta_t, xam_n, xai_n, xam_t, xai_t]
+            }
         }
         // Run severus
         // Collect the reference to avoid queueing issues, and allowing future
@@ -53,24 +72,33 @@ workflow somatic_sv {
         severus(
             paired_xam,
             reference.collect(),
-            tr_bed
+            tr_bed,
+            tumor_only,
+            pon_file
         )
 
-        // Sort output
-        sortVCF(severus.out.vcf)
+        // annotation bed files, always staged but only used if tumor only is true
+        def seg_dup_annotation_files = channel.of([ 
+                file("${workflow.projectDir}/data/wf_str_repeats.bed.gz"), 
+                file("${workflow.projectDir}/data/wf_str_repeats.bed.gz.tbi") 
+        ])                
+
+        // Sort and filter output
+        // If tumor only, annotate with SegDup regions
+        finaliseVCF(severus.out.vcf, tumor_only, seg_dup_annotation_files)
 
         // Add snpEff annotation if requested
         if (params.annotation){
-            vcf_to_annotate = sortVCF.out.vcf_gz
-                .combine(sortVCF.out.vcf_tbi, by:0)
+            vcf_to_annotate = finaliseVCF.out.vcf_gz
+                .combine(finaliseVCF.out.vcf_tbi, by:0)
                 .map{ it << '*' }
             annotate_sv(vcf_to_annotate, 'somatic-sv')
             ch_vcf = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, vcf]}
             ch_tbi = annotate_sv.out.annot_vcf.map{meta, vcf, tbi -> [meta, tbi]}
         // Otherwise, create optional file from the vcf channel to preserve the structure
         } else {
-            ch_vcf = sortVCF.out.vcf_gz
-            ch_tbi = sortVCF.out.vcf_tbi
+            ch_vcf = finaliseVCF.out.vcf_gz
+            ch_tbi = finaliseVCF.out.vcf_tbi
         }
 
         // Prepare reports and outputs

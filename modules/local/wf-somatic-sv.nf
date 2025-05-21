@@ -18,6 +18,8 @@ process severus {
             path("tumor.bam.bai")
         tuple path(ref), path(fai), path(ref_cache), env(REF_PATH)
         path tr_bed
+        val tumor_only
+        path(pon_file, name: "pon_dir/*")
         
     output:
         tuple val(meta), path("severus-output/"), emit: all_outputs
@@ -45,6 +47,26 @@ process severus {
     options += params.vaf_threshold ? " --vaf-thr ${params.vaf_threshold}" : ""
     options += params.min_sv_length ? " --min-sv-size ${params.min_sv_length}" : ""
     options += params.min_support ? " --min-support ${params.min_support}" : ""
+    // If we are running tumor only, change this to empty string in below conditional block
+    def control_bam = "--control-bam normal.bam"
+    def pon_arg = ""
+    if (tumor_only) {
+        log.debug "Running Severus in tumor only mode"
+        control_bam = ""
+        // User provided PON file
+        if (pon_file.fileName.name != 'OPTIONAL_FILE'){
+            pon_arg = "--PON ${pon_file}"
+        } else {
+            // Use HG38 file, and warn if genome build is not HG38
+            if (meta.genome_build != "hg38") {
+                log.warn "Provided genome build is not hg38, but only available PON file is HG38. This may give unexpected result."
+            }
+            else {
+                log.warn "Automatically selecting PON file: PoN_1000G_${meta.genome_build}.tsv.gz"
+            }
+            pon_arg = "--PON \${WFSV_PON_PATH}/PoN_1000G_hg38.tsv.gz"
+        }
+    }  
     // Severus takes the sample ID for the VCF from the file name.
     // To be consistent with ClairS, rename:
     // - tumor BAM file > {meta.alias}.{bam|cram} > meta.alias becomes the name in the VCF
@@ -53,7 +75,8 @@ process severus {
     # Run severus
     severus \
         --target-bam tumor.bam \
-        --control-bam normal.bam \
+        ${control_bam} \
+        ${pon_arg} \
         --out-dir ./severus-output \
         --threads ${task.cpus} \
         ${tr_arg} \
@@ -63,24 +86,34 @@ process severus {
 
 // NOTE This is the last touch the VCF has as part of the workflow,
 //  we'll rename it with its desired output name here
-process sortVCF {
+// Here we sort, filter and annotate tumor only VCFs
+process finaliseVCF {
     cpus 2
     memory 4.GB
     input:
         tuple val(meta), path(vcf)
+        val(tumor_only)
+        tuple path("seg_dup.bed.gz"), path("seg_dup.bed.gz.tbi")
     output:
         tuple val(meta), path("${meta.alias}.wf-somatic-sv.vcf.gz"), emit: vcf_gz
         tuple val(meta), path("${meta.alias}.wf-somatic-sv.vcf.gz.tbi"), emit: vcf_tbi
     script:
+    // CW-5862 We are adding some annotations for segmental duplications
+    // in tumor_only mode
+    def annotate_to_segdup = tumor_only ? "| bcftools annotate -a seg_dup.bed.gz -c CHROM,FROM,TO,INFO/SEG_DUP -h annot.hdr" : ""
+    def annot_hdr = tumor_only ? 'echo \'##INFO=<ID=SEG_DUP,Number=1,Type=String,Description=\"GIAB segmental-duplication region ID\">\' > annot.hdr' : ''
     // Severus uses the input file name as sample ID. Fix this using meta.alias here.
     """
     # CW-4313: some INV created by Severus have INFO/END smaller than
     # POS. Exclude these from the final VCF file.
     # https://github.com/epi2me-labs/wf-somatic-variation/issues/28
     echo "tumor\t${meta.alias}" > sample_rename.txt
+    # If we are running tumor only, create header for annotation
+    ${annot_hdr}
     bcftools sort -m 2G -O v ${vcf} \
     | bcftools reheader -s sample_rename.txt - \
     | bcftools filter --threads ${task.cpus} -e "INFO/END < POS & INFO/SVTYPE == 'INV'" \
+    ${annotate_to_segdup} \
     | bgzip -c > ${meta.alias}.wf-somatic-sv.vcf.gz 
     bcftools index --threads ${task.cpus} -t ${meta.alias}.wf-somatic-sv.vcf.gz
     """
@@ -165,6 +198,7 @@ process publish_sv {
         tuple path(fname), val(dirname)
     output:
         path fname
-    """
-    """
+    script:
+        """
+        """
 }

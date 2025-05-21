@@ -8,7 +8,7 @@ Output files may be aggregated including information for all samples or provided
 | Workflow MOD report | {{ alias }}.wf-somatic-mod-report.html | Report of the modified bases for each tumor/normal paired sample. | per-sample |
 | Somatic short variant VCF | {{ alias }}.wf-somatic-snv.vcf.gz | VCF file with the somatic SNVs for the sample. | per-sample |
 | Somatic short variant VCF index | {{ alias }}.wf-somatic-snv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SNVs for the sample. | per-sample |
-| Somatic structural variant VCF | {{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. | per-sample |
+| Somatic structural variant VCF | {{ alias }}.wf-somatic-sv.vcf.gz | VCF file with the somatic SVs for the sample. In tumor-only mode the VCF file is annotated with HG38 segmental duplication regions under the SegDup heading. | per-sample |
 | Somatic structural variant VCF index | {{ alias }}.wf-somatic-sv.vcf.gz.tbi | The index of the resulting VCF file with the somatic SVs for the sample. | per-sample |
 | Modified bases BEDMethyl (normal) | {{ alias }}.wf-somatic-mod.normal.bedmethyl.gz | BED file with the aggregated modification counts for the normal sample. | per-sample |
 | Modified bases summary (normal) | {{ alias }}.normal.mod_summary.tsv | Summary modification stats for the normal sample. | per-sample |

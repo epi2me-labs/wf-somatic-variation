@@ -65,10 +65,10 @@ process getAllChromosomesBed {
         tuple path(reference), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
         path "allChromosomes.bed", emit: all_chromosomes_bed
-    """
-    awk '{OFS="\t"; print \$1, "0", \$2}' ${ref_idx} > allChromosomes.bed
-    # faidx --transform bed $reference > allChromosomes.bed
-    """
+    script:
+        """
+        awk '{OFS="\t"; print \$1, "0", \$2}' ${ref_idx} > allChromosomes.bed
+        """ 
 }
 
 
