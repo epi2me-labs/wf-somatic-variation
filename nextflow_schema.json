@@ -73,14 +73,14 @@
                     "type": "string",
                     "format": "path",
                     "description": "BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis.",
-                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`."
                 },
                 "bam_tumor": {
                     "title": "Tumor BAM",
                     "type": "string",
                     "format": "path",
                     "description": "BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis.",
-                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample`."
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`."
                 },
                 "ref": {
                     "title": "Reference genome file",
@@ -101,7 +101,7 @@
                     "type": "string",
                     "format": "file-path",
                     "description": "An optional BED file enumerating simple repeat regions.",
-                    "help_text": "This command provides a bed file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard bed file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
+                    "help_text": "This option provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
                 },
                 "out_dir": {
                     "title": "Output directory",

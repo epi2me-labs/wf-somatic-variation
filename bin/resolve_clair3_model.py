@@ -19,6 +19,8 @@ import textwrap
 parser = argparse.ArgumentParser()
 parser.add_argument("model_tsv")
 parser.add_argument("basecaller_cfg")
+parser.add_argument("clair_tool")
+parser.add_argument("--liquid_tumor", action='store_true', default=False)
 args = parser.parse_args()
 
 
@@ -27,7 +29,7 @@ def exit_obvious_error(header, error_msg, advice, width=80):
     line = ("-" * width) + '\n'
     msg = (
         f"The input basecaller configuration '{args.basecaller_cfg}' does not "
-        "have a suitable Clair3 model "
+        f"have a suitable {args.clair_tool} model "
     )
     sys.stderr.write(line)
     sys.stderr.write(f"[CRITICAL ERROR] {header}\n\n")
@@ -42,12 +44,14 @@ def exit_obvious_error(header, error_msg, advice, width=80):
 with open(args.model_tsv) as tsv:
     for row in csv.DictReader(tsv, delimiter='\t'):
         if row["basecall_model_name"] == args.basecaller_cfg:
-            model = row["clair3_model_name"]
-            reason = row["clair3_nomodel_reason"]
+            model = row[f"{args.clair_tool.lower()}_model_name"]
+            if args.liquid_tumor and row["liquid_model_name_override"] != "-":
+                model = row["liquid_model_name_override"]
+            reason = row[f"{args.clair_tool.lower()}_nomodel_reason"]
             if model == "-" or model == "":
                 # Basecalling model valid but no Clair3 model
                 exit_obvious_error(
-                    header="No appropriate Clair3 model.",
+                    header=f"No appropriate {args.clair_tool} model.",
                     error_msg=f"because {reason}.",
                     advice=(
                         "It is not possible to run the SNP subworkflow "
@@ -67,6 +71,6 @@ with open(args.model_tsv) as tsv:
                 "because the basecaller configuration has not been recognised."
             ),
             advice=(
-                "Check your --basecaller_cfg has been provided correctly. "
+                "Check your --override_basecaller_cfg has been provided correctly. "
             ),
         )

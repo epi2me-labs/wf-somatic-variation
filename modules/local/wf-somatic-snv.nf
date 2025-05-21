@@ -122,12 +122,15 @@ process lookup_clair3_model {
     input:
         path("lookup_table")
         val basecall_model
+        val clair_tool
+        val liquid_tumor
     output:
         stdout
-    shell:
-    '''
-    resolve_clair3_model.py lookup_table '!{basecall_model}' 
-    '''
+    script:
+    def liq_tumor_arg = liquid_tumor ? "--liquid_tumor" : ""
+    """
+    resolve_clair3_model.py lookup_table ${basecall_model} ${clair_tool} ${liq_tumor_arg}
+    """
 }
 
 

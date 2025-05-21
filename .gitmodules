@@ -1,5 +1,4 @@
 [submodule "wf-human-variation"]
 	path = wf-human-variation
 	url = https://github.com/epi2me-labs/wf-human-variation.git
-	branch = prerelease
 
