@@ -79,8 +79,8 @@ workflow somatic_sv {
 
         // annotation bed files, always staged but only used if tumor only is true
         def seg_dup_annotation_files = channel.of([ 
-                file("${workflow.projectDir}/data/wf_str_repeats.bed.gz"), 
-                file("${workflow.projectDir}/data/wf_str_repeats.bed.gz.tbi") 
+                file("${workflow.projectDir}/data/hg38.segdups.bed.gz"),
+                file("${workflow.projectDir}/data/hg38.segdups.bed.gz.tbi") 
         ])                
 
         // Sort and filter output
