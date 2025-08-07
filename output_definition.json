@@ -179,7 +179,7 @@
     "haplotagged-alignment-normal": {
       "filepath": "{{ alias }}_normal.ht.bam",
       "title": "Haplotagged alignment file (normal)",
-      "description": "BAM or CRAM file with the haplotagged reads for the normal sample.",
+      "description": "BAM or CRAM file with the haplotagged reads for the normal sample. Only produced when the `--phase_normal` option is selected.",
       "mime-type": "application/gzip",
       "optional": true,
       "type": "per-sample"
@@ -187,7 +187,7 @@
     "haplotagged-alignment-index-normal": {
       "filepath": "{{ alias }}_normal.ht.bam.bai",
       "title": "Haplotagged alignment file index (normal)",
-      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample.",
+      "description": "The index of the resulting BAM or CRAM file with the haplotagged reads for the normal sample. Only produced when the `--phase_normal` option is selected.",
       "mime-type": "application/octet-stream",
       "optional": true,
       "type": "per-sample"
