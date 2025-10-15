@@ -1,4 +1,4 @@
-# Somatic variation workflow
+# Somatic Variation
 
 Human (somatic) SNV, SV, and modified base calling.
 
