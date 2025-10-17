@@ -4,13 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.5.1]
+This patch release of wf-somatic-variation updates the wf-human-variation submodule as well as some minor changes to the documentation. These changes do not affect any workflow outputs.
 ### Changed
 - Updated to wf-template v5.6.2 to maintain compliance with our latest wf-template standard: this does not impact the workflow.
 - Updated the wf-human-variation submodule to v2.7.2. This does not impact the workflow.
 - Updated `README.md` to clarify outputs produced with the `phase_normal` option.
 ### Fixed
 - `store_dir` parameter format incorrectly declared in the schema. This does not affect this workflow as it does not use the storeDir directive and has been changed to maintain compliance with our latest testing standard.
+### Removed
+- Parameter validation in `main.nf`. Parameter validation is already done in the schema so this change has no impact on the workflow.
 
 ## [v1.5.0]
 This version of wf-somatic-variation updates Severus to allow for tumor-only structural variant calling.
