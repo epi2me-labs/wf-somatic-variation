@@ -60,26 +60,21 @@ workflow {
 
     Map colors = NfcoreTemplate.logColours(params.monochrome_logs)
 
-    if (workflow.profile.contains("conda")) {
-        throw new Exception(colors.red + "Sorry, wf-human-variation is not compatible with --profile conda, please use --profile standard (Docker) or --profile singularity." + colors.reset)
-    }
-
-    def run_tumor_only = !params.bam_normal 
+    def run_tumor_only = !params.bam_normal
     can_start = true
-    if (!params.snv && !params.sv && !params.mod) {
-        log.error (colors.red + "No work to be done! Choose one or more workflows to run from [--snv, --sv, --mod]" + colors.reset)
-        can_start = false
-    }
+    // Check that bam_tumor and bam_normal files exist
+    // because the check in ingress sometimes doesn't
+    // show the error
     if (!file(params.bam_tumor).exists()) {
-        log.error (colors.red + "The workflow cannot run without passing a valid bam tumor file" + colors.reset)
+        log.error (colors.red + "Input path ${params.bam_tumor} does not exist" + colors.reset)
+        can_start = false
+    }    
+    if (params.bam_normal && !file(params.bam_normal).exists()){
+        log.error (colors.red + "Input path ${params.bam_normal} does not exist" + colors.reset)
         can_start = false
     }
     if (run_tumor_only && params.snv && params.liquid_tumor) {
         log.warn "The SNV tumor-only mode currently has no specific presets for liquid tumors."
-    }
-    if (params.bam_normal && !file(params.bam_normal).exists()){
-        log.error (colors.red + "The workflow cannot run without passing a valid bam normal file" + colors.reset)
-        can_start = false
     }
     if (!params.germline) {
         log.warn ("The workflow is running in somatic-only mode, germline calling will be skipped")
